@@ -58,8 +58,9 @@ fallen.“** Kein Kampf, keine Waffen.
 Erster Park: fiktiver **„Waldseilpark Sonnwendberg“** – Südhang über einer Stadt mit Skyline im Dunst,
 Buchen/Eichen mit Kiefern, trockener Waldboden, Hütte, Übungsparcours am Eingang, 2 Wichtelparcours,
 5 blaue (3,5–7 m), 6 rote (3,5–10 m), 4 schwarze Parcours (bis 20 m), ~150 Übungen, jeder Parcours endet
-mit einem Flying Fox, der längste 150 m aus 20 m Richtung Stadt. Parcours heißen „Farbe + Nummer · Name“
-(z. B. „Blau 2 · Fuchspfad“, „Rot 3 · Grat“). Kahlenberg-Situation ohne Marke.
+mit einem Flying Fox, der längste 150 m aus 20 m Richtung Stadt. Parcours heißen „Farbe + römische
+Ziffer · Name“ (z. B. „Blau II · Fuchspfad“, „Rot III · Grat“ – der echte Park nummeriert
+Blau I–VII, Rot I–VI, Schwarz I–IV). Kahlenberg-Situation ohne Marke.
 
 **Nicht-Ziele:** siehe `ROADMAP.md`.
 
@@ -171,12 +172,22 @@ Zahlen aus `docs/RESEARCH-DATA.md`; Prüfliste für alles Sichtbare und Spürbar
 - **Terrain/Boden:** geschichtetes kohärentes Rauschen mit erosionsartiger Formung (kein weißes
   Rauschen), Hang mit flacheren Hubs und steileren Rändern, Wege, Laubstreu, Wurzeln, Steine,
   Grasbüschel, Materialvariation, Kollisionsnetz.
-- **Bäume:** Buchen/Eichen mit Kiefern, Stamm 0,4–0,9 m, 18–30 m hoch, Verjüngung, Rindenvariation mit
-  Normal-Map, Astverteilung, Kronenvarianten, zufällige Ausrichtung, Dichtekarte, Ausschlusszonen um
-  Wege/Podeste, „Hero-Bäume“ höherer Qualität für Parcours, LOD/Instancing für den Hintergrund.
-- **Podeste:** Holzringe/Achtecke 2,0–2,6 m, Planken 20–25 cm, radiale Träger, Rahmen, sichtbare
+- **Bäume:** **Schwarzkiefern als Podest-Träger** (gerade, hoch, rotbraune Plattenborke) mit
+  Laub-Unterwuchs aus Ahorn/Hasel/Hainbuche, dazu Buchen/Eichen; Stamm 0,4–0,9 m, 18–30 m hoch,
+  Verjüngung, Rindenvariation mit Normal-Map, Astverteilung, Kronenvarianten, zufällige Ausrichtung,
+  Dichtekarte, Ausschlusszonen um Wege/Podeste, „Hero-Bäume“ höherer Qualität für Parcours,
+  Markierungsbänder/Plaketten an Parcours-Bäumen, LOD/Instancing für den Hintergrund.
+- **Podeste:** Planken (20–25 cm) auf **Rundholz-Rahmen bzw. -Kranz** um den Stamm, 2,0–2,6 m, ohne
+  Geländer; niedrige Einstiegspodeste mit schrägen Rundholz-Stützen zum Boden; sichtbare
   Klemmbefestigung (Klötze/Spindeln, Schutzmanschetten, **keine Schrauben im Stamm**), Beschläge und
   Seilanker mit echter Materialstärke, Kantenverschleiß; Höhen nach Farbe; Kapazität 3; Schilder.
+  Vorbild: `docs/reference/photos/README.md`.
+- **Einstiege:** Holz-Blockleitern (Brett am Stamm, versetzte Klötze als Tritte), geneigte
+  Einstiegswände, Stahlsprossen; am Boden ein Einstiegsdeck (~40 cm) mit Bank, an dem man einhängt.
+- **Beschilderung/Parkplan:** pfeilförmige weiße Wegweiser mit farbigem Rand, Farbname in Versalien,
+  römische Ziffern in weißen Kreisen (Spiel ergänzt Formen ● ■ ◆); Parkplan als gedruckte grüne Karte
+  auf Holzpfosten mit farbigen Parcours-Schleifen und Ziffern; Piktogramm-Schilder am Stamm; Erdanker
+  mit Spannschloss, Hilfsseile, gebrandete Tonnen als Glaubwürdigkeitsdetails.
 - **Seile:** 12-mm-Stahl mit Katenarien-Durchhang und spannungskonsistentem Verlauf, Pressklemmen,
   Baumschutz; Tragseil und Sicherungsseil getrennt, Sicherungsseil 1,7–2,3 m über der Trittebene,
   sichtbare Zylindergeometrie im Nahbereich; metallischer Glanz.

@@ -8,12 +8,27 @@ Satz dazu in `docs/DECISIONS.md`.
 ## 1 · Vorbildpark: Waldseilpark Kahlenberg (Wien) – Zahlen für „Sonnwendberg“
 - Fläche ca. 30 000 m² (3 ha), Parcourslänge 1,8 km (Angaben 2012), Südhang mit Blick auf die Stadt.
 - 17 Parcours in 3 Levels + 2 Wichtelparcours (35 cm hoch, ohne Sicherung, für Kleinkinder).
-  Level-Aufschlüsselung: **Blau 5 Parcours 3,5–7 m ab 110 cm · Rot 6 Parcours 3,5–10 m ab 130 cm ·
-  Schwarz 4 Parcours bis 20 m ab 150 cm.** 150–180 Übungen. Parcours heißen nur „Farbe + Nummer“.
+  Level-Aufschlüsselung der Tourismusportale: **Blau 5 Parcours 3,5–7 m ab 110 cm · Rot 6 Parcours
+  3,5–10 m ab 130 cm · Schwarz 4 Parcours bis 20 m ab 150 cm.** **Parkplan-Tafel vor Ort (Foto Aug
+  2026): Blau I–VII, Rot I–VI, Schwarz I–IV = 17** – die 5/6/4-Zählung ist veraltet oder lässt zwei
+  blaue Einsteiger-/Kinderparcours weg. 150–180 Übungen. Parcours heißen „Farbe + römische Ziffer“
+  (Wegweiser: „BLAU I II III IV“, „ROT IV“, „ROT III V VI“, „SCHWARZ III“); mehrere teilen sich
+  Startbereiche; „Schritt ins Nichts“ ist auf der Tafel als eigener Ort eingezeichnet.
 - Flying Fox am Ende (fast) jedes Parcours; „Mega Flying Fox“ in 20 m Richtung Skyline; ein 150 m
   langer Flying Fox als Finale eines schwarzen Parcours; Testroute „Schritt ins Nichts“ (Freifall-Element).
-- Aufstieg über Stahlleitern/Sprossen auf Holzpodeste; Elemente: Seil-/Hängebrücken, wackelige Netze,
+- Aufstieg über Stahlleitern/Sprossen (Berichte) bzw. **Holz-Blockleitern** (Brett am Stamm mit
+  versetzten Holzklötzen als Tritten) und geneigte Einstiegswände (Fotos) auf Holzpodeste; am Boden
+  **Einstiegsdecks (~40 cm) mit Bank** zum Einhängen. Elemente: Seil-/Hängebrücken, wackelige Netze,
   schwebende Röhren, wackelige Balken, an Seilen hängende Planken.
+- **Bauweise vor Ort (Fotos):** Podeste = Planken auf **Rundholz-Rahmen/Kranz** um den Stamm, ohne
+  Geländer; niedrige Podeste zusätzlich mit schrägen Rundholz-Stützen zum Boden; Träger überwiegend
+  **Schwarzkiefern** (gerade, hoch, rotbraune Plattenborke), Unterwuchs Ahorn/Hasel/Hainbuche;
+  Markierungsbänder (orange) und Plaketten an Parcours-Bäumen; Erdanker mit Spannschloss für
+  Abspannungen/Bahnenden; dünne Hilfsseile; Piktogramm-Schilder am Stamm; gebrandete Tonnen.
+- **Beschilderung/Parkplan (Fotos):** pfeilförmige weiße Wegweiser mit farbigem Rand, Farbname in
+  Versalien, römische Ziffern in weißen Kreisen; Parkplan als gedruckte grüne Karte auf Holzpfosten
+  (Straßen grau gestrichelt, Wege weiß, „P“-Kreise, POI-Icons, Parcours als farbige Schleifen mit
+  Ziffern, Logo „Erlebniswelt Kahlenberg“). Details: `docs/reference/photos/README.md`.
 - Sicherung: Edelrid Smart Belay – zwei kommunizierende **Rollenkarabiner** (Bowdenzug-Kopplung, ein
   Karabiner offen → der andere gesperrt), Y-Verbindungsmittel mit Bandfalldämpfer, integrierte Rollen
   fahren direkt auf dem Flying-Fox-Seil; Komplettgurt, Helm; Handschuhe leihbar.

@@ -177,8 +177,9 @@ Gesundheit; dünne/kranke tragen kein Podest; Bäume wachsen → Klemmung nachju
   eigene Route begangen hat.
 
 ## 5 · UI und Screens
-Sprache der Parkbeschilderung: Holzbretter, laminierte Sicherheitsblätter, gestanzte Farbplaketten,
-kondensierte Schrift. HUD diegetisch und leise; Farbe trägt immer eine Form (● ■ ◆).
+Sprache der Parkbeschilderung: pfeilförmige weiße Wegweiser mit farbigem Rand und römischen Ziffern in
+Kreisen („BLAU I II III IV“), gedruckte grüne Parkplan-Tafel auf Holzpfosten, laminierte
+Sicherheitsblätter, kondensierte Schrift. HUD diegetisch und leise; Farbe trägt immer eine Form (● ■ ◆).
 
 **Screens:** Titel (Podest im Morgenlicht, „Ticket lösen“) · Kassa (Ticketart, Größenklasse, Modus,
 Uhrzeit – ein Blatt Papier) · Einschulung (Trainer-Dialog mit echtem Inhalt, dann Übungsparcours 1 m) ·
@@ -197,7 +198,8 @@ Builder (Werkzeugleiste, Overlays, Inspektor, Kalender, Kasse).
 Karabiner-Widget links (eingehängt/offen/verriegelt), Kraft-Ring, Herzschlag statt Balken; rechts
 Ticket-Uhr und Parcours-Chip; unten Kontext-Prompt und Vorschau. Rote Vignette = Nerven, kein Schaden.
 
-**Parkplan:** Holztafel, Karte links (farbige Linien, ⏱-Marken, Pin), rechts Karten je Parcours
+**Parkplan:** Tafel im Stil des echten Parkplans (grüne Karte auf Pfosten, Wege weiß, Parcours als
+farbige Schleifen mit Ziffern), Karte links (farbige Linien, ⏱-Marken, Pin), rechts Karten je Parcours
 (Farbe/Form, Höhe, Übungen, Elemente, Flying Fox, Wartezeit, Freigabe/„gesperrt bis Rot geschafft“) und
 Stempelkarte (Blau 1 ✓ sauber · Rot 1 ✓ (1 Sturz) · Ticket 2 h 41 · letzter Einlass 16:00).
 
@@ -223,7 +225,11 @@ ist, ist nichts mehr hoch.
 
 **Bild.** Stilisiert, nicht cartoonig: Low-Poly-Kronen mit gemalten Blattmassen und Wind, ehrliches
 Material im Nahbereich (verzinkter Stahl mit Glanz, Pressklemmen, Holzbohlen mit Maserung, Seil,
-Klemmklötze am Stamm – keine Schrauben). Licht: Spätsommer, tief, lange Schatten; Nacht mit
+Klemmklötze am Stamm – keine Schrauben). Vor-Ort-Referenz (`docs/reference/photos/README.md`):
+Schwarzkiefern als Podest-Träger mit Laub-Unterwuchs, Podeste als Planken auf Rundholz-Kranz ohne
+Geländer, niedrige Einstiegspodeste mit schrägen Stützen, Einstiegsdeck mit Bank, Holz-Blockleitern,
+geneigte Einstiegswände, orangefarbene Markierungsbänder an Parcours-Bäumen, Erdanker mit Spannschloss,
+Piktogramm-Schilder, gebrandete Tonnen. Licht: Spätsommer, tief, lange Schatten; Nacht mit
 Stirnlampen-Kegeln und Lampions. UI-Farben aus der Parkbeschilderung, sonst aus dem Wald.
 
 **Ton.** Vollständig synthetisch: zwei Karabiner-Klicks (öffnen hell, verriegeln satt), Trolley-Sirren

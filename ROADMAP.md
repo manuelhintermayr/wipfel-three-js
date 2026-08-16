@@ -29,10 +29,11 @@ Generierung für dekoratives UI opfern.
       Ego-Umschaltung, prozedurale Figur mit Gurt/Helm und Posen-Blending (Zustände: idle, walk, run,
       crouch, ladder, balance, grab, hang, pull-up, jump, land, harness-fall, recover, zipline, net),
       Gamepad + Tastatur/Maus laut GDD-Tabelle.
-- [ ] **M0.4 Podest + Leiter + Umhängen** – Stahlleiter als Schiene, Podest (Klemmen, Planken,
-      Anker, Kapazität 3) mit Collider, Sicherungsseil um den Stamm, Karabiner-Zustandsautomat
-      (Zwei-Klick-Ritual, Reihenfolge erzwungen), HUD-Karabiner-Widget, zwei Klick-Sounds,
-      Kontext-Prompt.
+- [ ] **M0.4 Podest + Leiter + Umhängen** – Einstiegsdeck (~40 cm, Bank) mit Einhängepunkt,
+      Holz-Blockleiter als Schiene (Brett am Stamm, versetzte Klötze), Podest (Planken auf
+      Rundholz-Kranz, Klemmen, Anker, Kapazität 3) mit Collider, Sicherungsseil um den Stamm,
+      Karabiner-Zustandsautomat (Zwei-Klick-Ritual, Reihenfolge erzwungen), HUD-Karabiner-Widget,
+      zwei Klick-Sounds, Kontext-Prompt. Vorbild: `docs/reference/photos/README.md`.
 - [ ] **M0.5 Erste Übungen auf Schienen** – gemeinsames Interface (`build`, `createPhysics`, `update`,
       `dispose`, `getEntryAnchor`, `getExitAnchor`, `getDifficultyMetrics`), Burma-Brücke, hängende
       Planken, Netz; Wackelmodell, Balance-Pendel, Kraft, Nerven (Herzschlag, Kamera-Atmen,
@@ -59,12 +60,15 @@ fahren, landen · Parcours abgeschlossen mit Rückmeldung (Stempel) · 60 fps ·
       Baumdurchdringung, Begehbarkeit, Kontinuität, Landezonen, Zip-Gefälle 3–6 %, Podest-Zugang);
       Unit-Tests: Graph-Konnektivität, Generator-Validität, Schwierigkeitsmetadaten.
 - [ ] **M1.2 Sechs Parcours** – 2 blau, 2 rot, 2 schwarz + Übungsparcours; Namen zusätzlich zu Farbe +
-      Nummer (z. B. „Rot 3 · Grat“); Podest-Typen (Übergang, Standard, Kreuzung, Start, Zip-Ankunft,
-      Rast, Hub); Schilder an Kreuzungen (← Blau 2 · ↑ Rot 4 · → Schwarz 3, Form + Farbe).
+      römischer Ziffer (z. B. „Rot III · Grat“); Podest-Typen (Übergang, Standard, Kreuzung, Start,
+      Zip-Ankunft, Rast, Hub); Wegweiser wie im echten Park: pfeilförmige weiße Tafeln mit Farbrand,
+      Farbname in Versalien, Ziffern in Kreisen (+ Formen ● ■ ◆) an Startbereichen und Kreuzungen.
 - [ ] **M1.3 Kassa + Einschulung** – Ticketart, Größenklasse, Modus; Trainer-Dialog mit echtem Inhalt;
       Übungsparcours in 1 m Höhe als Freigabe.
-- [ ] **M1.4 Parkplan** – Holztafel aus dem Graphen, Zoom/Pan, farbige Linien + Formen, Wartezeiten,
-      Position, entdeckte Abschnitte, Karten je Parcours, Stempelkarte.
+- [ ] **M1.4 Parkplan** – Tafel aus dem Graphen im Stil der echten Parkplan-Tafel (gedruckte grüne
+      Karte auf Holzpfosten: Wege weiß, Parcours als farbige Schleifen mit römischen Ziffern, POI-Icons),
+      Zoom/Pan, Formen zusätzlich zur Farbe, Wartezeiten, Position, entdeckte Abschnitte, Karten je
+      Parcours, Stempelkarte.
 - [ ] **M1.5 Ticket-Uhr + Freigaben + Stempelkarte** – 4 h = 40 min, letzter Einlass, Verlängerung,
       Farbfreigaben, Run-Ende mit Rückmeldung.
 - [ ] **M1.6 NPC-Gäste** – Agenten auf dem Graphen mit Podest-/Übungsregeln → Warteschlangen; Zusehen
