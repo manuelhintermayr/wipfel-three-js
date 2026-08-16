@@ -1,0 +1,16 @@
+# dependencies (none at runtime; tests may install playwright-core locally)
+node_modules/
+
+# tool output
+.playwright-mcp/
+tests/out/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# editor
+.vscode/
+.idea/

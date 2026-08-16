@@ -1,0 +1,12 @@
+{
+  "name": "wipfel",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Kletterwald game – static site (Three.js + Rapier), no build step. package.json exists only so `node --check` parses ES modules; there are no runtime dependencies.",
+  "type": "module",
+  "scripts": {
+    "serve": "python serve.py",
+    "check": "node tools/check-all.mjs",
+    "smoke": "node tests/smoke.mjs"
+  }
+}

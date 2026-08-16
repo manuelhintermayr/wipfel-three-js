@@ -1,0 +1,507 @@
+<title>Von Baum zu Baum</title>
+<style>
+  :root {
+    --paper: #F3F5F0;
+    --card: #FBFCFA;
+    --ink: #1C241E;
+    --muted: #5B685E;
+    --line: #D3DACF;
+    --accent: #2E6A4E;
+    --accent-soft: #E3EEE6;
+    --blau: #2B67C9;
+    --rot: #C23A2F;
+    --schwarz: #1F1F1F;
+    --schwarz-text: #FFFFFF;
+    --wichtel: #C98A12;
+    --font-display: "Bahnschrift", "Avenir Next Condensed", "Roboto Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+    --font-body: "Charter", "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, "Times New Roman", serif;
+    --font-ui: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #121814;
+      --card: #1A211C;
+      --ink: #E4E9E2;
+      --muted: #98A59B;
+      --line: #2B352E;
+      --accent: #79B893;
+      --accent-soft: #1F3328;
+      --blau: #5B93EE;
+      --rot: #E4675C;
+      --schwarz: #E9E9E9;
+      --schwarz-text: #151515;
+      --wichtel: #E0A93A;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #121814;
+    --card: #1A211C;
+    --ink: #E4E9E2;
+    --muted: #98A59B;
+    --line: #2B352E;
+    --accent: #79B893;
+    --accent-soft: #1F3328;
+    --blau: #5B93EE;
+    --rot: #E4675C;
+    --schwarz: #E9E9E9;
+    --schwarz-text: #151515;
+    --wichtel: #E0A93A;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 1.04rem;
+    line-height: 1.6;
+    margin: 0;
+  }
+  .page {
+    max-width: 76ch;
+    margin: 0 auto;
+    padding: 3rem 1.25rem 5rem;
+  }
+  .eyebrow {
+    font: 600 0.74rem/1.4 var(--font-ui);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 0.6rem;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2.4rem, 6vw, 3.6rem);
+    line-height: 1.02;
+    letter-spacing: -0.01em;
+    margin: 0 0 0.75rem;
+    text-wrap: balance;
+  }
+  .sub {
+    font-family: var(--font-body);
+    font-size: 1.2rem;
+    line-height: 1.45;
+    color: var(--muted);
+    margin: 0 0 1.5rem;
+    text-wrap: balance;
+  }
+  .meta {
+    font: 0.82rem/1.5 var(--font-ui);
+    color: var(--muted);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 0.6rem 0;
+    margin: 0 0 2.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.5rem;
+  }
+  h2 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.85rem;
+    line-height: 1.1;
+    margin: 3.2rem 0 0.9rem;
+    text-wrap: balance;
+  }
+  h2 + .eyebrow-q { margin-top: -0.5rem; }
+  .eyebrow-q {
+    font: 500 0.82rem/1.5 var(--font-ui);
+    color: var(--muted);
+    margin: 0 0 1.1rem;
+  }
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.28rem;
+    line-height: 1.2;
+    margin: 2rem 0 0.5rem;
+    text-wrap: balance;
+  }
+  p { margin: 0 0 1rem; }
+  ul, ol { margin: 0 0 1rem 1.2rem; padding: 0; }
+  li { margin: 0 0 0.35rem; }
+  strong { font-weight: 700; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .lede { font-size: 1.14rem; line-height: 1.55; }
+
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 0.75rem 1.5rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    padding: 1.1rem 1.25rem;
+    margin: 1.5rem 0 2rem;
+    font-family: var(--font-ui);
+    font-size: 0.92rem;
+  }
+  .facts div { display: grid; gap: 0.15rem; }
+  .facts dt {
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .facts dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+  .tbl { overflow-x: auto; margin: 1rem 0 1.5rem; border: 1px solid var(--line); background: var(--card); }
+  table { border-collapse: collapse; width: 100%; font-family: var(--font-ui); font-size: 0.9rem; line-height: 1.4; }
+  th, td { text-align: left; vertical-align: top; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--line); }
+  th {
+    font-size: 0.7rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    background: var(--paper);
+    white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: none; }
+  td { font-variant-numeric: tabular-nums; }
+  td.k { font-weight: 600; white-space: nowrap; }
+
+  .chip {
+    display: inline-block;
+    padding: 0.08em 0.55em;
+    border-radius: 2px;
+    font: 600 0.72rem/1.6 var(--font-ui);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .chip.blau { background: var(--blau); color: #fff; }
+  .chip.rot { background: var(--rot); color: #fff; }
+  .chip.schwarz { background: var(--schwarz); color: var(--schwarz-text); }
+  .chip.wichtel { background: var(--wichtel); color: #1a1a1a; }
+
+  .note {
+    border: 1px solid var(--line);
+    background: var(--accent-soft);
+    padding: 0.9rem 1.1rem;
+    margin: 1.25rem 0 1.5rem;
+    font-size: 0.96rem;
+  }
+  .note .label {
+    display: block;
+    font: 600 0.7rem/1.4 var(--font-ui);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.35rem;
+  }
+  .note p:last-child { margin-bottom: 0; }
+
+  pre.mermaid {
+    background: var(--card);
+    border: 1px solid var(--line);
+    padding: 1rem;
+    overflow-x: auto;
+    margin: 1rem 0 1.5rem;
+  }
+  .sources { font-family: var(--font-ui); font-size: 0.84rem; line-height: 1.5; color: var(--muted); }
+  .sources h3 { font-size: 1.05rem; margin-top: 1.4rem; }
+  .sources ul { margin-left: 1rem; }
+  .sources li { margin-bottom: 0.2rem; overflow-wrap: anywhere; }
+  .sources a { color: var(--accent); }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 3rem 0; }
+</style>
+
+<div class="page">
+  <p class="eyebrow">Recherche &amp; Konzeptanalyse</p>
+  <h1>Von Baum zu Baum</h1>
+  <p class="sub">Wie Hochseilkletterparks funktionieren – analysiert am Waldseilpark Kahlenberg in Wien, mit Bau- und Betriebskonzept, Sicherungstechnik, Flying-Fox-Physik und einem Vergleich mit Parks in Wien, Österreich, der Schweiz und Deutschland.</p>
+  <div class="meta">
+    <span>Stand: 16. August 2026 (2. Fassung, ergänzt um Abschnitt 6)</span>
+    <span>Quellen: offizielle Parkwebsites, Normen-Auszüge, Hersteller, ERCA/IAPA, Presse</span>
+    <span>Nicht Belegbares ist ausdrücklich als „nicht gefunden“ markiert</span>
+  </div>
+
+  <p class="lede">Ein Kletterwald ist ein Selbstsicherungs-Parcours zwischen lebenden Bäumen: Man klettert über Stahlleitern auf Holzplattformen, überquert von Plattform zu Plattform hängende „Übungen“ (Brücken, Netze, Balken, Röhren), ist dabei mit zwei Karabinern in ein parallel laufendes Stahl-Sicherungsseil eingehängt und fährt am Ende meist mit einer Seilrutsche – dem Flying Fox – zurück auf den Boden. Der Kahlenberg-Park ist ein typischer Vertreter der zweiten Sicherungsgeneration: kommunizierende Karabiner (Edelrid Smart Belay), die ein gleichzeitiges Aushängen beider Karabiner mechanisch verhindern.</p>
+
+  <h2>Das Wichtigste in Kürze</h2>
+  <p>Der <strong>Waldseilpark Kahlenberg</strong> (Josefsdorf 47, 1190 Wien) besteht seit Juli 2012, wird von der Hoch 4 Erlebniswelt Leopoldsberg Betriebs GmbH unter der Dachmarke „Erlebniswelt Kahlenberg“ betrieben und nennt sich „größter Erlebnis-Waldseilpark Ost-Österreichs“. Er bietet <strong>17 Parcours in drei Levels</strong> (blau/rot/schwarz) plus zwei kostenlose Wichtelparcours für Kleinkinder, rund 150–180 Übungen, Kletterhöhen bis 20 m und Flying Foxes als Abschluss vieler Parcours. Zugelassen ist, wer mindestens 110 cm groß und höchstens 120 kg schwer ist; die Levels sind an die Körpergröße gekoppelt (110 / 130 / 150 cm). Gesichert wird ausschließlich mit dem <strong>Smart Belay System</strong> (zwei kommunizierende Rollenkarabiner); der Park ist ERCA-zertifiziert und ein „Selbstsicherungspark“: Nach einem verpflichtenden Sicherheitskurs mit Theorie und Praxis klettert man 4 Stunden lang eigenständig, Personal beaufsichtigt vom Boden.</p>
+
+  <dl class="facts">
+    <div><dt>Ort</dt><dd>Josefsdorf 47, 1190 Wien · Bus 38A „Elisabethwiese“</dd></div>
+    <div><dt>Seit</dt><dd>5. Juli 2012 (Pre-Opening 29. Juni 2012)</dd></div>
+    <div><dt>Betreiber</dt><dd>Hoch 4 Erlebniswelt Leopoldsberg Betriebs GmbH</dd></div>
+    <div><dt>Fläche / Länge</dt><dd>ca. 30 000 m² · 1,8 km Parcours (Angaben 2012)</dd></div>
+    <div><dt>Parcours</dt><dd>17 in 3 Levels + 2 Wichtelparcours</dd></div>
+    <div><dt>Übungen</dt><dd>150 (Tourismusportale) bis 180 (kletterpark.guide)</dd></div>
+    <div><dt>Höhe</dt><dd>bis 20 m (schwarze Parcours)</dd></div>
+    <div><dt>Sicherung</dt><dd>Edelrid Smart Belay · Komplettgurt · Helm</dd></div>
+    <div><dt>Voraussetzung</dt><dd>ab 110 cm · max. 120 kg · kein Mindestalter</dd></div>
+    <div><dt>Kletterzeit</dt><dd>4 h inkl. Einschulung · +5 € je ½ h</dd></div>
+    <div><dt>Preise 2026</dt><dd>16 / 20 / 29 € (ab 110/130/150 cm) · 37 € Erwachsene</dd></div>
+    <div><dt>Saison 2026</dt><dd>6. März – 26. Oktober</dd></div>
+  </dl>
+
+  <h2>1 · Der Waldseilpark Kahlenberg</h2>
+  <p class="eyebrow-q">Wie funktioniert der? Was für Strecken gibt es? Was für Schwierigkeitsgrade?</p>
+
+  <h3>Lage, Betreiber, Geschichte</h3>
+  <p>Der Park liegt im Biosphärenpark Wienerwald zwischen Kahlenberg und Leopoldsberg, direkt neben der Josefinenhütte, der Elisabethwiese und einem 3D-Bogensportpark. Man erreicht ihn von Heiligenstadt mit dem Bus 38A (Haltestelle „Elisabethwiese“, der Park liegt gegenüber) oder mit dem Auto über die Höhenstraße. Betreiberin ist die 2011 gegründete Hoch 4 Erlebniswelt Leopoldsberg Betriebs GmbH (Geschäftsführung Hannes-Mario Dejaco und Christian Klement); seit 2019 tritt das Ganze als „Erlebniswelt Kahlenberg“ mit Waldseilpark, Bogensport, E-Mountainbike-Center und Josefinenhütte auf. Die Gewerbekonzession lautet auf einen „Waldseilpark mit 20 Parcours“.</p>
+  <p>Eröffnet wurde am 5. Juli 2012 mit 14 Parcours plus 4 Einweisungsparcours, 135 Übungen, 1,8 km Gesamtlänge auf 30 000 m² und bis zu 20 m Höhe. Die Stationen wurden laut Pressemitteilung unter Aufsicht des Forstamts „mit schonender Technik“ ohne Baumschäden befestigt. Es folgten Winteröffnung (2012), Nachtklettern mit Lampions und Stirnlampen (belegt 2014–2018, aktuell nicht mehr auf der Website) und im Mai 2020 eine Neugestaltung mit „15 neu gestalteten Kletterstationen“, neuen Routen und Flying-Fox-Stationen sowie einer Testroute „Schritt ins Nichts“, bei der man „quasi von einer Plattform herunterfällt“ (ein Freifall-Element; ob sie dauerhaft in Betrieb ist, ist unklar). Unfallberichte in Wiener Medien wurden bei der Recherche keine gefunden.</p>
+
+  <h3>Die Parcours: 17 Strecken in drei Levels</h3>
+  <p>Die Parcours tragen keine Namen, sondern werden nach Farbe und Nummer geführt (Besucher sprechen etwa von „Schwarz zwei“). Die Farbe koppelt Höhe, Anspruch und Zulassung, und zwar exakt an die Preisstufen nach Körpergröße:</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Level</th><th>Anzahl</th><th>Höhe</th><th>Mindestgröße</th><th>Betreuung (unter 14 J.)</th><th>Charakter laut Quellen</th></tr></thead>
+    <tbody>
+      <tr><td class="k"><span class="chip wichtel">Wichtel</span></td><td>2</td><td>ca. 35 cm</td><td>keine (Kleinkinder)</td><td>keine Angabe</td><td>kostenlos, ohne Sicherung, mit Tauen; „Kinder-Abenteuerwald“</td></tr>
+      <tr><td class="k"><span class="chip blau">Blau · leicht</span></td><td>5</td><td>3,5–7 m</td><td>ab 110 cm</td><td>1 Kind : 1 Erwachsener</td><td>Einsteiger- und Kinderparcours; Reviews: manche blaue Routen fühlten sich schwerer an als rote</td></tr>
+      <tr><td class="k"><span class="chip rot">Rot · mittel</span></td><td>6</td><td>3,5–10 m</td><td>ab 130 cm</td><td>3 : 1</td><td>anspruchsvollere Übungen, Armkraft nötig</td></tr>
+      <tr><td class="k"><span class="chip schwarz">Schwarz · schwer</span></td><td>4</td><td>bis 20 m</td><td>ab 150 cm</td><td>5 : 1</td><td>Startplattform in 20 m; „von urschwer bis unmöglich“, „Umkehren nicht möglich“; Finale eines schwarzen Parcours: 150 m langer Flying Fox über die Baumwipfel</td></tr>
+    </tbody>
+  </table></div>
+  <p>Die Zählweisen passen nicht ganz zusammen: Die offizielle Seite nennt „17 Parcours in 3 unterschiedlichen Levels“ und separat „2 Wichtelparcours zur freien Nutzung“, die Level-Aufschlüsselung der Tourismusportale ergibt 5 + 6 + 4 = 15 gesicherte Parcours, und nach der Neugestaltung 2020 war von „15 neu gestalteten Kletterstationen“ die Rede – ob die 17 also die Wichtelparcours oder zwei weitere (etwa Einweisungs-)Parcours einschließt, ist offen; ältere Quellen zählten 14 Parcours + 4 Einweisungsparcours („18 Stationen“). Die Übungszahl wird mit 150 (Wien- und Wienerwald-Tourismus) bis 180 (kletterpark.guide) angegeben – die Differenz dürfte an der Zählung der Flying Foxes und Einweisungsstationen liegen.</p>
+
+  <div class="note"><span class="label">Nicht gefunden</span>
+    <p>Eine offizielle Einzelliste der Parcours (Namen, Länge, Übungszahl je Parcours), die Gesamtzahl und die Längen der Flying Foxes sowie die konkrete Elementliste je Parcours veröffentlicht der Park nicht. Die Tabelle beruht auf Tourismusportalen (wienerwald.info, wien.info), Erfahrungsberichten und Presse.</p>
+  </div>
+
+  <h3>So läuft ein Besuch ab</h3>
+  <pre class="mermaid">
+flowchart LR
+  A["Anmeldung an der Kassa<br/>Teilnahmeformular, Einverständnis für Minderjährige"] --> B["Ausrüstung anlegen<br/>Komplettgurt, Helm, Smart-Belay-Karabinerpaar"]
+  B --> C["Sicherheitskurs<br/>Theorie + Praxis, DE/EN, laufend"]
+  C --> D["Übungsparcours in Bodennähe<br/>Umhängen unter Aufsicht"]
+  D --> E["Freies Klettern, 4 h<br/>Level nach Körpergröße wählen"]
+  E --> F["Aufstieg über Stahlleiter<br/>auf die erste Plattform"]
+  F --> G["Übung um Übung<br/>Baum zu Baum, Einbahn"]
+  G --> H["Abstieg meist per Flying Fox<br/>oder Leiter"]
+  H --> E
+  E --> I["Ausrüstung zurück<br/>Josefinenhütte, Aussicht"]
+  </pre>
+  <p>Für Privatpersonen gibt es keine Reservierung; man kommt, füllt das Formular aus, bekommt Gurt, Helm und Karabinerpaar (eigene Ausrüstung ist verboten) und nimmt am „einführenden Sicherheitskurs, bestehend aus einem theoretischen und einem praktischen Teil“ teil. Der praktische Teil ist ein bodennaher Übungsparcours, auf dem man das Umhängen unter den Augen eines Instruktors zeigt. Danach ist man frei: „Der Waldseilpark ist ein Selbstsicherungspark.“ Personal ist am Boden präsent und kontrolliert die Strecken, klettert aber nicht mit; wer Betreuung möchte, bucht einen Guide (75 €/h, eine Woche vorher). Das Ticket gilt für 4 Stunden inklusive Einschulung und Wartezeiten, jede weitere halbe Stunde kostet 5 €, letzter Einlass ist zwei Stunden vor Schließung. Erfahrungsberichte halten drei bis vier Stunden für realistisch, um sich bis zur Erschöpfung durchzuarbeiten; eine Familie schaffte in der Zeit vier von damals 14 Parcours, Sechsergruppen „kamen mit 4 h gut aus“.</p>
+
+  <h3>Von Baum zu Baum: Aufstieg, Übungen, Abstieg</h3>
+  <p>Jeder Parcours beginnt am Boden mit einem Aufstieg – am Kahlenberg über Stahlleitern bzw. Sprossen/Eisenkrampen am Stamm – auf eine Holzplattform (Podest), die klemmend am Baum befestigt ist. Zwischen zwei Plattformen hängt jeweils genau eine „Übung“ an Stahlseilen: Seil- und Hängebrücken, wackelige Netze, schwebende Röhren, wackelige Balken, an Seilen schwebende Planken. Über oder neben jeder Übung läuft das Stahl-Sicherungsseil, in das die beiden Karabiner eingehängt sind; man überquert die Übung, hält sich an Halteseilen oder am eigenen Verbindungsmittel fest, erreicht das nächste Podest, hängt dort die Karabiner nacheinander ins Sicherungsseil der nächsten Übung um und klettert weiter. Es gilt: eine Person pro Übung, höchstens drei pro Podest, immer mindestens ein Karabiner am Seil, Parcours sind Einbahnstraßen – auf den schwarzen Routen ist laut Berichten kein Umkehren möglich. Am Ende geht es per Flying Fox oder Leiter zurück auf den Boden; Start- und Endpunkte liegen oft weit auseinander, weshalb der Park sich weitläufig anfühlt („nie das Gefühl der Überlastung“, so ein Review, trotz voller Wochenenden).</p>
+
+  <h3>Flying Fox am Kahlenberg</h3>
+  <p>Ja, es gibt Flying Foxes – und zwar viele. Der Park erklärt sie in seinen FAQ so: „Darunter versteht man eine sogenannte Seilrutsche. Mittels Seilrollen wird beim Flying Fox auf einem Stahlseil hängend bergab gerutscht – ein Gefühl, als würdest du fliegen!“ Nach mehreren Berichten steht „am Ende jedes Parcours“ eine Seilrutsche als Belohnung, teils auch am Anfang oder in der Mitte. Zur Eröffnung 2012 warb der Park mit einer „Mega Flying Fox“ in 20 m Höhe Richtung Wiener Skyline, ein Bericht von 2014 beschreibt einen 150 m langen Flying Fox als Finale eines schwarzen Parcours über die Baumwipfel, und 2020 kamen neue Flying-Fox-Stationen hinzu. Gefahren wird sitzend im Gurt; man darf nur einzeln und bei freier Landezone starten. Eine Besonderheit ergibt sich aus dem Sicherungssystem: Die Smart-Belay-Karabiner sind „Rollenkarabiner“ mit integrierten Stahlrollen, mit denen man laut Hersteller direkt auf dem Stahlseil abfährt – eine separate Seilrolle ist bei diesem System nicht nötig (ob der Park zusätzlich Rollen ausgibt: nicht gefunden).</p>
+
+  <h3>Sicherung: Smart Belay</h3>
+  <p>Der Park verwendet „ausschließlich das Smart Belay System“, das er als „ein System von zwei miteinander kommunizierenden Rollenkarabinern“ beschreibt: „Ein versehentliches Komplettaushängen ist bei ordnungsgemäßem Gebrauch praktisch nicht möglich.“ Das ist das Edelrid Smart Belay, ein Y-förmiges Verbindungsmittel mit integriertem Bandfalldämpfer, dessen zwei Karabiner über einen Bowdenzug mechanisch gekoppelt sind: Solange einer geöffnet ist, bleibt der andere verriegelt; erst wenn der erste eingehängt und verriegelt ist, lässt sich der zweite öffnen. Der klassische Kletterwald-Unfall – beide Karabiner gleichzeitig ausgehängt – wird damit konstruktiv unterbunden, das Umhängen bleibt aber eine bewusste Handlung an jeder Plattform (Umhängen – Verriegeln – Umhängen). Dazu kommt ein Komplettgurt (Hüft-, Bauch- und Brustgurt) und ein Helm; Handschuhe sind auf der offiziellen Seite nicht erwähnt, laut Reviews aber gegen kleine Gebühr leihbar. Der Park hält ein ERCA-Zertifikat (European Ropes Course Association), das „strengste Qualitäts- und Sicherheitsstandards, regelmäßige Inspektionen und ausschließliche Beschäftigung offiziell geprüfter Betreuer“ verlangt.</p>
+
+  <h3>Regeln, Preise, Saison</h3>
+  <p>Es gibt kein Mindestalter, aber eine Mindestgröße von 110 cm (empfohlen ab sechs Jahren) und ein Höchstgewicht von 120 kg. Kinder unter 14 klettern nur „in aktiver (kletternder) Begleitung eines Erwachsenen“ im Verhältnis 1:1 (110–130 cm, nur leichte Parcours), 3:1 (130–150 cm, leichte und mittlere) bzw. 5:1 (ab 150 cm, alle Parcours); 14- und 15-Jährige dürfen mit schriftlicher Einverständniserklärung allein klettern. Pflicht sind feste, geschlossene Schuhe; lange Haare werden zusammengebunden; Schmuck, Handys, Kameras und Taschen bleiben unten. Bei leichtem Regen oder Wind wird geklettert, bei Gewitter, Sturm oder starkem Dauerregen geschlossen; die Parkordnung behält sich Betriebseinstellungen „aus Sicherheitsgründen (Feuer, Sturm, Schlechtwetter etc.)“ ohne Rückerstattung vor. Die Preise 2026: 16 € (ab 110 cm), 20 € (ab 130 cm), 29 € (ab 150 cm), 37 € für Erwachsene, Saisonpass 399 €, dazu Happy Hour (17–18 Uhr, –25 %), Familientage im Frühjahr und Vorteilsclub-Rabatte; bezahlt wird bar, mit Bankomat- oder Kreditkarte. Die Saison 2026 läuft vom 6. März bis 26. Oktober mit monatlich unterschiedlichen Öffnungszeiten (Hochsommer täglich 9–20 Uhr).</p>
+
+  <h3>Was Besucher berichten</h3>
+  <p>Mit rund 4,7 von 5 Sternen bei etwa 2 500 Google-Bewertungen (Wanderlog-Snapshot) und 4,4 bei Tripadvisor ist der Park sehr gut bewertet. Gelobt werden das freundliche, kontrollierende Personal, die Einschulung auf Deutsch und Englisch, die Vielfalt für alle Levels, die Weitläufigkeit, das als sicher empfundene System und die Aussicht auf Wien. Kritisiert werden das 4-Stunden-Limit („angesichts der Schwierigkeit kurz“), kostenpflichtige Handschuhe, volle und heiße Wochenenden, Platzmangel auf manchen Plattformen sowie die Beobachtung, dass einzelne blaue Routen schwerer wirken als rote. Ab Rot ist es körperlich fordernd („Muskelkater garantiert“), Schwarz gilt als kraftraubend.</p>
+
+  <hr>
+
+  <h2>2 · Das Konzept dahinter</h2>
+  <p class="eyebrow-q">Was ist das Konzept? Wie ist so ein Park gebaut, organisiert und geregelt?</p>
+
+  <h3>Begriffe und Herkunft</h3>
+  <p>Die Norm EN 15567 (und das DGUV-Glossar) sprechen von „Seilgärten“: konstruierte Anlagen aus Aktionssystem (Elemente, Plattformen, Zugänge), Tragwerk (Bäume, Masten, Fundamente, Abspannungen) und Sicherungssystem. Bis 1,8 m Tritthöhe spricht man vom Niedrigseilgarten (kollektive Sicherung durch Netze oder Matten), darüber vom Hochseilgarten mit persönlicher Schutzausrüstung. Innerhalb der Hochseilgärten trennt die Fachwelt zwei Welten: den pädagogisch-orientierten <strong>Hochseilgarten</strong> (Teamtraining, Trainer sichern von unten per Toprope, oft auf Masten, kleine Gruppen) und den touristischen <strong>Kletterwald</strong> bzw. Kletterpark, Waldseilpark, Abenteuerpark oder – in der Schweiz – Seilpark: eine Anlage, „die ausschließlich oder zum größten Teil aus Parcours besteht“, mit Selbstsicherung oder durchlaufender Sicherung, nach einer Sicherheitsschulung weitgehend selbstständig begehbar und „vorwiegend kommerziell genutzt“. Der Kahlenberg-Park ist trotz seines Namens ein Kletterwald in diesem Sinn.</p>
+  <p>Historisch führen zwei Linien zusammen: die militärischen Hindernisbahnen und Outward-Bound-Seilgärten (Kurt Hahn ab 1941, ab den 1960ern Standard in US-Outdoorseminaren, Project Adventure 1971) und der französische „parcours acrobatique en hauteur“, für den 1995 der „Aventure Parc“ in Serre Chevalier als Vorreiter gilt – gegründet von einem pensionierten Militär, der den Parcours du combattant fürs Publikum adaptierte. Bis 1998 gab es in Frankreich unter zehn Parks, später rund 500. Deutschlands erster Kletterwald eröffnete 2004 in Pöhl, der Boom lief ab etwa 2006, die Norm EN 15567 kam 2007/08. Heute schätzt die ERCA rund 400–500 Seilgärten in Deutschland und etwa 4 000 in Europa; die Schweiz zählt laut bfu über 50 Seilparks mit mehr als 600 000 Gästen pro Jahr, das Portal kletterpark.guide listet 337 Anlagen im DACH-Raum.</p>
+
+  <h3>Bauweise: lebende Bäume als Tragwerk</h3>
+  <p>Das Bemerkenswerte am Kletterwald ist, dass das Tragwerk lebt. Plattformen und Seilanker werden deshalb nicht angebohrt oder angenagelt, sondern klemmend befestigt: Holzrahmen oder Stahlschellen werden „nach dem Reibungsprinzip an den Baum gepresst“, Baumschutzmäntel aus Holz oder Gummi verhindern, dass Seile die Rinde scheuern; ausgereifte Systeme wie die X-Centric-Plattform arbeiten mit radial verstellbaren Gewindespindeln und einem „Wachstumsdepot“ von bis zu 10 cm Durchmesserzuwachs, das der Betreiber über die Jahre nachjustiert. Die Norm verlangt vor Inbetriebnahme ein Baumgutachten zur Tragfähigkeit; in der Praxis werden die Bäume jährlich nach der Winterpause und zusätzlich nach Stürmen kontrolliert, viele Parks lassen alle 12–18 Monate ein Gutachten erstellen. Geeignet sind dickborkige, abschottungsstarke Arten wie Stiel-Eiche, Linde oder Feld-Ahorn; typische Schäden sind eingewachsene Anker, Rindennekrosen durch Anpressdruck und unterdrücktes Dickenwachstum – weshalb Ankerpunkte nach drei bis vier Jahren versetzt werden.</p>
+  <p>Konstruktiv gilt Redundanz: Jede Übung hängt an einem eigenen Tragseil, darüber verläuft getrennt die „Sicherungsebene“ (Lifeline) aus verzinktem oder rostfreiem Stahlseil, meist 10–13 mm stark, mit Pressklemmen-Endverbindungen und Sicherheitsfaktor 3. Die Anlage muss so ausgelegt sein, dass ein Sturz ins Seil höchstens 6 kN Fangstoß erzeugt; weil ein durchhängendes Stahlseil die Last am Anker rechnerisch etwa verdoppelt bis verzweieinhalbfacht, werden Ankerpunkte für rund 12 kN dimensioniert. Alternativen zum Baum sind Holzmasten (klassische Hochseilgärten) und modulare Stahltürme wie der KristallTurm; die recherchierten Kletterwälder liegen auf 0,5–3 ha Wald (Sögel 0,5 ha, Freischütz 2 ha, Kahlenberg 3 ha) mit Kletterhöhen von 1 m (Kinder) bis 15–20 m.</p>
+
+  <h3>Anatomie eines Parcours</h3>
+  <p>Ein Parcours ist eine Kette hintereinandergeschalteter Elemente von Plattform zu Plattform, in der Regel als Linie vom Boden in die Höhe und wieder zum Boden. Er beginnt mit einem Einstieg (Stahl- oder Strickleiter, Kletternetz, Kletterwand), umfasst je nach Park 6–20 Übungen und endet mit einem Ausstieg: meist einer Seilrutsche, sonst Leiter, Riesenschaukel, „Banana Jump“ oder Freifallgerät. Kletterwälder haben typischerweise 8–20 Parcours; „gute Anlagen“ bieten laut Wikipedia mindestens drei Routen mit je 7–20 Übungen. Der Verkehr ist geregelt wie im Straßenverkehr: Parcours sind Einbahnstraßen, überholt wird nur auf Plattformen, pro Element ist eine Person unterwegs, pro Plattform höchstens drei – dieselben Regeln, die auch der Kahlenberg vorschreibt.</p>
+
+  <h3>Der Elemente-Katalog</h3>
+  <p>Was zwischen den Bäumen hängt, folgt einem überschaubaren Baukasten, den jeder Park variiert und eigenständig benennt:</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Familie</th><th>Typische Elemente</th><th>Was es leicht oder schwer macht</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Seilbrücken</td><td>Zwei-/Dreiseilbrücke, Burma-Brücke (ein Trittseil, zwei Halteseile), Nepal-/Hängebrücke, Seilschlaufen, Steigbügel, Lianengang</td><td>Halteseile ja/nein, Schwingen, Abstand der Tritte</td></tr>
+      <tr><td class="k">Holz &amp; Balken</td><td>Balancier-/Schwebebalken, Wackelbrücke, Trittholz, Fässer, Wippen, Catwalk (fixer Stamm)</td><td>Beweglichkeit der Tritte, Breite, Lücken</td></tr>
+      <tr><td class="k">Netze &amp; Röhren</td><td>Netzbrücke, Netztunnel, Spinnennetz, Kletterwaben, hängende Röhren</td><td>eher „sicher“, aber Kraft und Beweglichkeit</td></tr>
+      <tr><td class="k">Rollend / gleitend</td><td>Skateboard-, Snowboard-, Surfbrett-Brücke auf Stahlseil, „fliegendes Eichhörnchen“</td><td>Balance auf bewegtem Untergrund</td></tr>
+      <tr><td class="k">Hangeln &amp; Kraft</td><td>Hangelleitern, Ringe, Trapezschaukeln, Himmels-/Jakobsleiter, Kletterwand</td><td>Armkraft, Griffweite, Ausgesetztheit</td></tr>
+      <tr><td class="k">Sprung, Schwung, Fahrt</td><td>Tarzansprung ins Netz, Riesenschaukel, Flying Fox/Seilrutsche, Powerfan, QuickJump/„Base Jump“, Banana Jump</td><td>Mut, Landetechnik, Geschwindigkeit</td></tr>
+    </tbody>
+  </table></div>
+  <p>Schwierigkeit entsteht aus Höhe und Ausgesetztheit, aus instabilen oder weit auseinanderliegenden Tritten, fehlenden Halteseilen, Hangelpassagen (Armkraft) und Länge; „Extrem“-Parcours arbeiten zusätzlich mit dünnen Bäumen, kleinen Plattformen, hohen Übergängen und Leitern mit fehlenden Sprossen.</p>
+
+  <h3>Schwierigkeitsgrade und Zulassung</h3>
+  <p>Die Farbcodierung ist an Skipisten angelehnt, aber <strong>nicht normiert</strong> – jeder Park definiert selbst. Verbreitet ist gelb/grün für Kinder und Einsteiger, blau für leicht, rot für mittel, schwarz für schwer, dazu Sonderfarben (violett/lila „Mini“, orange, grau, „super-schwarz“). Die Norm verlangt nur, dass der Grad gekennzeichnet ist. Die Kriterien sind Höhe, Kraftaufwand, Gleichgewicht, Ausgesetztheit und Länge – und weil sich Kraft und Nerven schlecht messen lassen, kommen als Zulassungsschwellen fast überall Körpergröße oder Greifhöhe (110/130/150 cm am Kahlenberg, 115/135/155 cm Greifhöhe im Seilpark Zürich, 160 cm Greifhöhe in vielen deutschen Parks) und Mindestalter je Farbe hinzu; Kinderparcours starten ab drei bis fünf Jahren, Hauptparcours ab etwa acht bis zwölf Jahren mit mitkletterndem Erwachsenen, allein ab 12–16 mit Einverständnis. Das Höchstgewicht von meist 120 kg (manchmal 100–130 kg) folgt aus der Auslegung von Gurt, Verbindungsmittel und Anlage; für Seilrutschen gelten oft zusätzlich Mindest- und Höchstgewichte (z. B. 40–90 kg), weil sonst Leichte hängen bleiben oder Schwere zu schnell ankommen.</p>
+
+  <h3>Betrieb: Einweisung, Aufsicht, Rettung</h3>
+  <p>Der Standardablauf ist überall gleich: Check-in mit Unterschrift unter die Benutzerregeln, Gurt und Verbindungsmittel anlegen, 15–30 Minuten Sicherheitsunterweisung, dann ein Übungsparcours in Bodennähe, auf dem das Personal beurteilt, ob man das Umhängen beherrscht – die Norm nennt das Beaufsichtigung der Stufe 2 (sehen und verbal eingreifen); danach klettert man unter Stufe 3 (Hilfe auf Anfrage) selbstständig, üblicherweise 2–4 Stunden. Die Norm unterscheidet Betreuer (einweisen, beaufsichtigen, Routineinspektion, Retter rufen) und Retter, die „jeden von jedem Ort sicher auf den Boden zurückbringen“ können; die IAPA fordert, dass jede Station in höchstens zehn Minuten von einem Retter erreichbar ist. Ein Sicherheits- und Notfallplan ist Pflicht, ebenso das Logbuch mit täglichen Sichtprüfungen. Bei Gewitter, Sturm, Hagel oder Starkregen wird geräumt; leichter Regen ist meist kein Grund zu schließen, weil die Baumkronen schützen. Betrieb ist Saisongeschäft von etwa April bis Oktober; Investitionen liegen bei einigen hunderttausend Euro (Beispiele: 350 000 € für 8 Parcours in Sögel, 700 000 € für 6 Parcours am Semmering).</p>
+
+  <h3>Normen und Kontrolle</h3>
+  <p>Rechtlich verbindlicher Maßstab („Stand der Technik“) ist die <strong>EN 15567</strong>: Teil 1 regelt Konstruktion und Inspektion (Standort, Werkstoffe, Lasten, Tragwerk inkl. Bäume, Aktionssystem inkl. Seilrutschen, Sicherungssystem, Kennzeichnung des Schwierigkeitsgrads, Inspektion vor Inbetriebnahme und wiederkehrend, Benutzerhandbuch, Baumkontrollbericht), Teil 2 den Betrieb (Betriebserlaubnis, jährliche Inspektion durch eine unabhängige Inspektionsstelle, Personalqualifikation, Logbuch, Beaufsichtigungsstufen, PSA-Prüfung, Notfallplan, Risikobeurteilung). Ergänzend gilt <strong>EN 17109</strong> (2020, überarbeitet 2025) für die Verbindungsmittel in Seilgärten, EN 12277 für Gurte, EN 362 für Karabiner. Die Norm klassifiziert Sicherungssysteme in fünf Klassen: <strong>A</strong> selbstschließend, nicht selbstverriegelnd; <strong>B</strong> selbstverriegelnd; <strong>C</strong> wechselseitig verriegelnd, vermindert unbeabsichtigtes Lösen; <strong>D</strong> wechselseitig verriegelnd, verhindert es; <strong>E</strong> dauerhaft verbunden, nur mit Werkzeug lösbar. Branchenverbände sind die ERCA (Sitz Hannover; Trainer- und Inspektorenzertifizierung, jährliche Prüfung durch ERCA-Inspektionsstellen), die IAPA (Bad Saarow; ihr Gütesiegel verlangt Systeme der Klassen C–E) und in der Schweiz der Verband Schweizer Seilparks; TÜV-Jahresprüfungen sind üblich. Eine Helmpflicht kennt die Norm nicht – die Branche wägt Kopfprellungen gegen das Strangulationsrisiko am Helmriemen ab, weshalb Schweizer Parks oft ohne Helm arbeiten, während Österreich und Deutschland meist Helme ausgeben.</p>
+
+  <hr>
+
+  <h2>3 · Sicherungstechnik: drei Generationen</h2>
+  <p class="eyebrow-q">Wie ist man gesichert – und warum sieht das in jedem Park anders aus?</p>
+
+  <p>Die Geschichte der Kletterwald-Sicherung ist die Geschichte eines einzigen Fehlers: beide Karabiner gleichzeitig ausgehängt. Der ERCA-Unfallbericht 2006/07 führt die meisten Abstürze auf „unbeabsichtigtes Selbstaushängen“ oder das Einklinken in ungeeignete Strukturen zurück – 2007 gab es auf Adventureparks einen Todesfall. Die Antwort der Hersteller ab etwa 2010 waren zwei Technikpfade, zwischen denen sich heute jeder Betreiber entscheidet.</p>
+
+  <div class="tbl"><table>
+    <thead><tr><th>Generation</th><th>Prinzip</th><th>Beispiele</th><th>Klasse</th><th>Stärken</th><th>Schwächen</th></tr></thead>
+    <tbody>
+      <tr><td class="k">1 · Zwei Karabiner</td><td>Y-Verbindungsmittel „wie am Klettersteig“; Einhandregel: nie beide Karabiner gleichzeitig bedienen</td><td>Seilpark Zürich (Kloten)</td><td>A/B</td><td>billig, robust, überall nachrüstbar, überholen möglich</td><td>menschlicher Fehler möglich, hoher Aufsichtsaufwand</td></tr>
+      <tr><td class="k">2 · Kommunizierende Karabiner</td><td>mechanische oder magnetische Kopplung: einer offen → anderer gesperrt</td><td>Edelrid Smart Belay (Kahlenberg), Smart Belay X, Bornack SSB/LockD (Anif, Rheinfall), CLiC-iT (Engelberg, Interlaken)</td><td>C/D</td><td>Doppel-Aushängen konstruktiv verhindert, nachrüstbar, überholen möglich, aktives Erlebnis</td><td>Bedienschritt an jeder Plattform bleibt, schmutz- und pflegeempfindlich, für kleine Kinder teils schwer bedienbar</td></tr>
+      <tr><td class="k">3 · Durchlaufende Systeme</td><td>Läufer wird am Start eingehängt und erst am Ende mit Werkzeug gelöst; passiert Anker über Platten/Weichen</td><td>Kanopeo Saferoller/Speedrunner (Freischütz, Engelberg-Kids), SafetyLine (Gänsehäufel, Hornpark, Anif-Kinder), Koala, Kong Coudou Pro</td><td>E</td><td>kein Bedienfehler möglich, höchster Durchsatz, wenig Personal</td><td>teuer, kaum nachrüstbar (Seilführung neu), kein Überholen auf dem Seil, passiveres Erlebnis, Verschleiß</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Generation 1: zwei Karabiner</h3>
+  <p>Das klassische Set ist ein Y-förmiges Band mit zwei großen, selbstverriegelnden Karabinern (Twist- oder Tri-Lock). Beim Umhängen löst man Karabiner 1, hängt ihn ins nächste Seil, dann Karabiner 2 – „nacheinander, so dass immer ein Karabiner eingeklinkt ist“. Die IAPA verlangt als Mindestinhalt jeder Einweisung die Einhandregel: alle Karabiner nur mit einer, immer derselben Hand bedienen, damit man physisch nicht beide gleichzeitig öffnen kann. Die Norm sieht ausdrücklich keine Maßnahmen für den Fall vor, dass ein Teilnehmer „durch einen Umhängefehler mit keinem Verbindungsmittel gesichert“ war – das Restrisiko liegt beim Menschen. Deshalb akzeptiert das IAPA-Gütesiegel nur noch die Klassen C bis E, und deshalb sind Klasse-A/B-Parks (wie der Seilpark Zürich in Kloten) heute die Ausnahme.</p>
+
+  <h3>Generation 2: kommunizierende Karabiner</h3>
+  <p><strong>Edelrid Smart Belay</strong> (Kahlenberg): zwei „Rollenkarabiner“ an einem 85 cm langen Verbindungsmittel mit Bandfalldämpfer (6 kN), rund 1 kg schwer. Die Kopplung läuft über einen Bowdenzug zwischen den beiden Karabinern – Edelrid schult Betreiber eigens in der „korrekten Einstellung des Bowdenzugs“ und im jährlichen Service –: Ist ein Karabiner offen, lässt sich der andere nicht öffnen; der Betreiber prüft vor jeder Ausgabe, „dass sich beide Rollenkarabiner nicht gleichzeitig öffnen lassen“. Die integrierten Stahlrollen (Seil 10–14 mm, empfohlen 12–14 mm für Seilrutschen, zulässig bis 10 m/s) ersetzen die separate Rolle. Die 2021 vorgestellte Version <strong>Smart Belay X</strong> ergänzt eine magnetische Verschlusssicherung – der Öffnungsmechanismus wird erst „durch den Kontakt mit dem Stahlseil“ freigegeben, sodass man nicht ins Leere öffnen kann (Klasse D, während das Ur-Smart-Belay im Normauszug als Klasse-C-Beispiel geführt wird), einen RFID-Chip für den PSA-Lebenslauf und einen Trennsteg („PilotBar“) gegen Strangulation, falls der Kopf zwischen die Y-Arme gerät. Grenzen: An jeder Plattform bleibt ein Bedienschritt, und Gewaltanwendung kann das System überlisten – 2018 stürzte in Veilbronn eine 16-Jährige fünf Meter von einer Plattform, der Betreiber vermutete eine Manipulation, „bei der beide Karabiner gleichzeitig ausgehängt wurden“.</p>
+  <p><strong>Bornack SSB / LockD Clips</strong> (Anif, Adventure Park Rheinfall): zwei geschmiedete Haken, gekoppelt über einen Bowdenzug; umgehängt wird nur an speziellen Klemmstücken („Tweezel“) auf dem Seil – der Haken rastet auf dem Tweezel ein, erst dann gibt der Bowdenzug den anderen frei. Nebeneffekt: Man kann sich nirgends Falsches einhängen. 2021 hat Ropes Park Equipment das System als „LockD Clips“ neu aufgelegt (halb so viele Teile, magnetisch, kompatibel zu SSB-Parcours). <strong>CLiC-iT Adventure</strong> (Engelberg, Interlaken): zwei über gezogene Bowdenzüge synchronisierte Konnektoren, die man mit Daumen oder Zeigefinger auslöst, plus magnetische Ankerpunkt-Erkennung; bewusst ohne Falldämpfer, weshalb Klettersteig-Einsatz verboten ist; für Seilrutschen wird zusätzlich eine Rolle (C-ZiP) eingehängt.</p>
+
+  <h3>Generation 3: durchlaufende Systeme</h3>
+  <p>Hier hängt der Gast einmal am Start ein und erst am Ende – mit dem Werkzeug des Betreuers – wieder aus. Die Mechanik ist einfach und elegant: Der Läufer hat eine Öffnung, die kleiner ist als der Seildurchmesser, aber größer als die Dicke der Halteplatten; so gleitet er über jeden Anker hinweg, kann aber nirgends vom Seil. An Bäumen und Masten führen Konsolen, Platten und Weichen das Seil um den Stamm, vertikale Auf- und Abstiege lösen „Switch Stations“. Der Schweizer Pionier <strong>Kanopeo</strong> (erste Anlage Zermatt 2009) baut den rollenden <strong>Saferoller</strong>, dessen Trolley zugleich Sicherung und Seilrutschenrolle ist, und den gleitenden <strong>Speedrunner</strong> (2012), bei dem für den Flying Fox eine Rolle dazukommt; dazu Bremsen (ZipBrake, SafeStop) und den funkgesteuerten Startblocker zipEYE, der nur eine Person aufs Seil lässt – nach eigenen Angaben in über 800 Parks in 56 Ländern. Verwandt sind Koala (Pouliz-Trolley), Kong Coudou Pro/ZaZa (C-Haken, Schlüssel zum Öffnen) und das österreichische <strong>SafetyLine</strong> aus Gröbming, das etwa der Wiener Hochseilklettergarten Gänsehäufel und der Hornpark St. Johann einsetzen. Der Preis der Sicherheit: kein Überholen (außer über „Y-Swapper“-Weichen), hohe Investition, kaum nachrüstbar – und ein passiveres Erlebnis, das viele Betreiber vor allem für Kinderparcours wählen. Ergänzend gibt es Fremdsicherung durch Trainer oder Mitkletternde (pädagogische Hochseilgärten) und Auto-Belay-Geräte mit Wirbelstrombremse (TRUBLUE) an Kletterwänden und Abseilstationen.</p>
+
+  <h3>Ausrüstung: Gurt, Rolle, Handschuhe, Helm</h3>
+  <p>Kletterwälder geben meist Komplett- oder Kombigurte aus (Hüft- plus Brustgurt), damit niemand kopfüber kippen kann – die IAPA empfiehlt das ausdrücklich, für Kinder ist es Standard. Ein Falldämpfer ist in Seilgärten nicht zwingend, weil das Sicherungsseil oberhalb verläuft und die Anlage auf höchstens 6 kN Fangstoß ausgelegt sein muss; Klettersteigsets nach EN 958 sind dafür konstruiert, hohe Sturzfaktoren am Fels abzufangen, und deshalb kein Ersatz. Die Seilrolle ist entweder ins Sicherungsgerät integriert (Smart Belay, Saferoller, Koala) oder hängt als separate Doppelrolle am Gurt (etwa Petzl Trac Guide, zwei fluchtende Edelstahlrollen, bis 25 m/s). Handschuhe schützen vor Drahtsplittern und Blasen; wo per Hand gebremst wird (Adventure Park Rheinfall), sind Lederhandschuhe Pflicht, wo nicht, oft nur Empfehlung. Beim Helm scheiden sich die Geister: Er schützt vor Anstoßen und herabfallenden Gegenständen, der Riemen kann sich aber an Seilen und Rollen verfangen; darum verzichten manche Parks bewusst („kein Helmtrageverpflicht“ am Rheinfall), während Kahlenberg, Gänsehäufel, Hornpark und Freischütz Helme ausgeben.</p>
+
+  <hr>
+
+  <h2>4 · Flying Fox: Physik und Technik</h2>
+  <p class="eyebrow-q">Gibt es Flying Fox – und wie funktioniert der eigentlich?</p>
+
+  <p>Die Seilrutsche (Flying Fox, Zipline, Tyrolienne) ist per Definition ein Element, auf dem man „an Rollen hängend aufgrund der Schwerkraft in abfallender Richtung gleitet“ – und oft ist dabei „das Sicherungssystem gleichzeitig das Aktionssystem“, weil dieselbe Rolle trägt und sichert. Physikalisch wird Lageenergie in Bewegung umgesetzt; die Geschwindigkeit hängt von Gefälle, Seilspannung und Durchhang, Körpermasse, Luftwiderstand (Haltung), Rollenreibung, Wind und sogar Temperatur ab (warmes Seil dehnt sich, mehr Durchhang). Schwere Fahrer sind schneller und kommen weiter, weil sie das Seil tiefer durchdrücken und ihr Luftwiderstand kaum wächst; leichte Kinder können im „Bauch“ des Seils stehen bleiben – deshalb die Mindestgewichte für lange Ziplines und die Regel, dass man sich nicht selbst Hand über Hand zurückzieht, sondern geholt wird. Als Faustzahlen aus der Bauplanung gelten 3–6 % Gefälle und ein belasteter Durchhang von etwa 2 % der Länge; zu straff heißt harte Ankunft, zu locker heißt schnell in der Mitte und langsam am Ende. Kletterwald-Seilrutschen sind typischerweise 30–300 m lang (Kahlenberg: 150 m als längste belegte, Seilpark Zürich 75 m, Rheinfall über 400 m, Hornpark 210 m, Saalbach 1,5 km); Rekordbahnen wie Jebel Jais (2,83 km, bis 150 km/h) spielen in einer anderen Liga. Standardseil ist 12 mm bzw. ½" Stahl, häufig als Trag- plus paralleles Sicherungsseil, jedes mit eigener Rolle.</p>
+
+  <h3>Bremsen</h3>
+  <p>Wie man am Ende zum Stehen kommt, ist die eigentliche Ingenieursfrage. Die Palette reicht von der <strong>Gravitationsbremse</strong> (das Seil steigt vor dem Ziel wieder an, man pendelt aus – kann nicht ausfallen) über <strong>Feder- und Bungee-Bremsblöcke</strong> auf dem Seil, den klassischen <strong>Reifen</strong> oder Prallblock, <strong>Auffangnetze</strong> („Bremsnetz“, teils mit Bremsseil und dritter Rolle) und die <strong>Handbremse</strong> mit Lederhandschuh hinter der Rolle (in Nordamerika und einigen Schweizer Parks üblich; ein ACCT-Normentwurf von 2022 erlaubt sie ab etwa 10 km/h Ankunftsgeschwindigkeit nur noch mit Backup-Bremse und ab etwa 24 km/h gar nicht mehr) bis zur <strong>magnetischen Wirbelstrombremse</strong> zipSTOP: Ein Bremstrolley auf dem Seil ist über ein 12,5 m langes Gurtband mit einem Gerät verbunden, in dem ein Alu-Rotor im Magnetfeld geschwindigkeitsabhängig bremst – selbstregelnd, ohne Verschleißbeläge, mit automatischem Rückzug für den nächsten Fahrer. Durchlaufende Systeme bringen eigene Prallbremsen mit (Kanopeo ZipBrake, SafeStop), bei denen man ohne Aushängen weiter zum nächsten Element wechselt.</p>
+
+  <h3>Verhalten und Rettung</h3>
+  <p>Die Regeln sind überall dieselben: nur einzeln und bei freier Landezone starten, sitzend nach vorn abspringen, Beine ausgestreckt und leicht angezogen, Hände weg vom Seil und erst recht nicht vor die Rolle (Quetsch- und Schnittgefahr), nicht am Verbindungsmittel ziehen, nicht drehen (Kopf zwischen den Y-Armen), bei Bodenlandung auf Hackschnitzeln mitlaufen. Wer im Durchhang hängen bleibt, wird mit einer Zugleine vom Ziel geholt oder ein Retter fährt mit Tandemrolle hinaus, übernimmt die Last und zieht zurück – laut Betreibern eine Sache von zwei bis fünf Minuten. Hersteller wie Edelrid bieten dafür eigene Kurse an: Rettungstrainer-Ausbildungen mit Abseilgeräten nach EN 341/EN 1496 sowie Einstell- und Servicekurse für Smart Belay und Smart Belay X. Verwandt sind die Freifall- und Schwungelemente: der <strong>Powerfan</strong> (ein Lüfterrad bremst das ablaufende Seil, 13 m Fallhöhe, kein Motor), <strong>QuickJump/QuickFlight</strong> (Wirbelstrombremse mit echtem freien Fall über bis zu 4 m), die <strong>Riesenschaukel</strong> (per Flaschenzug oder Winde hochgezogen, Reißleine, bis 70 km/h) und der <strong>Tarzansprung</strong> an einer Liane in ein Fangnetz. Am Kahlenberg belegt sind Flying Foxes und die Testroute „Schritt ins Nichts“ (2020); Powerfan, Riesenschaukel oder Tarzansprung wurden für den Park nicht gefunden.</p>
+
+  <hr>
+
+  <h2>5 · Kahlenberg im Vergleich</h2>
+  <p class="eyebrow-q">Wo steht der Park im Konzeptraum – und was machen andere anders?</p>
+
+  <div class="tbl"><table>
+    <thead><tr><th>Park</th><th>Ort</th><th>Parcours / Übungen</th><th>Max. Höhe</th><th>Sicherung</th><th>Helm</th><th>Zeit</th><th>Erwachsene</th><th>Flying Fox</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Waldseilpark Kahlenberg</td><td>Wien</td><td>17 (3 Levels) / 150–180</td><td>20 m</td><td>Edelrid Smart Belay (Kl. C/D)</td><td>ja</td><td>4 h</td><td>37 €</td><td>viele, bis 150 m belegt</td></tr>
+      <tr><td class="k">Hochseilklettergarten Gänsehäufel</td><td>Wien</td><td>10 (Stufen 1–9) / 79 Plattformen</td><td>8 m</td><td>SafetyLine, durchlaufend (Kl. E)</td><td>ja</td><td>kein Limit angegeben</td><td>32 €</td><td>26 Bahnen, Giant Swing</td></tr>
+      <tr><td class="k">Kletterpark Waldbad Anif</td><td>Salzburg</td><td>12 + Mini / 140</td><td>13 m</td><td>Bornack SSB + SafetyLine (Kinder)</td><td>ja</td><td>nicht gefunden</td><td>31 €</td><td>Speed Flying Fox ca. 300 m über den See</td></tr>
+      <tr><td class="k">Hornpark St. Johann</td><td>Tirol</td><td>9 / 106</td><td>21 m</td><td>SafetyLine (Kl. E)</td><td>ja + Handschuhe</td><td>Tageszugang</td><td>32 €</td><td>&gt; 1 000 m gesamt, 210 m längste</td></tr>
+      <tr><td class="k">Seilpark Zürich</td><td>Kloten</td><td>18 / 210</td><td>15 m</td><td>zwei Karabiner „wie am Klettersteig“ (Kl. A/B)</td><td>nicht erwähnt; Handschuhe Pflicht</td><td>3 h (Kids 2 h)</td><td>CHF 46–49</td><td>2,5 km gesamt, 75 m längste</td></tr>
+      <tr><td class="k">Adventure Park Rheinfall</td><td>Neuhausen SH</td><td>14 + 2 Kids / &gt; 165</td><td>15+ m</td><td>LockD Clips (ex Bornack SSB); Kids durchlaufend</td><td>nein (bewusst); Lederhandschuhe, Handbremse</td><td>3 h</td><td>CHF 41</td><td>Panorama Express &gt; 400 m, Freifall, Big Swing</td></tr>
+      <tr><td class="k">Kletterwald Freischütz</td><td>Schwerte (DE)</td><td>12 + 3 Einweisung / 110–120</td><td>15 m</td><td>Kanopeo Saferoller 2 (Kl. E)</td><td>ja</td><td>3 h</td><td>29 €</td><td>Seilbahn-Parcours, Längen n. g.</td></tr>
+    </tbody>
+  </table></div>
+
+  <p><strong>Was überall gleich ist</strong>: baumgebundene Parcours aus Plattformen und Elementen; Selbstsicherung nach obligatorischer Einweisung mit Übungsparcours; danach eigenverantwortliches Klettern unter Bodenaufsicht; farbige Schwierigkeitsstufen mit Mindestgröße bzw. Greifhöhe und Mindestalter, meist gelb/grün → blau → rot → schwarz; eigene Kinderparcours ab drei bis vier Jahren; Höhe steigt mit Schwierigkeit; rund 120 kg Höchstgewicht; Kinder je nach Park bis zum Alter von 10–16 Jahren nur mit Erwachsenem; EN 15567 als Basis, oft ERCA/IAPA/TÜV; dieselben Verhaltensregeln (Schuhe, Haare, Schmuck, kein Alkohol, kein Handy); Wetterabbruch bei Gewitter.</p>
+  <p><strong>Wo sich die Parks unterscheiden</strong>: erstens in der Sicherungstechnik (Kloten klassisch, Kahlenberg/Anif/Rheinfall/Engelberg kommunizierend, Gänsehäufel/Hornpark/Freischütz durchlaufend – wobei Kinderparcours fast überall durchlaufend sind); zweitens bei Helm und Handschuhen (Österreich und Deutschland Helm, Schweiz häufig ohne Helm, dafür Handschuhpflicht wegen Handbremsung); drittens im Grading-Maßstab (Körpergröße vs. Greifhöhe, drei grobe Levels am Kahlenberg vs. neun Stufen am Gänsehäufel vs. Farbe × leicht/mittel/schwer in Kloten, dazu Freigabelogiken wie „gelb zuerst“ oder „Panorama Express erst nach Rot“); viertens im Ticketmodell (Zeitfenster von 3–4 h mit kostenpflichtiger Verlängerung vs. Tageszugang ohne Limit vs. Staffelung nach Parcoursumfang); fünftens in der Rolle des Flying Fox (Nebenelement mit 75 m in Kloten, 26 kurze Bahnen am Gänsehäufel, Signature-Ziplines mit 300–1 500 m in Anif, Rheinfall, Saalbach); und sechstens bei den Zusatzattraktionen (Freifall, Riesenschaukel, Baumklettern, Nachtklettern, Badekombination). Der Kahlenberg positioniert sich dabei als der höchste und weitläufigste der Wiener Parks mit einer bewusst groben, an die Körpergröße gebundenen Dreiteilung, Smart-Belay-Sicherung, Helm, Zeitticket und Flying Foxes als Standardabschluss – ein sehr typischer, gut geführter Kletterwald der zweiten Sicherungsgeneration ohne Sonderattraktionen wie Freifallgeräte oder Rekord-Ziplines.</p>
+
+  <hr>
+
+  <h2>6 · Der Park als System</h2>
+  <p class="eyebrow-q">Was ist das Konzept, wenn man es als Produkt und Betriebssystem liest?</p>
+
+  <div class="note"><span class="label">Einordnung</span>
+    <p>Dieser Abschnitt ist Interpretation: ein Konzeptmodell, das die belegten Fakten der Abschnitte 1–5 ordnet. Es geht auf eine zusätzlich vorliegende Analyse zurück, deren Faktenaussagen gegen die Quellen geprüft wurden; wo eine Aussage für den Kahlenberg nicht belegt ist, steht das dabei.</p>
+  </div>
+
+  <p>Ein Waldseilpark ist kein einzelner Kletterparcours, sondern ein modulares Erlebnis-System aus fünf Bausteinen: Plattformen, Hindernissen, Sicherungstechnik, Schwierigkeitsprogression und Besuchersteuerung. Jeder Parcours ist eine lineare Kette von Mikro-Challenges – Baum/Plattform → Hindernis → Baum/Plattform → … → Flying Fox → Abstieg –, und das Sicherungsseil neben oder über jeder Übung sorgt dafür, dass die Holzbalken, Seile und Netze den Gast im Normalfall tragen, während das Sicherungssystem ihn nur im Fall eines Abrutschens auffängt.</p>
+
+  <h3>Plattformen sind die Knoten des Netzes</h3>
+  <p>Das Podest ist weit mehr als ein Ruhepunkt: Es ist Übergabepunkt von einer Übung zur nächsten, Sicherungsstation (hier wird das Sicherungsseil um den Baum zur nächsten Strecke geführt, hier wird umgehängt), Wartezone, psychologischer Ruhepunkt nach einer exponierten Passage und in manchen Parks Entscheidungspunkt mit Abzweigung oder Zwischenausstieg. Deshalb sind die Kapazitätsregeln – eine Person pro Übung, höchstens drei pro Podest – nicht nur Sicherheits-, sondern Verkehrsregeln: Ein langsamer Gast staut alle hinter sich, überholt wird nur auf Podesten. Gute Anlagen werden darum so gebaut, dass schwere Elemente nicht dauernd Staus produzieren, dass die Podeste genug Platz bieten (ein Kritikpunkt in Kahlenberg-Reviews), dass sich unterschiedlich schnelle Gäste über viele parallele Parcours verteilen und dass Zwischenausstiege existieren (für den Kahlenberg nicht belegt; andere Parks wie Zittau werben ausdrücklich damit).</p>
+
+  <h3>Die Umgebung erzeugt die Schwierigkeit</h3>
+  <p>Ein 20 cm breites Brett am Boden ist banal; dasselbe Brett in zwölf Metern Höhe, an vier Seilen aufgehängt und seitlich schwankend, ist eine Prüfung. Die Aufgaben selbst sind selten technisch kompliziert – schwierig wird es aus dem Zusammenspiel von Instabilität, Höhe, Kraftaufwand und psychologischer Unsicherheit. Für die Konzeption lohnt es sich, Schwierigkeit auf vier Achsen zu denken statt nur auf der Skala leicht/mittel/schwer:</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Achse</th><th>Leitfrage</th><th>Beispiel</th></tr></thead>
+    <tbody>
+      <tr><td class="k">physisch</td><td>Wie viel Kraft braucht es?</td><td>Hangelpassage, stark schwankendes Netz</td></tr>
+      <tr><td class="k">koordinativ</td><td>Wie präzise muss ich meinen Körper steuern?</td><td>kleine bewegliche Trittflächen, Fässer, Skateboard</td></tr>
+      <tr><td class="k">psychologisch</td><td>Wie ausgesetzt fühlt es sich an?</td><td>schmales Seil in 18 m, Tarzansprung, „Schritt ins Nichts“</td></tr>
+      <tr><td class="k">technisch</td><td>Wie kompliziert ist die Bedienung?</td><td>Umhängen, Rolle einhängen, Richtungswechsel</td></tr>
+    </tbody>
+  </table></div>
+  <p>Zwei Elemente können denselben Grad tragen und sich völlig verschieden anfühlen – das erklärt auch, warum Kahlenberg-Besucher einzelne blaue Routen als schwerer empfinden als rote: Die Farbe bündelt vier Achsen zu einer Zahl. Höhe allein ist ohnehin kein Maß; ein Flying Fox in 20 m ist körperlich leichter als eine instabile Traverse in 6 m, und ein guter schwarzer Parcours ist höher, länger, instabiler, kraftintensiver und exponierter zugleich. Die ERCA-Kriterien (Höhe, Kraft, Gleichgewicht, Ausgesetztheit, Länge) sind im Grunde dieselben Achsen in anderer Sortierung.</p>
+
+  <h3>Flying Fox als Belohnung, Parcours als Dramaturgie</h3>
+  <p>Fast alle Übungen verlangen Arbeit – balancieren, klettern, festhalten, überwinden. Der Flying Fox verlangt das Gegenteil: loslassen, beschleunigen, fliegen. Damit ist er die Belohnungsmechanik des Systems, und der Rhythmus Anstrengung → Spannung → Erfolg → Belohnung erklärt, warum er am Kahlenberg (und fast überall) ans Ende eines Parcours oder hinter besonders schwere Elemente gesetzt wird – wie die Abfahrt einer Achterbahn. Verallgemeinert ist ein guter Parcours eine dramaturgische Sequenz: eine einfache Brücke zum Ankommen, ein erstes Wackelelement, eine erste exponierte Traverse, kurze Pause, ein ungewöhnliches Hindernis, ein kraftintensives, ein Flying Fox, die nächste Steigerung, ein Finale (lange Zipline oder spektakuläre Passage). Zwanzig gleiche Hängebrücken hintereinander verlieren ihren Reiz; der kreative Wert liegt in der Variation der Bewegungsprobleme. Für den Kahlenberg ist die konkrete Sequenzierung nicht dokumentiert – belegt sind „Flying Fox am Ende“ und die Höhenstaffelung nach Farbe.</p>
+
+  <h3>Viele kurze Parcours statt eines langen</h3>
+  <p>Ein zwei Kilometer langer Parcours wäre betrieblich schlecht. Viele kurze Parcours erlauben, dass Anfänger nach einem aufhören und Sportliche mehrere schaffen, dass man das Level wechselt, dass sich Staus verteilen, dass ein Parcours einzeln gesperrt oder gewartet werden kann und dass Kinder und Erwachsene unterschiedliche Routen wählen – und sie erzeugen die Frage „Welchen machen wir als Nächstes?“. Aus einer linearen Aktivität wird eine kleine Open-World-Struktur: 17 Module am Kahlenberg, 8–20 in der Branche.</p>
+
+  <h3>Körpergröße als Zugangs- und Preislogik</h3>
+  <p>Die Staffelung 110/130/150 cm ersetzt individuelle Eignungsprüfungen durch ein körperliches Merkmal, das Reichweite (Sicherungsseil, Griffe, Trittabstände), Karabinerbedienung und näherungsweise Körperkontrolle abbildet; andere Parks nehmen dafür die Greifhöhe. Weil die Preise derselben Staffel folgen, verkauft das Ticket implizit nicht Eintritt, sondern Zugang zu einem größeren Teil des Netzes.</p>
+
+  <h3>Der Kinderbereich folgt einem anderen Prinzip</h3>
+  <p>Die Wichtelparcours in rund 35 cm Höhe sind Niedrigseil-Logik: unterhalb der Tritthöhe, ab der die Norm eine Sicherung verlangt (ab 1 m kollektiv, ab 1,8 m persönliche Schutzausrüstung), also ohne Gurt und Karabiner, dafür Balancieren, Motorik, Spielen und Nachahmen der Größeren. Geschäftlich sorgt das dafür, dass eine Familie mit einem Vier- und einem Zehnjährigen ein einziges Ausflugsziel braucht.</p>
+
+  <h3>Einschulung als Skalierungsmechanismus</h3>
+  <p>Der Übungsparcours ist Sicherheitstraining und Geschäftsmodell zugleich: Ein Trainer schult mehrere Gäste zwanzig Minuten lang, danach sind sie drei, vier Stunden weitgehend selbstständig unterwegs. Aus einer personalintensiven Outdoor-Aktivität wird ein skalierbares Freizeitprodukt – die ERCA beschreibt den „Adventure-Parcours“ genau so: Standardinstruktion, dann Eigenverantwortung des Gastes wie beim Kajakverleih. Ohne kommunizierende oder durchlaufende Sicherung wäre diese Skalierung riskant; das Sicherungssystem ist damit Teil des Geschäftsmodells, nicht nur der Sicherheitsausrüstung.</p>
+
+  <h3>Sicherheit als Schichtenmodell, Rettung als Subsystem</h3>
+  <p>Kein Karabiner macht einen Park sicher, sondern die Redundanz von Schichten: Konstruktion (Bäume, Anker, Podeste, Seile), persönliche Schutzausrüstung, Sicherungssystem, Nutzungsregeln, Training, Personal mit Rettungsmöglichkeit, laufende und jährliche Inspektion sowie Wettermanagement. Die Rettungslogistik sieht der Gast nie, sie entscheidet aber über die Anlagenqualität und muss beim Bau mitgedacht werden: Kann ein Retter jede Station erreichen (IAPA: in höchstens zehn Minuten)? Wo kann eine Person abgelassen werden, ist der Boden darunter zugänglich, lässt sich der Parcours teilweise sperren? Was passiert bei Panik mitten auf einem Element, bei Kraftverlust oder wenn jemand auf der Zipline nicht bis zur Plattform kommt? Hersteller wie Edelrid bieten dafür Rettungstrainer-Kurse (Abseilgeräte nach EN 341/EN 1496) und Servicekurse für das Smart Belay an.</p>
+
+  <h3>Ökonomie: Fixkosten vorne, Auslastung danach</h3>
+  <p>Die große Investition liegt am Anfang (Planung, Baumgutachten, Konstruktion, Sicherungssystem, Ausrüstung, Kassa, Wege, Genehmigungen); danach dominieren Personal, Wartung, Inspektionen, PSA-Ersatz, Baumkontrollen und Marketing, während der einzelne zusätzliche Gast kaum variable Kosten verursacht. Ist der Park gebaut, zählt Auslastung – daher Schulklassen, Kindergeburtstage, Firmenevents, Guides, Saisonpässe, Happy Hours und Familientage, alles Segmente, die der Kahlenberg bedient. Die Einbettung in die „Erlebniswelt Kahlenberg“ mit Bogensport, E-Bikes, Wandern und Josefinenhütte macht aus dem Park eine Destination. Der Standort liefert, was andere künstlich erzeugen müssten: echten Wald im Biosphärenpark, Nähe zu Wien, einen touristischen Aussichtspunkt, Gastronomie – und Hanggelände, das den Höhenunterschied für Ziplines mitbringt, den man im Flachen konstruktiv schaffen müsste (ob der Kahlenberg die Topografie gezielt für seine Flying Foxes nutzt, ist nicht dokumentiert; die 20-m-Startplattform Richtung Skyline spricht dafür).</p>
+
+  <h3>Die Spielschleife</h3>
+  <p>Verkauft wird nicht Sport, sondern ein Bündel aus kontrollierter Angst (der Kopf weiß „ich bin gesichert“, das Nervensystem meldet „zwölf Meter“), Selbstwirksamkeit („ich dachte, ich schaffe es nicht“), Progression (Blau → Rot → Schwarz wie Level 1 bis 3), Naturerlebnis (Baumkronen, Wind, Aussicht statt Halle) und sozialem Effekt (einer klettert, die anderen schauen, rufen, filmen). Als Core Loop: Challenge wählen → Höhe wahrnehmen → Unsicherheit → Bewegungsproblem lösen → Podest erreichen → kleine Erfolgserfahrung → nächste Challenge → Flying Fox als Belohnung → Parcours geschafft → nächstes Level wählen. Das Produkt ist die Wahrnehmung von Gefahr innerhalb eines technisch stark kontrollierten Systems.</p>
+
+  <h3>Idealtypischer Park: Zonen statt Parcourszahl</h3>
+  <p>Wer aus diesen Bausteinen einen Park entwerfen wollte, würde nicht „15 Parcours“ planen, sondern das Gelände in Erlebniszonen zerlegen – und dazu ein Element, wegen dem Menschen den Park fotografieren und weitererzählen:</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Zone</th><th>Höhe</th><th>Zweck</th><th>Beispiele aus der Praxis</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Discovery</td><td>0–2 m</td><td>Kleinkinder, Einsteiger; ohne oder mit durchlaufender Sicherung</td><td>Wichtelparcours Kahlenberg; Kids-Parcours Rheinfall und Engelberg (Saferoller-Prinzip)</td></tr>
+      <tr><td class="k">Family</td><td>3–7 m</td><td>breite Zielgruppe, Vertrauen aufbauen</td><td>Blau am Kahlenberg</td></tr>
+      <tr><td class="k">Adventure</td><td>6–12 m</td><td>beweglicher, kraftvoller, ungewöhnlichere Bewegungsmuster</td><td>Rot am Kahlenberg</td></tr>
+      <tr><td class="k">Challenge</td><td>10–20 m</td><td>sportlich und psychologisch exponiert</td><td>Schwarz am Kahlenberg, „007“ in Kloten, „K2“ im Freischütz</td></tr>
+      <tr><td class="k">Flight</td><td>–</td><td>mehrere Ziplines in Serie: Belohnung und Durchsatz</td><td>26 Flying Foxes am Gänsehäufel, reine Flying-Fox-Parcours in Purkersdorf</td></tr>
+      <tr><td class="k">Signature</td><td>–</td><td>das eine Element, über das alle reden</td><td>Panorama Express Rheinfall (&gt; 400 m), Speed Flying Fox Anif über den See, Giant Swing Gänsehäufel, Mega Flying Fox Saalbach (1,5 km); am Kahlenberg der Wienblick und die 20-m-„Mega Flying Fox“</td></tr>
+    </tbody>
+  </table></div>
+  <p>Ein Park mit 150 soliden Hindernissen ist gut; ein Park mit 149 soliden Hindernissen und einem Element, über das jeder spricht, kann eine Destination werden.</p>
+
+  <hr>
+
+  <h2>7 · Fazit</h2>
+  <p>Das Konzept „Hochseilkletterpark“ ist erstaunlich standardisiert: Eine Norm (EN 15567) definiert Bau und Betrieb, ein Baukasten von vielleicht dreißig Elementtypen füllt die Parcours, und ein immer gleicher Ablauf – Einweisung, Übungsparcours, Zeitfenster, Bodenaufsicht – macht aus einer potenziell gefährlichen Tätigkeit ein Familienangebot. Die eigentliche Differenzierung passiert an drei Stellen: bei der Sicherungstechnik (wie viel Verantwortung bleibt beim Gast?), beim Grading (wie fein und woran gekoppelt?) und bei den Signature-Elementen (Flying Fox, Freifall, Aussicht). Der Waldseilpark Kahlenberg löst das mit Smart Belay, drei körpergrößengebundenen Levels und Flying Foxes als Standard-Belohnung – und mit dem Wienblick als Alleinstellungsmerkmal, das keine Technik ersetzen kann. Als Produkt betrachtet verkauft er weniger „Klettern“ als ein System aus kontrollierter Angst, sichtbarer Progression und unmittelbarer Belohnung – Gefahr, die sich echt anfühlt, in einer Anlage, in der sie technisch, normativ und organisatorisch mehrfach abgesichert ist.</p>
+
+  <div class="note"><span class="label">Offen geblieben</span>
+    <p>Nicht auffindbar waren: eine offizielle Parcoursliste des Kahlenberg (Namen, Länge, Übungen je Parcours), Anzahl und Längen der Flying Foxes, ob der Park bereits Smart Belay X einsetzt, ob Handschuhe heute Pflicht sind, ob die Testroute „Schritt ins Nichts“ noch besteht, sowie belastbare aktuelle Unfallstatistiken für Seilgärten im DACH-Raum. Alle diese Punkte ließen sich am schnellsten mit einem Anruf beim Park oder einem Besuch klären.</p>
+  </div>
+
+  <hr>
+  <div class="sources">
+    <h2 style="font-size:1.4rem">Quellen</h2>
+    <h3>Waldseilpark Kahlenberg</h3>
+    <ul>
+      <li>Offizielle Website: <a href="https://waldseilpark.erlebniswelt-kahlenberg.at/">Start</a> · <a href="https://waldseilpark.erlebniswelt-kahlenberg.at/sicherheit/">Sicherheit</a> · <a href="https://waldseilpark.erlebniswelt-kahlenberg.at/en_us/sicherheit/">Safety (EN)</a> · <a href="https://waldseilpark.erlebniswelt-kahlenberg.at/faq/">FAQ</a> · <a href="https://waldseilpark.erlebniswelt-kahlenberg.at/preise/">Preise</a> · <a href="https://waldseilpark.erlebniswelt-kahlenberg.at/oeffnungszeiten/">Öffnungszeiten</a> · <a href="https://waldseilpark.erlebniswelt-kahlenberg.at/klettern-mit-guide/">Guide</a> · <a href="https://www.erlebniswelt-kahlenberg.at/impressum/">Impressum</a></li>
+      <li><a href="https://www.wienerwald.info/ausflug-freizeit/waldseilpark-kahlenberg">wienerwald.info</a> · <a href="https://www.wien.info/de/sehen-erleben/familien/outdoor/hochseilklettergaerten-348000">wien.info</a> · <a href="https://www.niederoesterreich.at/ausflugsziele/a-waldseilpark-kahlenberg">niederoesterreich.at</a> · <a href="https://kletterpark.guide/waldseilpark-kahlenberg">kletterpark.guide</a> · <a href="https://www.ganz-wien.at/freizeit/sport/kletterpark-kahlenberg.html">ganz-wien.at</a> · <a href="https://easycitypass.com/en/partner/kahlenberg-forest-rope-park">EasyCityPass</a> · <a href="https://all4family.at/orte/waldseilpark-kahlenberg/">all4family.at</a></li>
+      <li>Presse/Chronik: <a href="https://wien.orf.at/v2/news/stories/2540117/">ORF Wien 2012</a> · <a href="https://www.meinbezirk.at/doebling/c-sport/der-neue-waldseilpark-kahlenberg_a212086">meinbezirk 2012</a> · <a href="https://www.meinbezirk.at/wieden/c-lokales/in-der-nacht-ueber-die-kahlenberger-baumwipfel_a1043220">meinbezirk (Nachtklettern)</a> · <a href="https://www.vienna.at/waldseilpark-kahlenberg-und-3d-bogensportpark-wieder-geoeffnet/6609532">vienna.at 2020</a> · <a href="https://www.freizeitinwien.at/klettern-im-hochseilgarten-kahlenberg/">freizeitinwien.at</a></li>
+      <li>Betreiber: <a href="https://www.firmenabc.at/hoch-erlebniswelt-leopoldsberg-betriebs-gmbh_HFdv">firmenabc.at</a> · <a href="https://de.wikipedia.org/wiki/Kahlenberg">Wikipedia „Kahlenberg“</a></li>
+      <li>Erfahrungsberichte: <a href="https://www.heldenderfreizeit.com/waldseilpark-kahlenberg-kletterpark-test/">heldenderfreizeit.com</a> · <a href="https://www.blindenverband-wnb.at/blog/hochgefuehle-im-waldseilpark/">blindenverband-wnb.at</a> · <a href="https://wanderlog.com/place/details/1502102/waldseilpark-kahlenberg">Wanderlog (Google-Reviews)</a> · <a href="http://www.maennerabend.at/freizeitaktivitaeten-in-wien/waldseilpark-kahlenberg/">maennerabend.at</a></li>
+    </ul>
+    <h3>Konzept, Bau, Normen</h3>
+    <ul>
+      <li><a href="https://archiv.sichere-schule.de/klettern_balancieren/_docs/seilgarten_begriffsbest.pdf">DGUV-Begriffsbestimmungen Seilgarten (PDF)</a> · <a href="https://de.wikipedia.org/wiki/Seilgarten">Wikipedia „Seilgarten“</a> · <a href="https://en.wikipedia.org/wiki/Ropes_course">Wikipedia „Ropes course“</a> · <a href="https://fr.wikipedia.org/wiki/Parcours_acrobatique_en_hauteur">Wikipedia „Parcours acrobatique en hauteur“</a></li>
+      <li><a href="https://cdn.standards.iteh.ai/samples/35414/1ba434183e5949a8b442cd4db4f34fe0/SIST-EN-15567-1-2015-DE-.pdf">EN 15567-1 (Vorschau)</a> · <a href="https://cdn.standards.iteh.ai/samples/35415/e2fa4267dd354ce6b3aaca11e50b75de/SIST-EN-15567-2-2015-DE-.pdf">EN 15567-2 (Vorschau)</a> · <a href="https://avs.edelrid.com/images/attribut/EN_17109.pdf">Edelrid: Auszug EN 17109</a> · <a href="https://www.iapa.cc/wp-content/uploads/2020/04/IAPA-Standards-2016.pdf">IAPA-Standards 2016 (PDF)</a> · <a href="https://www.erca.uk/index.php/de/faq-seilgaerten/fragen-und-antworten">ERCA FAQ</a> · <a href="https://www.erca.uk/index.php/en/17-training-and-inspection">ERCA: Training and Inspection</a> · <a href="https://www.erca.uk/images/PUT_UPLOADS_HERE/Sicherheitswarnungen/Archiv/05_ERCA_Unfallbericht_2006_2007.pdf">ERCA-Unfallbericht 2006/07 (PDF)</a></li>
+      <li><a href="https://www.tree-consult.org/upload/mediapool/pdf/bauminstallationen/detter-baumkontrolle_in_klettergaerten-2012_fll_berlin.pdf">Detter: Baumkontrolle in Klettergärten (FLL 2012, PDF)</a> · <a href="https://www.die-hochseilgartenbauer.de/ablage/material-ausruestung/x-centric-plattform.html">X-Centric-Plattform</a> · <a href="https://kletterwaldfreischuetz.de/sicherheit/">Kletterwald Freischütz: Sicherheit</a> · <a href="https://de.wikibooks.org/wiki/Hochseilg%C3%A4rten">Wikibooks „Hochseilgärten“</a></li>
+      <li><a href="https://www.die-hochseilgartenbauer.de/hochseilgaerten/hochseilgarten-elemente.html">Elemente-Übersicht (die Hochseilgartenbauer)</a> · <a href="https://kletterwald-paderborn.de/parcours/">Kletterwald Paderborn: Parcours</a> · <a href="https://www.abenteuerpark.at/preise_infos/parcours">Abenteuerpark Gröbming: Parcours</a> · <a href="https://kletterwald-usedom.de/kletterwald/">Kletterwald Usedom</a> · <a href="https://wald-abenteuer.de/faq/">Wald-Abenteuer FAQ</a></li>
+      <li><a href="https://www.sportplatzwelt.de/fachwissen/22519/hochseilgaerten-sicherheit-versicherung-und-trends-interview">Interview ERCA-Präsidentin (sportplatzwelt.de)</a> · <a href="https://www.bfu.ch/de/ratgeber/seilpark">bfu: Seilpark</a> · <a href="https://kletterpark.guide/sicherungssysteme">kletterpark.guide: Sicherungssysteme</a></li>
+    </ul>
+    <h3>Sicherungssysteme, Flying Fox</h3>
+    <ul>
+      <li><a href="https://edelrid.com/de-de/professional/smart-belay">Edelrid Smart Belay</a> · <a href="https://edelrid.com/us-en/professional/smart-belay/smart-belay-x">Edelrid Smart Belay X</a> · <a href="https://avs.edelrid.com/images/attribut/54546_GAL_SmartBelay_ANSICHT.pdf">Gebrauchsanleitung Smart Belay (PDF)</a> · <a href="https://edelrid.com/eu-en/knowledge/academy/professional/adventure-park">Edelrid Academy: Adventure Park (Rettungs- und Smart-Belay-Kurse)</a> · <a href="https://www.die-hochseilgartenbauer.de/material-ausruestung/sicherungssysteme/ssb.html">Bornack SSB</a> · <a href="https://lockdclips.com/">LockD Clips</a> · <a href="https://kt-safetyservice.com/product/clic-it-adventure/">CLiC-iT Adventure</a></li>
+      <li><a href="https://kanopeo.com/en/kanopeo/index.php">Kanopeo</a> · <a href="https://www.kanopeo.com/our-products/continuous-belay-system-saferoller/saferoller-trolley-v3-ppe/">Saferoller Trolley</a> · <a href="https://koala-equipment.com/en/3-ligne-de-vie-continue">Koala</a> · <a href="https://www.kong.it/en/product/zaza2cs/">Kong ZaZa2</a> · <a href="https://www.hochseilgarten.at/anlagenbau/sicherungssysteme/safteyline">SafetyLine (hochseilgarten.at)</a></li>
+      <li><a href="https://adventureparkinsider.com/article/staying-connected/">Adventure Park Insider: Staying Connected</a> · <a href="https://adventureparkinsider.com/article/evacuation-tools/">Evacuation Tools</a> · <a href="https://www.infranken.de/lk/forchheim/drahtseilakt-in-kletterwaeldern-der-fraenkischen-art-3539214">inFranken: Kletterwälder Oberfranken</a></li>
+      <li><a href="https://skywab.com/en/news/3196-from-stall-to-speeding-how-to-control-zip-line-rider-speed-like-a-pro">Skywalker: Zipline-Geschwindigkeit</a> · <a href="https://www.ziplinegear.com/blogs/engineering-and-design/zipline-slope-sag-guide">Zipline Slope &amp; Sag Guide</a> · <a href="https://headrushtech.com/blog/buyers-guide-zip-line-brakes">Head Rush: Zip Line Brakes</a> · <a href="https://de.wikipedia.org/wiki/Seilrutsche">Wikipedia „Seilrutsche“</a> · <a href="https://www.petzl.com/INT/en/Operators/Pulleys/TRAC-GUIDE">Petzl Trac Guide</a> · <a href="https://www.aerialadventuretech.com/products/dropzone-powerfan-free-fall-device-pf13">Powerfan PF13</a> · <a href="https://headrushtech.eu/quickflight-free-fall-device">QuickFlight</a></li>
+    </ul>
+    <h3>Vergleichsparks</h3>
+    <ul>
+      <li><a href="https://www.hochseilklettergarten.at/">Hochseilklettergarten Gänsehäufel</a> · <a href="https://www.kletterpark-salzburg.at/">Kletterpark Waldbad Anif</a> · <a href="https://www.hornpark.at/">Hornpark St. Johann</a> · <a href="https://www.kletterpark.at/">Kletterpark Purkersdorf</a> · <a href="https://www.hochseilpark.at/hochseilpark-saalbach/allgemeine-infos/">Hochseilpark Saalbach</a></li>
+      <li><a href="https://www.seilpark-zuerich.ch/">Seilpark Zürich (Kloten)</a> · <a href="https://ap-rheinfall.ch/">Adventure Park Rheinfall</a> · <a href="https://www.seilpark-engelberg.ch/">Seilpark Engelberg</a> · <a href="https://kletterwaldfreischuetz.de/">Kletterwald Freischütz</a></li>
+    </ul>
+  </div>
+</div>
