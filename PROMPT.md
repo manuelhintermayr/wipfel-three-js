@@ -236,7 +236,7 @@ Plan dieser Session, erster Commit.
 
 ### 6.3 Arbeits-Loop
 - Eine Aufgabe = ein Commit. Vor dem Commit: `git status`, Diff lesen, `node tools/check-all.mjs`,
-  `node --test tests/unit/`, Seite neu laden (no-store), Konsole leer, sichtbare Änderung per Screenshot,
+  `node --test "tests/unit/**/*.test.mjs"`, Seite neu laden (no-store), Konsole leer, sichtbare Änderung per Screenshot,
   `?autoplay=1`, wenn betroffen, Docs aktualisiert.
 - Nach jedem Commit: `HANDOVER.md` (Stand, Commit-Hash, nächste Aufgabe) und `ROADMAP.md` (Checkbox);
   Session-Log unter `docs/sessions/` fortschreiben; ADR bei Entscheidungen.
@@ -265,7 +265,7 @@ Code oder Docs. Meilenstein-Tags `m0`…`m3`. Screenshots < 300 KB.
 
 ## 8 · Verifikation
 Siehe `docs/testing.md`: Syntax-Gate (`node tools/check-all.mjs`), Unit-Tests reiner Logik
-(`node --test tests/unit/` – RNG, Graph, Generator, Katalog, Save, Zip-Physik, Karabiner-Automat),
+(`node --test "tests/unit/**/*.test.mjs"` – RNG, Graph, Generator, Katalog, Save, Zip-Physik, Karabiner-Automat),
 Smoke-Checkliste im Browser, optional `node tests/smoke.mjs`, Debug-Overlay für das Performance-Budget,
 Review-Schleifen (visuell, Gameplay) vor jedem Meilenstein-Tag. Laufzeitverhalten ist die Wahrheit.
 

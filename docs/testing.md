@@ -13,7 +13,7 @@ Fängt Syntaxfehler und – wichtig auf diesem Windows-Mount – abgeschnittene 
 ## 2 · Unit-Tests reiner Logik
 Node-eigener Test-Runner, keine Abhängigkeiten:
 ```
-node --test tests/unit/
+node --test "tests/unit/**/*.test.mjs"
 ```
 Konvention: `tests/unit/<modul>.test.mjs`, `import test from "node:test"; import assert from
 "node:assert/strict";`. Getestet werden nur Module ohne DOM/WebGL/Rapier-Bedarf (Logik so schneiden,

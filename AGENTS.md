@@ -31,7 +31,7 @@ Dann `python serve.py` starten, `http://127.0.0.1:8200/` öffnen, Konsole prüfe
 ## Tests und Verifikation
 ```
 node tools/check-all.mjs      # Syntax aller JS-Dateien (auch gegen abgeschnittene Dateien)
-node --test tests/unit/       # Unit-Tests reiner Logik (RNG, Graph, Generator, Save)
+node --test "tests/unit/**/*.test.mjs"       # Unit-Tests reiner Logik (RNG, Graph, Generator, Save)
 node tests/smoke.mjs          # optional: Headless-Smoke (playwright-core), sonst SKIP
 ```
 Plus manuelle Smoke-Checkliste in `docs/testing.md`. Laufzeitverhalten im Browser ist die Wahrheit –

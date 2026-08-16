@@ -10,7 +10,7 @@ vor **M0 „Ein Brett“** (siehe `ROADMAP.md`) – Session 0 (Kickoff, 2026-08-
 ## Letzter funktionierender Commit
 `git log --oneline -1` (Hash hier eintragen, sobald Spielcode existiert). Stand jetzt: nur Dokumente
 und Werkzeuge; „funktionierend“ = `serve.py` läuft, `node tools/check-all.mjs` und
-`node --test tests/unit/` sind grün.
+`node --test "tests/unit/**/*.test.mjs"` sind grün.
 
 ## Was funktioniert
 - Dokumentation vollständig: `PROMPT.md` (Auftrag, Fassung 2), `CLAUDE.md`/`AGENTS.md` (Regeln),
@@ -68,7 +68,7 @@ Browser-Pane in Claude Code: `.claude/launch.json` → „wipfel“.
 ## Wie testen
 ```
 node tools/check-all.mjs    # Syntax-Gate
-node --test tests/unit/     # Unit-Tests
+node --test "tests/unit/**/*.test.mjs"     # Unit-Tests
 node tests/smoke.mjs        # optional (playwright-core), sonst SKIP
 ```
 Manuelle Smoke-Checkliste: `docs/testing.md`.

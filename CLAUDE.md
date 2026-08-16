@@ -50,7 +50,7 @@ weiterarbeiten. Bestehende Systeme werden nie blind neu gebaut.
     visuelle Qualität → Inhaltsmenge → Politur.
 
 ## Testing (Details: `docs/testing.md`)
-`node tools/check-all.mjs` · `node --test tests/unit/` · Browser über `serve.py` (Konsole leer, Netzwerk
+`node tools/check-all.mjs` · `node --test "tests/unit/**/*.test.mjs"` · Browser über `serve.py` (Konsole leer, Netzwerk
 nur lokal, F1-Panel: fps ≥ 55, Draw-Calls < 300) · Smoke-Checkliste · optional `node tests/smoke.mjs` ·
 Screenshots nach `docs/screenshots/`, in `HANDOVER.md` verlinken. Laufzeitverhalten ist die Wahrheit.
 

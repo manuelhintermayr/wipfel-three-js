@@ -18,7 +18,7 @@ python serve.py
 ```
 node --check js/<datei>.js      # nach jedem Edit
 node tools/check-all.mjs        # Syntax-Gate für alle JS-Dateien
-node --test tests/unit/         # Unit-Tests reiner Logik
+node --test "tests/unit/**/*.test.mjs"         # Unit-Tests reiner Logik
 node tests/smoke.mjs            # optionaler Headless-Smoke-Test (playwright-core)
 ```
 
