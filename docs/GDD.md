@@ -54,13 +54,19 @@ Uhr · Meta = Vertrauen, Freigaben, später der Park selbst.
 ### 3.2 Steuerung (Gamepad; Tastatur analog)
 | Eingabe | Wirkung | Bemerkung |
 |---|---|---|
-| Linker Stick / WASD | vor/zurück auf der Übung; seitlich = Lehnen | Podest frei begehbar; Übung = Schiene mit Wackelmodell |
+| Linker Stick / WASD | vor/zurück auf der Übung; seitlich = Lehnen; am Boden gehen | Podest frei begehbar; Übung = Schiene mit Wackelmodell |
 | Rechter Stick / Maus | Blick | Nach unten schauen erhöht Nerven |
 | LT / RT · Q / E | linke / rechte Hand greifen (halten) | Halteseile, Lianen, Sprossen, Ringe; beide = stabil, teuer; Hangeln = L-R-L |
 | A / Leertaste | Schritt, Sprung (Tarzan), Abstoßen (Flying Fox), Beine anziehen (Landung) | Trittelemente getaktet |
 | X / F | Umhängen | zwei Drücke pro Podest |
-| B / Shift | Atmen (halten) | Nerven sinken, keine Bewegung |
+| B / R | Atmen (halten) | Nerven sinken, keine Bewegung |
+| LB / Shift | Sprint (nur am Boden) | auf Übungen ohne Wirkung |
+| RB / T | Kamera Schulter ↔ Ego | im Flying Fox automatisch Ego |
 | Y / Tab | Parkplan | Position, Wartezeiten, Restzeit |
+| – / E | Interagieren | Kassa, Schilder, Leiter einsteigen, Trolley/Karabiner am Flying Fox einhängen |
+| Start / Esc | Pause, Optionen | |
+| – / F1 | Debug-Panel | nur Entwicklung |
+Steuerung remapbar (Optionen, ab M1); Gamepad-Haptik als Abstraktion (Sturz, Landung, Klick).
 
 ### 3.3 Umhängen: Klick – Klick
 An jedem Podest vom Sicherungsseil der letzten Übung in das der nächsten. Smart Belay = Ritual aus zwei

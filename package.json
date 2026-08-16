@@ -7,6 +7,7 @@
   "scripts": {
     "serve": "python serve.py",
     "check": "node tools/check-all.mjs",
+    "test": "node --test tests/unit/",
     "smoke": "node tests/smoke.mjs"
   }
 }

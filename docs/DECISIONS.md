@@ -71,6 +71,36 @@ Das Nerven-Modell funktioniert nur, wenn Höhe selten ist.
 **Entscheidung:** Eine Aufgabe = ein Commit (≤ 45 min); `HANDOVER.md` und `docs/SESSIONS.md` nach jedem
 Commit; `wip:`-Commits bei Abbruchgefahr; Meilenstein-Tags; keine Co-Author-/„Generated with“-Zeilen.
 
+## ADR-020 · Offline gebackene eigene Ausgaben unter `assets/generated/` erlaubt · 2026-08-16 · angenommen
+**Kontext:** Abgleich mit externem Master-Prompt. Manche Generatoren (große Texturen, Bake-Tabellen)
+kosten Startzeit. **Entscheidung:** Ausgaben eigener `tools/`-Skripte (auch Python) dürfen unter
+`assets/generated/` liegen – reproduzierbar, mit Generator, Seed, Auflösung, Zweck dokumentiert.
+Fremde Assets bleiben verboten; Laufzeit-Generierung bleibt der Standard. **Alternativen:** alles zur
+Laufzeit (Startzeit), fremde Asset-Packs (abgelehnt). **Konsequenzen:** `assets/generated/README.md`
+führt Provenienz.
+
+## ADR-021 · Session-Logs je Datei · 2026-08-16 · angenommen
+**Entscheidung:** pro Session `docs/sessions/YYYY-MM-DD-session-NN.md` (Vorlage
+`docs/sessions/README.md`), `docs/SESSIONS.md` als Index. Alte Logs werden nie überschrieben.
+**Alternativen:** eine wachsende Datei (Merge-/Größenprobleme). **Konsequenzen:** reichere Logs
+(Dateien geändert, Tests, Performance, Screenshots) ohne Konflikte.
+
+## ADR-022 · Unit-Tests reiner Logik via `node --test` · 2026-08-16 · angenommen
+**Entscheidung:** Node-eigener Test-Runner ohne Dependencies für RNG, Graph, Generator, Katalog,
+Save, Zip-Physik, Karabiner-Automat; Logik so schneiden, dass sie ohne DOM/WebGL testbar ist.
+**Alternativen:** kein Test-Runner (nur Smoke), Jest/Vitest (Dependencies). **Konsequenzen:**
+Generator-Validität und Determinismus sind maschinell geprüft, nicht nur „gesehen“.
+
+## ADR-023 · Parcours-Namen zusätzlich zu Farbe + Nummer · 2026-08-16 · angenommen
+**Kontext:** Der Kahlenberg nummeriert nur; andere Parks benennen (Anif: Berge, Freischütz: Gebirge,
+Kloten: „007“). **Entscheidung:** „Farbe + Nummer · Name“ (z. B. „Rot 3 · Grat“) – System bleibt
+lesbar, Namen bleiben im Gedächtnis. **Konsequenzen:** Schilder zeigen Form + Farbe + Nummer + Name.
+
+## ADR-024 · Prioritätsreihenfolge bei Zielkonflikten · 2026-08-16 · angenommen
+**Entscheidung:** Korrektheit → Spielgefühl → stabile Physik → Lesbarkeit → Architektur → visuelle
+Qualität → Inhaltsmenge → Politur (siehe `ROADMAP.md`). Nie funktionierende Steuerung für schönere
+Vegetation opfern.
+
 ---
 
 ## Offen (von der jeweiligen Session zu entscheiden und hier einzutragen)
