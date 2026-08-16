@@ -1,0 +1,34 @@
+/* Full-screen overlays: start banner + countdown, course map, pause, kassa. Populated from M0.7/M1 on. */
+
+.screen { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(8, 10, 9, 0.55); }
+.screen .panel { background: var(--hud-bg-strong); border: 1px solid var(--hud-line); border-radius: var(--radius); padding: 1.4rem 1.8rem; min-width: 20rem; }
+.screen h1 { font: 700 2rem/1 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; margin: 0 0 0.6rem; }
+.screen p { margin: 0 0 0.8rem; color: var(--hud-muted); line-height: 1.45; }
+
+.start-banner {
+  position: absolute; left: 50%; top: 18%; transform: translateX(-50%);
+  min-width: 22rem; text-align: center; color: var(--hud-text);
+  background: var(--cat-color, var(--cat-black)); border-radius: var(--radius);
+  padding: 1.1rem 1.6rem 1rem; box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+.start-banner .cat { font: 600 0.8rem/1 var(--font-display); letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.9; }
+.start-banner .name { font: 700 2.4rem/1 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; margin: 0.35rem 0 0.7rem; }
+.start-banner .facts { display: flex; justify-content: center; gap: 1.6rem; font-variant-numeric: tabular-nums; }
+.start-banner .facts b { display: block; font: 700 1.3rem/1 var(--font-display); }
+.start-banner .facts span { font: 600 0.62rem/1.6 var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.85; }
+.start-banner .best { margin-top: 0.7rem; font: 600 0.75rem/1.4 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.9; }
+.start-banner .best b { display: block; font: 700 1.5rem/1.1 var(--font-display); }
+.start-banner .go { margin-top: 0.7rem; padding-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.35); font: 700 1.5rem/1 var(--font-display); letter-spacing: 0.2em; text-transform: uppercase; }
+
+.countdown { position: absolute; right: var(--hud-pad); bottom: var(--hud-pad); display: flex; gap: 0.7rem; }
+.countdown .disc { width: 3rem; height: 3rem; border-radius: 50%; border: 2px solid var(--hud-line); background: var(--hud-bg-strong); display: grid; place-items: center; font: 700 1.3rem/1 var(--font-display); color: var(--hud-muted); }
+.countdown .disc.active { color: var(--hud-text); border-color: var(--hud-text); }
+.countdown .disc.go { color: #0d1210; background: var(--hud-ok); border-color: var(--hud-ok); font-size: 1rem; letter-spacing: 0.06em; }
+
+.course-map { position: absolute; inset: 0; background: rgba(8, 10, 9, 0.85); display: grid; grid-template-rows: auto 1fr auto; padding: var(--hud-pad); }
+.course-map .head { display: flex; align-items: center; justify-content: space-between; }
+.course-map .title { font: 700 1.1rem/1 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; }
+.course-map canvas { width: 100%; height: 100%; display: block; }
+.course-map .legend { display: flex; gap: 1.2rem; font: 600 0.75rem/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; }
+.course-map .legend i { display: inline-block; width: 0.7rem; height: 0.7rem; margin-right: 0.35rem; transform: rotate(45deg); background: var(--c); }
+.course-map .actions { display: flex; gap: 0.6rem; }

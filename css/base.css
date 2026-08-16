@@ -1,0 +1,95 @@
+/* Wipfel – design tokens, reset, layout. UI colours/typography live here only. */
+
+:root {
+  /* route categories (also used by signage and map) */
+  --cat-green: #6fbf3b;
+  --cat-blue: #2f6fd6;
+  --cat-red: #d8342c;
+  --cat-black: #1c1c1e;
+  --cat-legendary: #e5b93c;
+
+  /* HUD surfaces – dark, translucent, quiet (mockup) */
+  --hud-bg: rgba(14, 16, 18, 0.62);
+  --hud-bg-strong: rgba(14, 16, 18, 0.86);
+  --hud-line: rgba(255, 255, 255, 0.16);
+  --hud-text: #f2f4f1;
+  --hud-muted: rgba(242, 244, 241, 0.68);
+  --hud-accent: #f2c635;      /* flow / speed gauge */
+  --hud-ok: #58c56b;          /* safety-first check, GO */
+  --hud-warn: #f0a33a;
+  --hud-danger: #e0564c;
+
+  --font-display: "Bahnschrift", "Barlow Condensed", "Roboto Condensed", "Arial Narrow", "Segoe UI", sans-serif;
+  --font-ui: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Consolas", "Cascadia Mono", "SFMono-Regular", Menlo, monospace;
+
+  --radius: 3px;
+  --hud-pad: clamp(12px, 1.6vw, 24px);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #0d1210;
+  color: var(--hud-text);
+  font-family: var(--font-ui);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app { position: fixed; inset: 0; }
+#app canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+#hud, #overlay, #debug, #fatal { position: fixed; inset: 0; pointer-events: none; }
+#overlay > *, #fatal > *, #debug > * { pointer-events: auto; }
+
+[hidden] { display: none !important; }
+
+button, .btn {
+  font: 600 0.85rem/1 var(--font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hud-text);
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-line);
+  border-radius: var(--radius);
+  padding: 0.55em 0.9em;
+  cursor: pointer;
+}
+button:hover, .btn:hover { background: var(--hud-bg-strong); }
+button:focus-visible, .btn:focus-visible { outline: 2px solid var(--hud-accent); outline-offset: 2px; }
+
+/* fatal error screen (WebGL / Rapier init failure) */
+#fatal .fatal-box {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  background: #0d1210;
+  color: var(--hud-text);
+  padding: 2rem;
+}
+#fatal .fatal-inner { max-width: 60ch; }
+#fatal h1 { font: 700 2rem/1.1 var(--font-display); letter-spacing: 0.04em; margin: 0 0 0.6rem; }
+#fatal p { margin: 0 0 0.8rem; line-height: 1.5; }
+#fatal pre { font: 0.8rem/1.4 var(--font-mono); white-space: pre-wrap; color: var(--hud-muted); }
+
+/* debug panel */
+#debug .debug-panel {
+  position: absolute; top: var(--hud-pad); right: var(--hud-pad);
+  min-width: 15rem;
+  font: 0.72rem/1.45 var(--font-mono);
+  color: var(--hud-text);
+  background: var(--hud-bg-strong);
+  border: 1px solid var(--hud-line);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.75rem;
+}
+#debug .debug-panel h2 { font: 700 0.7rem/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; margin: 0 0 0.4rem; color: var(--hud-muted); }
+#debug .debug-panel dl { display: grid; grid-template-columns: auto 1fr; gap: 0.1rem 0.8rem; margin: 0; }
+#debug .debug-panel dt { color: var(--hud-muted); }
+#debug .debug-panel dd { margin: 0; font-variant-numeric: tabular-nums; text-align: right; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
