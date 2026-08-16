@@ -8,7 +8,14 @@ Commits, HANDOVER.md immer aktuell.** Eine neue Session muss ohne Vorwissen weit
 Projektzustand lebt im Repository, nicht im Chatverlauf.
 
 Ordner: `C:\repos\game-remakes\wipfel\` (dieses Verzeichnis). Chat: Deutsch. Code, Kommentare,
-Commit-Messages: Englisch. UI-Texte: Deutsch (i18n-Datei, Englisch folgt).
+Commit-Messages: Englisch. UI-Texte: Englisch als Standard (`assets/strings/en.json`, wie im Mockup),
+Deutsch vollständig als zweite Sprache (`de.json`, echtes Parkvokabular) – ADR-026.
+
+**Visuelles Ziel: das Gameplay-Mockup in `docs/reference/mockup/README.md` – 1:1** (HUD-Layout,
+Kategorien Green/Blue/Red/Black/Legendary, Schulterkamera, Kletterin mit Gurt und Karabinern,
+stylized realism statt Low-Poly). Auftrag von Manuel: „vollständig bis zum Ende umsetzen – keine
+Abkürzungen – high quality assets, game ready.“ Das heißt: kein Platzhalter bleibt, jede Übung, jedes
+Podest, jeder Baum, jeder Ton wird in Zielqualität gebaut, notfalls über viele Sessions.
 
 Du bist zugleich Gameplay-Programmierer, Physik-Programmierer, Technical Artist, Environment-Designer,
 UI/UX-Designer, QA und Repository-Maintainer. Das Ergebnis muss sich wie ein Spiel anfühlen, nicht wie
@@ -26,7 +33,9 @@ pwd · git status · git log --oneline -15
    funktioniert, was halb fertig ist, was kaputt ist, die unmittelbar nächste Aufgabe.
 3. `ROADMAP.md` – verbindliche Meilensteine und Aufgaben mit Checkboxen.
 4. Neuester Eintrag unter `docs/sessions/` – Fallen und Zwischenstände der letzten Session.
-5. `docs/GDD.md` – das Spielkonzept (Details: `docs/reference/wipfel-gdd.html`).
+5. `docs/GDD.md` – das Spielkonzept (Details: `docs/reference/wipfel-gdd.html`) und
+   **`docs/reference/mockup/README.md` – das visuelle Ziel 1:1 (HUD, Kamera, Figur, Bild)**;
+   `docs/reference/photos/` – Vor-Ort-Fotos vom Kahlenberg (Bausprache).
 6. `docs/RESEARCH-DATA.md` – die realen Zahlen und Regeln echter Kletterwälder.
 7. `docs/DECISIONS.md` – ADR-Log: anwenden, nicht neu diskutieren; Neues ergänzen.
 8. `docs/architecture.md` (sobald vorhanden) und nur die relevanten Quelldateien.
@@ -45,9 +54,9 @@ Holzpodeste an lebenden Bäumen, überquert Übungen (Seilbrücken, hängende Pl
 Hangelstrecken, Tarzansprung), ist mit zwei kommunizierenden Rollenkarabinern in ein Sicherungsseil
 eingehängt (Umhängen an jedem Podest: Klick – Klick), verwaltet drei Ressourcen (Gleichgewicht, Kraft,
 Nerven), fällt in den Gurt statt zu sterben, erholt sich, und fährt am Ende jedes Parcours mit dem
-Flying Fox zurück auf den Boden. Ein Ticket ist ein Run von vier Spielstunden. Farben sind Tore:
-Blau → Rot → Schwarz (→ Legendär). Der Park ist ein zusammenhängendes Netz mit Kreuzungspodesten und
-Schildern, keine Level-Liste. Später (M3) der Betreiber-Akt: Park bauen, Gäste simulieren, Parcours
+Flying Fox zurück auf den Boden. Ein Ticket ist ein Run von vier Spielstunden. Kategorien sind Tore:
+Green (Kinder/Einsteiger, Übungsparcours) → Blue → Red → Black (→ Legendary). Der Park ist ein
+zusammenhängendes Netz mit Kreuzungspodesten und Schildern, keine Level-Liste. Später (M3) der Betreiber-Akt: Park bauen, Gäste simulieren, Parcours
 selbst begehen, bevor sie öffnen.
 
 Emotionale Sequenz, die jede Übung und jeder Parcours bedienen soll: Neugier → Unsicherheit → Höhe →
@@ -100,7 +109,9 @@ Blau I–VII, Rot I–VI, Schwarz I–IV). Kahlenberg-Situation ohne Marke.
    fehlgeschlagene Generatoren → klare Diagnose + Fallback; `console.info/warn/error` gezielt, kein
    Log-Rauschen im Normalbetrieb.
 10. **Sprache:** Code/Kommentare/Commits Englisch. UI-Strings ausschließlich über
-    `assets/strings/de.json`, nie hart im Code.
+    `assets/strings/en.json` (Standard) und `de.json` (vollständig), nie hart im Code.
+11. **Bildanmutung:** stylized realism wie im Mockup – PBR-Materialien, dichte Kiefern mit
+    Blattmassen, Nebeltiefe, Streiflicht, Schatten, Tone-Mapping. **Kein Low-Poly-Look.**
 
 ---
 
@@ -160,9 +171,11 @@ wipfel/
   automatisch im Flying Fox; kollisionsbewusst (Kronen ausdünnen, kein Clipping durch Stämme),
   adaptives Sichtfeld bei Tempo, dezente Reaktion auf Stürze, optionaler Blick nach unten (kostet
   Nerven), Bewegungseffekte begrenzt (Reduzierbar in den Optionen).
-- **Figur:** prozedurale Menschfigur mit sauberer Abstraktion, damit Visuals später aufgewertet werden
-  können; Zustände idle, walk, run, crouch, ladder, balance, grab, hang, pull-up, jump, land,
-  harness-fall, recover, zipline, net – Posen-Blending statt Voll-IK.
+- **Figur:** Kletterin wie im Mockup (dunkles Tanktop, Capri-Hose, Komplettgurt mit orange-schwarzen
+  Bändern, Handschuhe, zusammengebundenes Haar, Y-Verbindungsmittel mit zwei Rollenkarabinern, Rolle
+  am Gurt), prozedural gebaut mit sauberer Abstraktion, damit Visuals aufgewertet werden können;
+  Zustände idle, walk, run, crouch, ladder, balance, grab, hang, pull-up, jump, land, harness-fall,
+  recover, zipline, net – Posen-Blending, Hand-/Fuß-Ankerpunkte, später leichtes IK.
 
 ---
 
@@ -211,8 +224,16 @@ Zahlen aus `docs/RESEARCH-DATA.md`; Prüfliste für alles Sichtbare und Spürbar
 - **Audio (Synthese):** Schritte Holz/Erde, Seilspannung, Holzknarren, Trolley, Karabiner-Klicks,
   Gurtfang, Wind nach Höhe, Laub, Vögel, ferne Stadt, Kinderrufe, Herzschlag, Atem, UI. Nicht ans Ende
   schieben – Grundgerüst ab M0.
-- **UI:** diegetisch, Parkbeschilderungs-Optik, Formen ● ■ ◆ zusätzlich zur Farbe (Schwierigkeit nie
-  nur über Farbe), minimal, CSS statt WebGL, skalierbar, lesbar; Debug getrennt.
+- **UI (1:1 nach Mockup):** Routen-Header oben links (Farbbalken, `RED ROUTE`, Icon + Name,
+  `13 / 19`, Zeit, `BEST`), Flow unten Mitte (`FLOW x2,4` + Balken), Modus-Icons unten links,
+  Zipline-Overlay (Farbbalken, `ZIPLINE`, Name, Länge; Tacho `SPEED 62 KM/H` unten rechts), Course Map
+  als Vollbild-Overlay (Relief, farbige Routen, Podest-Knoten, Legende Green/Blue/Red/Black/Legendary,
+  Buttons Filter/Player/Zoom/Exit), Start-Banner (`BLACK ROUTE · THE CROW · 19 OBSTACLES · 32 m HEIGHT ·
+  480 m LENGTH · BEST TIME · START`) mit Countdown 3-2-1-GO, Sicherheits-Tooltip (`SAFETY FIRST`).
+  Dazu Wipfel-Eigenes: Karabiner-Widget, Kraft-Ring, Herzschlag statt Nervenbalken, Ticket-Uhr im
+  Ticket-Modus, Kontext-Prompts. Dunkelgrau-transparente Boxen, weiße kondensierte Versalien,
+  Farbakzent nach Kategorie, Formen zusätzlich zur Farbe, CSS statt WebGL, skalierbar; Debug getrennt.
+  Diegetische Schilder in der Welt wie im echten Park (Pfeiltafeln, Parkplan-Tafel).
 
 ---
 

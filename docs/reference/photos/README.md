@@ -1,11 +1,11 @@
 # Fotos vom Waldseilpark Kahlenberg (Vor-Ort-Referenz, August 2026)
 
-Eigene Fotos von Manuel. **Bitte die vier Bilder aus dem Chat hier ablegen** (Dateinamen unten), sie
-sind die primäre visuelle Referenz für Podeste, Einstiege, Beschilderung und Parkplan. Solange die
-Dateien fehlen, gilt diese Beschreibung. Nichts davon ist Spiel-Asset – alles wird prozedural
-nachgebaut; die Fotos dienen nur zur Kalibrierung von Maßstab, Material und Sprache.
+Eigene Fotos von Manuel (vier Dateien in diesem Ordner). Sie sind die primäre visuelle Referenz für
+Podeste, Einstiege, Beschilderung und Parkplan. Nichts davon ist Spiel-Asset – alles wird prozedural
+nachgebaut; die Fotos dienen zur Kalibrierung von Maßstab, Material und Sprache. Das Gameplay-Ziel
+(HUD, Kamera, Figur, Atmosphäre) steht in `../mockup/README.md`.
 
-## `01-podest-einstiegswand-anker.jpg`
+## `01-podest-einstiegswand-anker.webp`
 - Niedriges Podest (ca. 4–5 m): **Planken auf Rundholz-Rahmen**, schräge **Rundholz-Stützen zum Boden**;
   daran eine große dunkle, geneigte Platte – vermutlich Einstiegswand/Rampe (Rückseite sichtbar,
   Beschlag mit Scharnier/Riegel).
@@ -17,7 +17,7 @@ nachgebaut; die Fotos dienen nur zur Kalibrierung von Maßstab, Material und Spr
   WALDSEILPARK-Aufkleber (Branding bis in Nebensachen).
 - Licht: tiefe Abendsonne, gefiltert durch Laub; Waldboden trocken, Laubstreu.
 
-## `02-blockleiter-einstiegsdeck.jpg`
+## `02-blockleiter-einstiegsdeck.webp`
 - **Holz-Blockleiter** als Einstieg: dunkles Brett als Rücken am Kiefernstamm, **versetzte Holzklötze**
   als Tritte, ca. 4 m bis zum Podest.
 - **Einstiegsdeck** am Boden (~40 cm, Rundholz-Pfosten, Planken) mit **Bank** – der Ort, an dem man
@@ -27,7 +27,7 @@ nachgebaut; die Fotos dienen nur zur Kalibrierung von Maßstab, Material und Spr
 - Vegetation: hohe, gerade Kiefern als Podest-Träger, dichter Laub-Unterwuchs (Ahorn, Hasel,
   Hainbuche), Kronendach hell.
 
-## `03-parkplan-tafel-quer.jpg` und `04-parkplan-tafel-hoch.jpg`
+## `03-parkplan-tafel-quer.webp` und `04-parkplan-tafel-hoch.webp`
 - **Parkplan-Tafel:** gedruckte grüne Karte (Beschichtungsplatte, Schrauben sichtbar) auf zwei
   Holzpfosten, Titel „WALD SEILPARK“, Logo „Erlebniswelt Kahlenberg“; Straßen grau gestrichelt, Wege
   weiß, Parkplätze als „P“-Kreise, POI-Icons (Elisabethwiese/Bus, Waldseilpark/Kassa, Josefinenhütte,

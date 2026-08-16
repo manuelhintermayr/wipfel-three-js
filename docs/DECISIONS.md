@@ -101,6 +101,31 @@ lesbar, Namen bleiben im Gedächtnis. **Konsequenzen:** Schilder zeigen Form + F
 Qualität → Inhaltsmenge → Politur (siehe `ROADMAP.md`). Nie funktionierende Steuerung für schönere
 Vegetation opfern.
 
+## ADR-025 · Visuelles Ziel = Gameplay-Mockup 1:1 · 2026-08-16 · angenommen
+**Kontext:** Manuel hat ein Konzeptbild vorgegeben („So ca. sollte das Gameplay ausschauen – 1:1“),
+beschrieben in `docs/reference/mockup/README.md`. **Entscheidung:** HUD-Layout, Kategorien, Kamera,
+Figur und Bildanmutung des Mockups sind verbindlich: Routen-Header (Farbbalken, Kategorie, Name,
+Fortschritt, Zeit, Bestzeit), Flow unten Mitte, Zipline-Overlay mit Tacho, Course Map als Overlay,
+Start-Banner mit Kennzahlen und Countdown, Sicherheits-Tooltip; **stylized realism statt Low-Poly**
+(PBR, dichte Kiefern, Nebeltiefe, Streiflicht). Wipfel-Eigenes bleibt, wo es nicht widerspricht
+(Karabiner-Widget, Kraft-Ring, Herzschlag, Ticket-Uhr, Nerven, Modi, Betreiber-Akt). Berge/Wasserfall
+und 32-m-Routen des Mockups gehören zu späteren Kapiteln; Kapitel 1 bleibt Sonnwendberg ≤ 20 m
+(ADR-011). **Konsequenzen:** höhere Anforderungen an Procgen-Qualität (Blattmassen, Materialien),
+Zeit/Bestzeit immer sichtbar.
+
+## ADR-026 · UI-Sprache Englisch als Standard, Deutsch vollständig · 2026-08-16 · ersetzt ADR-009
+**Kontext:** Das Mockup ist englisch; Manuels andere Projekte nutzen englische UI-Texte; das
+Parkvokabular soll trotzdem erhalten bleiben. **Entscheidung:** `assets/strings/en.json` ist die
+Standardsprache, `de.json` eine vollständige zweite Sprache (Podest, Umhängen, Blau/Rot/Schwarz …),
+umschaltbar in den Optionen. Code/Kommentare/Commits bleiben Englisch. **Konsequenzen:** jede
+UI-Zeichenkette in beiden Dateien; Routen-Namen zweisprachig.
+
+## ADR-027 · Kategorien Green · Blue · Red · Black · Legendary · 2026-08-16 · angenommen
+**Entscheidung:** fünf Kategorien wie im Mockup und wie in vielen Parks: **Green** = Kinder-/Einsteiger-
+und Übungsparcours (Wichtel + Einweisung, ≤ 3 m), **Blue** leicht, **Red** mittel, **Black** schwer,
+**Legendary** versteckt/extrem. Der Kahlenberg selbst hat nur Blau/Rot/Schwarz (+ Wichtel) – Green fasst
+Wichtel + Übungsparcours. Farbe immer mit Form/Icon (◈ ◆ ◐ ◆ ✦ bzw. ● ■ ◆).
+
 ---
 
 ## Offen (von der jeweiligen Session zu entscheiden und hier einzutragen)

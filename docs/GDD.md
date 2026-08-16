@@ -1,7 +1,10 @@
-# WIPFEL – Game Design Document (Entwurf 2)
+# WIPFEL – Game Design Document (Entwurf 2.1)
 
 > „Zwölf Meter über dem Boden, ein Brett, zwei Karabiner – und dein Kopf.“
 > Langfassung mit Wireframes: `docs/reference/wipfel-gdd.html`. Reale Zahlen: `docs/RESEARCH-DATA.md`.
+> **Visuelles Ziel 1:1: `docs/reference/mockup/README.md`** (HUD, Kamera, Figur, Bild). Vor-Ort-
+> Fotos: `docs/reference/photos/`. Wo Mockup und ältere Wireframes abweichen, gilt das Mockup (ADR-025);
+> Kategorien Green/Blue/Red/Black/Legendary (ADR-027); UI Englisch + Deutsch (ADR-026).
 
 **Genre:** physik-nahes Kletter-/Balance-Spiel mit Run-Struktur und offener Parkwelt; zweiter Akt:
 Park-Builder mit Gäste-Simulation und geteilten Parcours. **Perspektive:** Schulterkamera, Ego
@@ -187,16 +190,27 @@ Parkplan (Holztafel: Parcours als farbige Linien, Wartezeit-Marken, Position, St
 (HUD) · Podest-Overlay (Vorschaukarte, Umhängen, Atmen) · Flying Fox (Ego, HUD fast weg) · Stempelkarte ·
 Builder (Werkzeugleiste, Overlays, Inspektor, Kalender, Kasse).
 
-**HUD (Übung):**
+**HUD (Übung) – 1:1 nach Mockup:**
 ```
-[Sicherung: ○●]  [Kraft ◔ 62]  [Nerven ~~^~~]                    [Ticket 2 h 41]  [■ Rot 3 · Übung 5/12]
+▌RED ROUTE                                                        [Ticket 2 h 41]  (nur Ticket-Modus)
+  ◈ RAVEN RUN
+  ⏱ 13 / 19        [Sicherung ○●]  [Kraft ◔]  [Herzschlag ~~^~~]   (Wipfel-Eigenes, klein, darunter)
+  ⏱ 02:18.54
+  ◆ BEST: 04:38.76
 
-                          (Wald, Seilbrücke, Figur, Sicherungsseil oben)
+                     (Wald, Seilbrücke, Kletterin, Sicherungsseil oben)
 
-[Vor dir: Nepalbrücke · 14 m · Halteseile]        [ Halteseil LT RT · Atmen B ]
+[⚉ ⚇ 📷]                         FLOW                    [Vor dir: Nepalbrücke · 14 m · Halteseile]
+                                 x2,4  ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
 ```
-Karabiner-Widget links (eingehängt/offen/verriegelt), Kraft-Ring, Herzschlag statt Balken; rechts
-Ticket-Uhr und Parcours-Chip; unten Kontext-Prompt und Vorschau. Rote Vignette = Nerven, kein Schaden.
+Routen-Header oben links (Farbbalken, Kategorie, Icon + Name, Fortschritt, laufende Zeit, Bestzeit),
+Flow unten Mitte mit Balken, Modus-Icons unten links, Kontext-Prompt/Vorschau unten rechts,
+Karabiner-Widget/Kraft-Ring/Herzschlag klein unter dem Header. Rote Vignette = Nerven, kein Schaden.
+**Zipline:** Header `ZIPLINE · EAGLE FLIGHT · 310 m`, Tacho `SPEED 62 KM/H` unten rechts. **Start:**
+Banner `BLACK ROUTE · THE CROW · 19 OBSTACLES · 32 m HEIGHT · 480 m LENGTH · BEST TIME · START` +
+Countdown 3-2-1-GO. **Sicherheits-Tooltip:** `SAFETY FIRST – Always stay clipped in. You can only
+unclip one carabiner at a time.` **Course Map:** Vollbild-Overlay mit Relief, farbigen Routen,
+Podest-Knoten, Legende, Filter/Player/Zoom/Exit.
 
 **Parkplan:** Tafel im Stil des echten Parkplans (grüne Karte auf Pfosten, Wege weiß, Parcours als
 farbige Schleifen mit Ziffern), Karte links (farbige Linien, ⏱-Marken, Pin), rechts Karten je Parcours
