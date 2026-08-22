@@ -12,6 +12,7 @@
 import * as THREE from "three";
 import { ELEMENT_MOVE } from "./tuning.js";
 import { elementPose } from "./rig-poses.js";
+import { lookDownAmount } from "./vitals.js";
 
 const TWO_PI = Math.PI * 2;
 const wrapAngle = (a) => a - TWO_PI * Math.floor((a + Math.PI) / TWO_PI);
@@ -28,6 +29,7 @@ export function createElementState({ input, events = null, balance, stamina, ner
   let element = null;
   let t = 0, railSpeed = 0, stepPhase = 0;
   let handL = 0, handR = 0;              // smoothed 0..1 per hand, for the pose
+  let stepIndex = 0, stepTimer = 0;      // discrete elements: which plank, and the swing wait
   let noisePhase = rng ? rng.float(0, TWO_PI) : 0;
   const params = { angle: 0, phase: 0, speed: 0, elevation: 0, handL: 0, handR: 0, breath: 0, freeze: 0 };
 
@@ -57,6 +59,62 @@ export function createElementState({ input, events = null, balance, stamina, ner
     return (1 - clamp01(hold.ready)) * (0.8 + hurry) * foot;
   }
 
+  /** Continuous rails (wire bridge, cargo net): the stick drives a speed along the rail. */
+  function walk(dt, drive, hands) {
+    const wanted = drive * element.walkSpeed
+      * (1 - ELEMENT_MOVE.nervePenalty * nerves.value)
+      * (1 - ELEMENT_MOVE.handSlow * hands);
+    railSpeed += (wanted - railSpeed) * Math.min(1, ELEMENT_MOVE.accel * dt);
+    t = clamp01(t + railSpeed * dt / element.length);
+    return stepImpulse(dt, drive);
+  }
+
+  /** Where the body wants to be: over plank `stepIndex`, wherever that plank has swung to. */
+  function plankTarget() {
+    const planks = element.planks || [];
+    if (stepIndex < 0) return 0;
+    if (stepIndex >= planks.length) return 1;
+    const plank = planks[stepIndex];
+    return clamp01((plank.x + plank.offset) / element.length);
+  }
+
+  /**
+   * One press of W = one plank. Stepping past either end walks off onto the platform, and a plank
+   * that has swung out from under the foot goes straight into the balance pendulum.
+   */
+  function stride(direction) {
+    const planks = element.planks || [];
+    stepTimer = ELEMENT_MOVE.stepWait;
+    stepIndex += direction;
+    stepPhase += 1;
+    if (stepIndex < 0 || stepIndex >= planks.length) return 0;
+    const plank = planks[stepIndex];
+    const hold = element.footholdAt((plank.x + plank.offset) / element.length);
+    element.stepOn(stepIndex, 1, direction);
+    element.wobble.excite(direction * ELEMENT_MOVE.stepExcite * 0.5);
+    return (1 - clamp01(hold.ready)) * ELEMENT_MOVE.missStepKick * (stepIndex % 2 === 0 ? 1 : -1);
+  }
+
+  /** +1 / −1 once a discrete step went past the last / first plank, 0 while still on the element. */
+  function pastEnd() {
+    const planks = element.planks || [];
+    return stepIndex < 0 ? -1 : stepIndex >= planks.length ? 1 : 0;
+  }
+
+  /** Discrete elements (hanging planks): step, wait for the swing, step again. */
+  function stepAcross(dt, blocked) {
+    stepTimer = Math.max(0, stepTimer - dt);
+    let kick = 0;
+    if (!blocked && stepTimer <= 0) {
+      const wanted = (input.pressed("moveUp") ? 1 : 0) - (input.pressed("moveDown") ? 1 : 0);
+      if (wanted) kick = stride(wanted);
+    }
+    const before = t;
+    t += (plankTarget() - t) * Math.min(1, ELEMENT_MOVE.stepGlide * dt);
+    railSpeed = dt > 0 ? (t - before) * element.length / dt : 0;
+    return kick;
+  }
+
   const state = {
     ownsMovement: true,
     blendRate: 7,
@@ -75,17 +133,20 @@ export function createElementState({ input, events = null, balance, stamina, ner
       railSpeed = 0;
       stepPhase = 0;
       handL = handR = 0;
-      lastFoothold = -1;
+      stepIndex = element.discreteSteps ? element.footholdAt(t).index : 0;
+      stepTimer = 0;
       balance.reset(0);
       element.occupancy.active = true;
       element.occupancy.t = t;
       player.velocity.set(0, 0, 0);
+      if (camera) camera.setPivotOffset(-ELEMENT_MOVE.cameraLift);
       place(player, 0);
       if (events) events.emit("player:element-enter", { element: element.id, kind: element.kind, from: data && data.fromEnd });
     },
 
     exit(player) {
       if (element) element.occupancy.active = false;
+      if (camera) camera.setPivotOffset(0);
       player.velocity.set(0, 0, 0);
       element = null;
     },
@@ -97,23 +158,20 @@ export function createElementState({ input, events = null, balance, stamina, ner
       const hands = readHands(dt);
 
       // --- travel along the rail ----------------------------------------------------------------
-      const drive = frozen || breathing ? 0 : clampSigned(input.move.y);
-      const nerveSpeed = 1 - 0.55 * nerves.value;
-      const wanted = drive * element.walkSpeed * nerveSpeed * (1 - 0.25 * hands);
+      const blocked = frozen || breathing;
+      const drive = blocked ? 0 : clampSigned(input.move.y);
       const previous = railSpeed;
-      railSpeed += (wanted - railSpeed) * Math.min(1, ELEMENT_MOVE.accel * dt);
-      t = clamp01(t + railSpeed * dt / element.length);
+      const misStep = element.discreteSteps ? stepAcross(dt, blocked) : walk(dt, drive, hands);
       element.occupancy.t = t;
 
       // --- what the element does about it -------------------------------------------------------
       const lean = frozen ? 0 : clampSigned(input.move.x);
-      const misStep = stepImpulse(dt, drive);
       element.wobble.excite(lean * ELEMENT_MOVE.leanExcite * dt
         + (railSpeed - previous) * ELEMENT_MOVE.hurryExcite * Math.sign(lean || 1) * 0.5);
 
       noisePhase += dt * (3.1 + 7.0 * nerves.value);
       const tremor = nerves.tremor * Math.sin(noisePhase);
-      const drivenBy = element.wobble.lateralVelocity * 2.2 + misStep * 2.6;
+      const drivenBy = element.wobble.lateralVelocity * ELEMENT_MOVE.wobbleDrive + misStep * 2.6;
       const result = balance.update(dt, {
         lean, hands, drive: drivenBy, noise: tremor,
         speed: Math.abs(railSpeed) / Math.max(0.1, element.walkSpeed),
@@ -130,7 +188,7 @@ export function createElementState({ input, events = null, balance, stamina, ner
         height: player.position.y - groundY,
         exposure: element.handHold.available ? (hands > 0 ? 0 : 0.55) : 1,
         wobble: element.wobble.amplitude,
-        lookDown: camera ? clamp01(-camera.pitch / 0.9) : 0,
+        lookDown: lookDownAmount(camera),
         handContact: hands,
         onElement: true,
         breathing: breathing && Math.abs(railSpeed) < 0.05,
@@ -143,8 +201,9 @@ export function createElementState({ input, events = null, balance, stamina, ner
         if (events) events.emit("player:slip", { element: element.id, t, angle: result.angle });
         return { state: "fall", data: { element, t, angle: result.angle } };
       }
-      if (t >= 1 - ELEMENT_MOVE.exitMargin && drive > 0) return stepOff(player, "exit");
-      if (t <= ELEMENT_MOVE.exitMargin && drive < 0) return stepOff(player, "entry");
+      const leaving = element.discreteSteps ? pastEnd() : drive;
+      if (t >= 1 - ELEMENT_MOVE.exitMargin && leaving > 0) return stepOff(player, "exit");
+      if (t <= ELEMENT_MOVE.exitMargin && leaving < 0) return stepOff(player, "entry");
       return undefined;
     },
   };

@@ -96,10 +96,11 @@ class Synth {
   }
 
   /**
-   * A percussive noise burst through a band-pass – the body of every metallic click.
-   * @param {{ at, duration, frequency, q, gain, sweepTo? }} o
+   * A percussive noise burst through a band-pass – the body of every metallic click. A long
+   * `attack` turns the same node graph into a swell (webbing creaking, a breath being drawn).
+   * @param {{ at, duration, frequency, q, gain, sweepTo?, attack? }} o
    */
-  noiseBurst({ at, duration, frequency, q = 5, gain = 0.5, sweepTo = 0 }) {
+  noiseBurst({ at, duration, frequency, q = 5, gain = 0.5, sweepTo = 0, attack = 0.0015 }) {
     if (!this.ready) return;
     const source = this.context.createBufferSource();
     source.buffer = this.noiseBuffer();
@@ -110,7 +111,7 @@ class Synth {
     filter.frequency.setValueAtTime(frequency, at);
     if (sweepTo) filter.frequency.exponentialRampToValueAtTime(sweepTo, at + duration);
     filter.Q.value = q;
-    const envelope = this.envelope({ at, duration, gain, attack: 0.0015 });
+    const envelope = this.envelope({ at, duration, gain, attack: Math.min(attack, duration * 0.9) });
     source.connect(filter).connect(envelope).connect(this.master);
     source.start(at);
     source.stop(at + duration + 0.02);

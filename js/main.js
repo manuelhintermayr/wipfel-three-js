@@ -21,9 +21,12 @@ import { getWoodTextures } from "./procgen/textures/wood.js";
 import { createFirstCourse } from "./park/first-course.js";
 import { createBelay } from "./player/belay.js";
 import { createInteraction } from "./player/interaction.js";
+import { createVitals } from "./player/vitals.js";
+import { createElementState } from "./player/on-element.js";
+import { createFallState } from "./player/fall.js";
 import { createHud } from "./ui/hud.js";
 import { armAudio } from "./audio/synth.js";
-import { sfxCarabinerOpen, sfxCarabinerLock } from "./audio/sfx.js";
+import { sfxCarabinerOpen, sfxCarabinerLock, sfxHarnessCatch } from "./audio/sfx.js";
 
 async function boot() {
   installGlobalHandlers();
@@ -69,11 +72,15 @@ async function boot() {
   const player = createPlayer({ physics, scene, camera, input, terrain, rng: rng.fork("player"), events });
   const belay = createBelay({ mode: params.belayMode, onEvent: (e) => events.emit(`belay:${e.type}`, e) });
   const hud = createHud(document.getElementById("hud"));
-  hud.setVitals({ stamina: 1 });
-  const interaction = createInteraction({ player, input, belay, course, hud, events });
+  const vitals = createVitals({ player, input, terrain, hud, events });
+  const { balance, stamina, nerves } = vitals;
+  player.addState("element", createElementState({ input, events, balance, stamina, nerves, rng: rng.fork("element"), camera: player.camera }));
+  player.addState("fall", createFallState({ physics, input, scene, events, balance, stamina, nerves, camera: player.camera }));
+  const interaction = createInteraction({ player, input, belay, course, hud, events, vitals });
   armAudio(window);
   events.on("belay:open", () => sfxCarabinerOpen());
   events.on("belay:click", () => sfxCarabinerLock(0.14));
+  events.on("player:fell", (e) => sfxHarnessCatch(e && e.first ? 1 : 0.7));
 
   // --- debug panel -----------------------------------------------------------------------------------
   const debug = new DebugPanel(document.getElementById("debug"), () => ({
@@ -92,6 +99,7 @@ async function boot() {
     "speed m/s": player.speed.toFixed(2),
     belay: `${belay.state().A.state}/${belay.state().B.state} @ ${belay.currentAnchor() || "–"}`,
     prompt: interaction.prompt || "–",
+    ...vitals.probe(),
     "world ms": buildMs,
   }));
   if (params.debug) debug.toggle(true);
@@ -111,6 +119,8 @@ async function boot() {
   });
   loop.on("gameplay", (dt, elapsed) => {
     player.update(dt);
+    course.update(dt, elapsed);
+    vitals.update(dt);
     interaction.update(dt);
     wind.update(dt);
     sky.update(dt, player.position);
@@ -132,29 +142,55 @@ async function boot() {
 
   window.WIPFEL = {
     version: GAME.version, params, loop, physics, scene, camera, renderer, rng, input, events,
-    terrain, forest, sky, wind, player, course, belay, hud, interaction, ready: true,
+    terrain, forest, sky, wind, player, course, belay, hud, interaction, vitals,
+    debug: {
+      /** Force the slip a play-test needs on demand (screenshots, smoke runs). */
+      forceSlip(angle = 1) {
+        const state = player.states.get("element");
+        if (!state || !state.element) return false;
+        balance.nudge(Math.sign(angle) * 6);
+        return true;
+      },
+      panel: debug,
+    },
+    ready: true,
   };
   loop.start();
   events.emit("boot:ready", { params });
   log.info("boot complete");
 }
 
+/** Course chain layout – `span` must sit inside FIRST_COURSE.min/maxSpan (6–13.5 m). */
+const COURSE = Object.freeze({ trees: 4, span: 8.6, turn: 0.42, extras: 4, clear: 15 });
+
 /**
- * Hero trees = trees the course will hang from. Until the park layout generator (M1.1) exists,
- * ring the spawn hub with pines so the player has real trunks to collide with and M0.4 can mount
- * the first platform on `heroTrees[0]`.
+ * Hero trees = trees the course will hang from. Until the park layout generator (M1.1) exists this
+ * lays out a deterministic *chain* of pines walking away from the spawn hub, `COURSE.span` metres
+ * apart – the distance first-course.js needs to hang an exercise between two of them. A few extra
+ * trunks ring the hub for collision and silhouette; they stay `COURSE.clear` metres away from the
+ * chain so the greedy chain search in first-course.js cannot pick one of them up by mistake.
  */
 function pickHeroTrees(terrain, rng) {
   const hub = terrain.hubs[0];
-  const trees = [];
-  const count = 7;
-  for (let i = 0; i < count; i++) {
-    const angle = (i / count) * Math.PI * 2 + rng.float(-0.25, 0.25);
-    const dist = hub.radius + rng.float(2, 7);
-    const x = hub.x + Math.cos(angle) * dist;
-    const z = hub.z + Math.sin(angle) * dist;
-    if (terrain.isPath(x, z)) continue;
-    trees.push({ x, z, species: "pine", height: rng.float(21, 26) });
+  const pine = (x, z) => ({ x, z, species: "pine", height: rng.float(21, 26) });
+  const chain = [];
+  let heading = rng.float(0, Math.PI * 2);
+  let x = hub.x + Math.cos(heading) * hub.radius * 0.55;
+  let z = hub.z + Math.sin(heading) * hub.radius * 0.55;
+  for (let i = 0; i < COURSE.trees; i++) {                     // the chain the exercises span
+    chain.push(pine(x, z));
+    heading += rng.float(-COURSE.turn, COURSE.turn);
+    x += Math.cos(heading) * COURSE.span;
+    z += Math.sin(heading) * COURSE.span;
+  }
+  const trees = chain.slice();
+  for (let i = 0; i < COURSE.extras; i++) {                    // trunks for the clearing, well clear
+    const angle = heading + Math.PI + (i / COURSE.extras) * Math.PI * 1.4 + rng.float(-0.2, 0.2);
+    const ex = hub.x + Math.cos(angle) * (hub.radius + rng.float(1, 5));
+    const ez = hub.z + Math.sin(angle) * (hub.radius + rng.float(1, 5));
+    if (terrain.isPath(ex, ez)) continue;
+    if (chain.some((t) => Math.hypot(t.x - ex, t.z - ez) < COURSE.clear)) continue;
+    trees.push(pine(ex, ez));
   }
   return trees;
 }

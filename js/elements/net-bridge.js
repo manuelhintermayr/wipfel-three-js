@@ -23,9 +23,9 @@ export const NET = Object.freeze({
   loadWidth: 0.11,           // width of that dent, in rail parameter
   loadRise: 4.5,             // 1/s – how fast the dent forms and recovers
   knotEvery: 2,              // knot lumps on every n-th crossing (all of them is a lot of geometry)
-  walkSpeed: 0.58,
+  walkSpeed: 0.50,           // m/s – hands and feet, every step pulled out of the mesh again
   slipAngle: 1.20,           // effectively unfalloffable – you sit down before you slip
-  staminaDrain: 0.055,       // this is where the arms go
+  staminaDrain: 0.038,       // this is where the arms go: a crossing spends most of the reserve
   lifelineHeight: ELEMENT.lifelineHeight,
   lifelineSag: 0.04,
   standBack: 0.45,

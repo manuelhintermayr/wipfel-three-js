@@ -19,14 +19,23 @@ import "../elements/hanging-planks.js";
 import "../elements/net-bridge.js";
 
 export const FIRST_COURSE = Object.freeze({
-  /** Deck heights above each trunk foot – the course climbs, then eases off for the finish. */
-  platformHeights: Object.freeze([4.5, 5.5, 6.5, 6.0]),
+  /**
+   * The decks are levelled in *world* height, not measured off each trunk foot: on a hillside the
+   * feet of four pines can be two metres apart, and a Burma bridge that runs steeply downhill is not
+   * what a green course looks like. `deckRise` is the designed offset of each deck from the first.
+   */
+  firstDeckHeight: 4.5,      // metres above the first trunk foot
+  deckRise: Object.freeze([0, 0.35, 0.70, 0.45]),
+  minDeckHeight: 3.4,        // …but never so low that the deck sits in the undergrowth …
+  maxDeckHeight: 8.0,        // … and never higher than a green course goes (GDD: < 20 m before M2)
   platformRadius: 1.25,
+  transitionRadius: 1.10,    // the two decks in the middle are just somewhere to stand and re-clip
   deckGap: 0.55,             // clearance between trunk surface and the entry deck edge
   edgeOffset: 1.15,          // where an exercise leaves the deck, measured from the trunk axis
   interactRange: 1.6,        // how close you must be to an anchor to clip in
   ringRange: 2.1,            // …the platform ring circles the trunk, so anywhere on the deck counts
-  elementRange: 1.9,
+  elementRange: 1.9,         // reach of an exercise lifeline, measured from its two cable ends
+  stepRange: 1.2,            // stand this close to the deck edge and you are "at" that exercise
   ladderRange: 1.5,
   minSpan: 6.0,              // trunk distance an exercise needs
   maxSpan: 13.5,
@@ -42,12 +51,13 @@ export const FIRST_COURSE = Object.freeze({
  * @param {{ scene: THREE.Scene, physics, terrain, forest, rng, wind?, textures?, seed? }} options
  * @returns {{ tree, facing, platform, platforms, ladder, entryDeck, elements,
  *   anchors: Array<{id, position: THREE.Vector3, points: THREE.Vector3[], kind: string, range: number}>,
+ *   graph: { nodes: Array<object>, edges: Array<object> },
  *   anchorById(id), nearestAnchor(position, range), elementFor(anchorId), entryFor(anchorId, position),
- *   update(dt, elapsed), dispose(): void }}
+ *   nearestEntry(position, range), update(dt, elapsed), dispose(): void }}
  */
 export function createFirstCourse({ scene, physics, terrain, forest, rng, wind = null, textures = null, seed = 1 }) {
   const wood = textures || getWoodTextures(seed);
-  const trees = pickCourseTrees(forest, terrain, FIRST_COURSE.platformHeights.length);
+  const trees = pickCourseTrees(forest, terrain, FIRST_COURSE.deckRise.length);
   if (!trees.length) throw new Error("first course: the forest has no hero tree to build on");
 
   const hub = terrain.spawn || { x: 0, z: 0 };
@@ -55,9 +65,10 @@ export function createFirstCourse({ scene, physics, terrain, forest, rng, wind =
   const facing = Math.atan2(hub.x - tree.x, hub.z - tree.z);   // yaw from the first trunk to the hub
   const outward = new THREE.Vector3(Math.sin(facing), 0, Math.cos(facing));
 
+  const baseTop = tree.y + FIRST_COURSE.firstDeckHeight;
   const platforms = trees.map((t, i) => createPlatform({
-    scene, physics, tree: t, height: FIRST_COURSE.platformHeights[i], radius: FIRST_COURSE.platformRadius,
-    kind: i === 0 ? "entry" : "standard", facing: platformFacing(trees, i, facing),
+    scene, physics, tree: t, height: deckHeightOn(t, baseTop, i), radius: platformRadius(i, trees.length),
+    kind: platformKind(i, trees.length), facing: platformFacing(trees, i, facing),
     rng: rng.fork(`platform-${i}`), textures: wood,
   }));
   platforms.forEach((p, i) => { p.id = `platform-${i + 1}`; });
@@ -114,8 +125,28 @@ export function createFirstCourse({ scene, physics, terrain, forest, rng, wind =
       return best;
     },
 
+    /** Nodes (platforms) and edges (ladder, exercises) – what the layout generator will emit in M1.1. */
+    graph: buildGraph(platforms, elements),
+
     /** The exercise that hangs on this lifeline anchor, or null. */
     elementFor(anchorId) { return elementByAnchor.get(anchorId) || null; },
+
+    /**
+     * The end of the exercise the climber is standing in front of, whatever they are clipped to –
+     * the prompt has to be able to say "clip to the cable first".
+     * @returns {{ element: object, end: "entry"|"exit" }|null}
+     */
+    nearestEntry(position, range = FIRST_COURSE.stepRange) {
+      let best = null, bestScore = Infinity;
+      for (const element of elements) {
+        for (const end of ["entry", "exit"]) {
+          const anchor = end === "entry" ? element.getEntryAnchor() : element.getExitAnchor();
+          const d = anchor.stand.distanceTo(position);
+          if (d <= range && d < bestScore) { best = { element, end }; bestScore = d; }
+        }
+      }
+      return best;
+    },
 
     /**
      * Standing here, clipped to this lifeline: which end of which exercise could you step onto?
@@ -141,6 +172,43 @@ export function createFirstCourse({ scene, physics, terrain, forest, rng, wind =
       for (const platform of platforms) platform.dispose();
     },
   };
+}
+
+/** Deck height above *this* trunk foot so that every deck ends up at the designed world height. */
+function deckHeightOn(tree, baseTop, index) {
+  const wanted = baseTop + (FIRST_COURSE.deckRise[index] || 0) - tree.y;
+  return Math.max(FIRST_COURSE.minDeckHeight, Math.min(FIRST_COURSE.maxDeckHeight, wanted));
+}
+
+/** First deck carries the ladder, the last one ends the course, the ones between are re-clip stops. */
+function platformKind(index, count) {
+  if (index === 0) return "entry";
+  return index === count - 1 ? "standard" : "transition";
+}
+
+function platformRadius(index, count) {
+  return platformKind(index, count) === "transition" ? FIRST_COURSE.transitionRadius : FIRST_COURSE.platformRadius;
+}
+
+/**
+ * The course as nodes and edges. M1.1 generates this from the park definition; until then it is
+ * derived from what was just built, so the map overlay and the NPC agents have one shape to read.
+ */
+function buildGraph(platforms, elements) {
+  const nodes = platforms.map((platform, i) => ({
+    id: platform.id, kind: platform.kind, index: i,
+    position: platform.anchorPoints.deck.clone(), capacity: platform.capacity,
+  }));
+  const edges = [{ id: "ladder", kind: "ladder", from: "deck", to: platforms[0].id, anchorId: "deck", length: 0 }];
+  for (const element of elements) {
+    edges.push({
+      id: element.id, kind: element.kind, label: element.label,
+      from: element.getEntryAnchor().platformId, to: element.getExitAnchor().platformId,
+      anchorId: element.lifeline.anchorId, length: element.length,
+      metrics: element.getDifficultyMetrics(),
+    });
+  }
+  return { nodes, edges };
 }
 
 /** One exercise between two platforms, entering and leaving at deck height on the deck edge. */

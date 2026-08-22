@@ -10,17 +10,18 @@ import { createElementBase, registerElementKind, ELEMENT } from "./element.js";
 import { cableRun, cableTermination, ropeStrand, lifelineCable } from "./element-parts.js";
 
 export const PLANKS = Object.freeze({
-  plankLength: 0.60,         // along the walk direction (RESEARCH-DATA §3: 20 × 60 cm)
-  plankWidth: 0.20,          // across – you place one foot at a time
-  plankThickness: 0.045,
-  gap: 0.40,                 // clear air between two planks
+  plankSpan: 0.60,           // across the walk direction, rope to rope (RESEARCH-DATA §3: 20 × 60 cm)
+  plankTread: 0.22,          // along it – this is what one foot lands on
+  plankThickness: 0.05,
+  gap: 0.40,                 // nominal clear air between two planks; the exact pitch fits the span
+  endMargin: 0.35,           // no plank closer than this to a deck edge
   hangHeight: 1.85,          // carrier cables above the plank tops
   hangSpread: 0.26,          // half-distance of the two carrier cables and of the hanger ropes
   ropeRadius: 0.010,
   cableRadius: 0.006,
   sagRatio: 0.012,           // the carrier cables barely sag – the planks hang from them
-  minPlanks: 8,
-  maxPlanks: 10,
+  minPlanks: 6,
+  maxPlanks: 12,
   swingHz: 0.62,             // a 1.85 m pendulum swings at about 0.37 Hz; the rope is stiffer
   swingDamping: 0.16,
   maxSwing: 0.30,            // metres of plank travel before it would throw you off
@@ -66,6 +67,8 @@ export function createHangingPlanks(spec, ctx) {
   });
 
   element.planks = planks;
+  /** Crossed one plank per press of W, not walked (js/player/on-element.js). */
+  element.discreteSteps = true;
   /** A foot landed on plank `index`: kick it, and let the carrier cable tell its neighbours. */
   element.stepOn = function stepOn(index, strength = 1, direction = 1) {
     const plank = planks[index];
@@ -122,17 +125,26 @@ function nearestPlank(t, element, planks) {
     /** metres from the foot to that centre */
     offset: best,
     /** 1 = solid underfoot, 0 = it has swung out from under you */
-    ready: Math.max(0, 1 - Math.abs(swing) - Math.max(0, best - PLANKS.plankLength * 0.5) * 2.2),
+    ready: Math.max(0, 1 - Math.abs(swing) - Math.max(0, best - PLANKS.plankTread * 0.5) * 2.2),
     swing,
   };
 }
 
+/**
+ * How many planks fit between the two decks, and how far apart. The count comes from the nominal
+ * pitch, the *actual* pitch is then stretched to fill the span exactly – otherwise a short span
+ * hangs its first plank behind the platform it starts from.
+ */
+function plankLayout(span) {
+  const usable = span - 2 * PLANKS.endMargin - PLANKS.plankTread;
+  const nominal = PLANKS.plankTread + PLANKS.gap;
+  const count = Math.max(PLANKS.minPlanks, Math.min(PLANKS.maxPlanks, Math.round(usable / nominal) + 1));
+  return { count, first: PLANKS.endMargin + PLANKS.plankTread / 2, pitch: count > 1 ? usable / (count - 1) : 0 };
+}
+
 function buildPlanks(builder, frame, element, ctx, planks) {
   const L = frame.length;
-  const pitch = PLANKS.plankLength + PLANKS.gap;
-  const count = Math.max(PLANKS.minPlanks, Math.min(PLANKS.maxPlanks, Math.round((L - PLANKS.gap) / pitch)));
-  const used = count * PLANKS.plankLength + (count - 1) * PLANKS.gap;
-  const first = (L - used) / 2 + PLANKS.plankLength / 2;
+  const { count, first, pitch } = plankLayout(L);
   const top = (x) => frame.rise * (x / L) + PLANKS.hangHeight;
 
   // --- static: lifeline, carrier cables, terminations -----------------------------------------------
@@ -157,20 +169,22 @@ function buildPlanks(builder, frame, element, ctx, planks) {
     const x = first + i * pitch;
     const y = frame.rise * (x / L);
     planks.push({ index: i, x, offset: 0, velocity: 0 });
+    // the board lies across the path: its long side (and its grain) runs left to right
     builder.box({
-      length: PLANKS.plankLength, width: PLANKS.plankWidth, thickness: PLANKS.plankThickness,
+      length: PLANKS.plankSpan, width: PLANKS.plankTread, thickness: PLANKS.plankThickness,
       position: { x, y: y - PLANKS.plankThickness / 2, z: ctx.rng.float(-0.012, 0.012) },
-      rotation: { x: 0, y: ctx.rng.float(-0.02, 0.02), z: 0 }, material: "weathered",
+      rotation: { x: 0, y: Math.PI / 2 + ctx.rng.float(-0.02, 0.02), z: 0 }, material: "weathered",
     });
+    const eye = PLANKS.plankSpan / 2 - 0.05;
     for (const side of [-1, 1]) {
       ropeStrand(builder, {
         from: { x, y: top(x) - 0.03, z: side * PLANKS.hangSpread },
-        to: { x, y, z: side * (PLANKS.plankWidth / 2 - 0.02) },
+        to: { x, y, z: side * eye },
         radius: PLANKS.ropeRadius, material: "cord",
       });
       builder.cylinderBetween({                                // the eye bolt through the plank end
-        from: { x, y: y - PLANKS.plankThickness - 0.01, z: side * (PLANKS.plankWidth / 2 - 0.02) },
-        to: { x, y: y + 0.015, z: side * (PLANKS.plankWidth / 2 - 0.02) },
+        from: { x, y: y - PLANKS.plankThickness - 0.01, z: side * eye },
+        to: { x, y: y + 0.015, z: side * eye },
         radius: 0.008, segments: 6, material: "steel",
       });
     }

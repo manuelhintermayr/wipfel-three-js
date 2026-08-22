@@ -34,7 +34,7 @@ Generierung für dekoratives UI opfern.
       Rundholz-Kranz, Klemmen, Anker, Kapazität 3) mit Collider, Sicherungsseil um den Stamm,
       Karabiner-Zustandsautomat (Zwei-Klick-Ritual, Reihenfolge erzwungen), HUD-Karabiner-Widget,
       zwei Klick-Sounds, Kontext-Prompt. Vorbild: `docs/reference/photos/README.md`.
-- [ ] **M0.5 Erste Übungen auf Schienen** – gemeinsames Interface (`build`, `createPhysics`, `update`,
+- [x] **M0.5 Erste Übungen auf Schienen** – gemeinsames Interface (`build`, `createPhysics`, `update`,
       `dispose`, `getEntryAnchor`, `getExitAnchor`, `getDifficultyMetrics`), Burma-Brücke, hängende
       Planken, Netz; Wackelmodell, Balance-Pendel, Kraft, Nerven (Herzschlag, Kamera-Atmen,
       Hand-Zittern, Einfrieren + Atmen); Sturz in den Gurt (Rapier-Pendel), Hochziehen, Hangeln zum

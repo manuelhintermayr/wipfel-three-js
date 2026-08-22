@@ -50,9 +50,27 @@
 .hud-vitals { position: absolute; top: calc(var(--hud-pad) + 7.2rem); left: var(--hud-pad); display: flex; gap: 0.6rem; align-items: center; }
 .hud-vitals .box { background: var(--hud-bg); border: 1px solid var(--hud-line); border-radius: var(--radius); padding: 0.3rem 0.5rem; font: 600 0.65rem/1.2 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--hud-muted); display: flex; gap: 0.4rem; align-items: center; }
 .hud-vitals .box .label { padding-right: 0.1rem; }
+.hud-vitals .box .bpm { color: var(--hud-text); font-variant-numeric: tabular-nums; min-width: 1.8em; text-align: right; }
 .hud-vitals .carabiner { display: inline-block; width: 0.75rem; height: 1.05rem; border: 2px solid var(--hud-ok); border-radius: 0.4rem 0.4rem 0.3rem 0.3rem; transition: border-color 120ms linear, opacity 120ms linear; }
 .hud-vitals .carabiner.clipped { border-color: var(--hud-ok); opacity: 1; }
 .hud-vitals .carabiner.open { border-color: var(--hud-warn); border-top-color: transparent; opacity: 1; }
 .hud-vitals .carabiner.locked { border-color: var(--hud-muted); opacity: 0.6; }
-.hud-vitals .ring { width: 1.4rem; height: 1.4rem; border-radius: 50%; background: conic-gradient(var(--hud-ok) calc(var(--p, 1) * 360deg), rgba(255,255,255,0.15) 0); display: grid; place-items: center; }
+.hud-vitals .ring { width: 1.4rem; height: 1.4rem; border-radius: 50%; background: conic-gradient(var(--ring, var(--hud-ok)) calc(var(--p, 1) * 360deg), rgba(255,255,255,0.15) 0); display: grid; place-items: center; }
 .hud-vitals .ring i { width: 0.85rem; height: 0.85rem; border-radius: 50%; background: var(--hud-bg-strong); }
+.hud-vitals .ring.low { --ring: var(--hud-warn); }
+.hud-vitals .ring.empty { --ring: var(--hud-danger); }
+
+/* Heartbeat: no nerve bar anywhere in this game – you read the climber's state off this dot. */
+.hud-vitals .heart i { display: block; width: 0.7rem; height: 0.7rem; border-radius: 50%; background: var(--pulse, var(--hud-ok)); animation: hud-pulse var(--beat, 1s) infinite; transform-origin: 50% 50%; }
+.hud-vitals .heart.tense i { --pulse: var(--hud-accent); }
+.hud-vitals .heart.scared i { --pulse: var(--hud-warn); }
+.hud-vitals .heart.frozen i { --pulse: var(--hud-danger); }
+@keyframes hud-pulse {
+  0%   { transform: scale(0.86); opacity: 0.75; }
+  8%   { transform: scale(1.30); opacity: 1; }
+  20%  { transform: scale(0.94); opacity: 0.85; }
+  28%  { transform: scale(1.14); opacity: 0.95; }
+  46%  { transform: scale(0.86); opacity: 0.75; }
+  100% { transform: scale(0.86); opacity: 0.75; }
+}
+@media (prefers-reduced-motion: reduce) { .hud-vitals .heart i { animation: none; } }

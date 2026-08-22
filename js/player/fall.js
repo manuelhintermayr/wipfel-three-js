@@ -19,18 +19,21 @@ import { fallPose } from "./rig-poses.js";
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const NO_CONTACTS = groups(GROUP.DYNAMIC, 0);
 
+const DOWN = new THREE.Vector3(0, -1, 0);
+
 /**
- * @param {{ physics, input, events?, balance, stamina, nerves, camera? }} options
+ * @param {{ physics, input, scene?, events?, balance, stamina, nerves, camera? }} options
  * @returns {object} a state for the player's state machine – register it with `player.addState("fall", …)`
  */
-export function createFallState({ physics, input, events = null, balance, stamina, nerves, camera = null }) {
+export function createFallState({ physics, input, scene = null, events = null, balance, stamina, nerves, camera = null }) {
   const R = physics.RAPIER;
   const world = physics.world;
   const anchorPoint = new THREE.Vector3(), hang = new THREE.Vector3(), rail = new THREE.Vector3();
   const tangent = new THREE.Vector3(), side = new THREE.Vector3();
+  const reach = new THREE.Vector3();
   const params = { swing: 0, pull: 0, haul: 0, phase: 0 };
 
-  let body = null, anchorBody = null, joint = null, collider = null;
+  let body = null, anchorBody = null, joint = null, collider = null, lanyard = null;
   let element = null, railT = 0, cableT = 0, heading = 0;
   let elapsed = 0, pullTimer = 0, hauling = 0, fades = 0;
   let falls = 0;                       // the first catch is the dramatic one
@@ -50,6 +53,31 @@ export function createFallState({ physics, input, events = null, balance, stamin
       anchorBody, body, true,
     );
     body.setEnabled(false);
+  }
+
+  /**
+   * The webbing itself. Without it the climber just floats: the one line from the carabiner down to
+   * the harness is what makes the catch readable. A unit cylinder that hangs from its own origin, so
+   * every frame is a position, a rotation and one scale.
+   */
+  function ensureLanyard() {
+    if (lanyard || !scene) return;
+    const geometry = new THREE.CylinderGeometry(FALL.lanyardRadius, FALL.lanyardRadius * 0.85, 1, 6, 1, true);
+    geometry.translate(0, -0.5, 0);
+    lanyard = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0xdc6a1e, roughness: 0.92, metalness: 0 }));
+    lanyard.name = "harness-lanyard";
+    lanyard.visible = false;
+    lanyard.frustumCulled = false;
+    scene.add(lanyard);
+  }
+
+  function drawLanyard() {
+    if (!lanyard) return;
+    reach.subVectors(hang, anchorPoint);
+    const length = Math.max(0.05, reach.length());
+    lanyard.position.copy(anchorPoint);
+    lanyard.quaternion.setFromUnitVectors(DOWN, reach.divideScalar(length));
+    lanyard.scale.set(1, length, 1);
   }
 
   /** Move the carabiner to `t` along the lifeline. */
@@ -80,6 +108,7 @@ export function createFallState({ physics, input, events = null, balance, stamin
       falls += 1;
 
       ensureBodies();
+      ensureLanyard();
       element.pointAt(railT, rail);
       element.tangentAt(railT, tangent);
       side.set(-tangent.z, 0, tangent.x).normalize();
@@ -92,6 +121,7 @@ export function createFallState({ physics, input, events = null, balance, stamin
       body.setLinvel({ x: player.velocity.x * 0.4, y: -0.6, z: player.velocity.z * 0.4 }, true);
       body.setAngvel({ x: 0, y: 0, z: 0 }, true);
       player.setHeading(heading);
+      if (lanyard) { lanyard.visible = true; drawLanyard(); }
 
       if (camera) {
         camera.addShake(falls === 1 ? FALL.catchShake : FALL.catchShakeLater);
@@ -105,6 +135,7 @@ export function createFallState({ physics, input, events = null, balance, stamin
     exit(player) {
       if (camera) camera.setPivotOffset(0);
       if (element) element.occupancy.active = false;
+      if (lanyard) lanyard.visible = false;
       if (body) { body.setLinvel({ x: 0, y: 0, z: 0 }, false); body.setEnabled(false); }
       player.velocity.set(0, 0, 0);
       element = null;
@@ -151,6 +182,7 @@ export function createFallState({ physics, input, events = null, balance, stamin
     params.swing = Math.atan2(dx * side.x + dz * side.z, drop);   // sideways under the cable
     params.pull += (pullTimer / FALL.pullUpSeconds - params.pull) * Math.min(1, 10 * dt);
     params.haul += (hauling - params.haul) * Math.min(1, 8 * dt);
+    drawLanyard();
   }
 
   /** Is the harness close enough under the exercise to get a knee back over it? */
@@ -196,7 +228,8 @@ export function createFallState({ physics, input, events = null, balance, stamin
     if (collider) world.removeCollider(collider, false);
     if (body) world.removeRigidBody(body);
     if (anchorBody) world.removeRigidBody(anchorBody);
-    joint = collider = body = anchorBody = null;
+    if (lanyard) { lanyard.removeFromParent(); lanyard.geometry.dispose(); lanyard.material.dispose(); }
+    joint = collider = body = anchorBody = lanyard = null;
   };
   return state;
 }

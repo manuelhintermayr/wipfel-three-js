@@ -12,13 +12,13 @@ import { cableRun, cableTermination, ropeStrand, lifelineCable } from "./element
 export const BURMA = Object.freeze({
   footRadius: 0.006,         // 12 mm wire rope
   handRadius: 0.006,
-  handHeight: 1.10,          // hand cables above the foot cable (design assumption, §3)
+  handHeight: 1.32,          // hand cables above the foot cable – chest height, as in the photos
   handSpread: 0.46,          // half-distance of the hand cables at midspan
   handSag: 0.10,             // the hand cables hang more than the loaded foot cable
   stirrupSpacing: 1.15,      // hemp ties from hand cable down to the foot cable
   stirrupRadius: 0.009,
   sagRatio: 0.02,            // 2 % of the span (RESEARCH-DATA §6)
-  walkSpeed: 0.95,
+  walkSpeed: 0.60,           // m/s – a wire is crossed at a deliberate pace, never strolled
   slipAngle: 0.40,           // radians ≈ 23°
   staminaDrain: 0.0,         // the wire itself is not hard work – the hands are
   lifelineHeight: ELEMENT.lifelineHeight,
@@ -52,7 +52,7 @@ registerElementKind("burma-bridge", createBurmaBridge);
 function buildBridge(builder, frame, element, ctx) {
   const L = frame.length;
   const rise = frame.rise;
-  element.config.sag = BURMA.sag * L;                          // 2 % of this span
+  // `element.config.sag` is already `sagRatio × span` – createElementBase works it out per span.
 
   lifelineCable(builder, frame, element);
   for (const [x, dir] of [[0, 1], [L, -1]]) {

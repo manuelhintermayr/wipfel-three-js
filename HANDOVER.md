@@ -6,19 +6,20 @@
 
 ## Aktueller Meilenstein
 **M0 „Ein Brett“** – M0.1 Bootstrap ✓, M0.2 Weltausschnitt ✓, M0.3 Spieler am Boden ✓ (Session 1,
-2026-08-17), M0.4 Podest + Leiter + Umhängen ✓ (Session 1, 2026-08-17, via Opus-Agent).
-Nächster Schritt: **M0.5 Erste Übungen auf Schienen**.
+2026-08-17), M0.4 Podest + Leiter + Umhängen ✓ (Session 1, 2026-08-17), **M0.5 Erste Übungen auf
+Schienen ✓** (Session 2, 2026-08-20). Nächster Schritt: **M0.6 Flying Fox**.
 
 ## Letzter funktionierender Commit
-`f667efa feat(park): first platform, block ladder and belay ritual (entry deck, wood textures, HUD widget, click sfx)`.
-Davor: `43748ba docs(handover): session 1`, `bc9cec7 feat(world): integrate terrain, forest, sky/skyline, wind, ground
-detail and player into main loop`.
+Noch nicht committet: der M0.5-Stand liegt im Arbeitsverzeichnis (Geometrie + Reinlogik kamen
+versehentlich schon mit `15596ce docs(handover): record M0.4 commit hash` mit, die Verdrahtung ist
+uncommitted). Davor: `f667efa feat(park): first platform, block ladder and belay ritual`.
 
-Geprüft (2026-08-17, headless Chromium/SwiftShader, 1280×720, Seed 1): Seite lädt über `serve.py`,
-**0 Konsolenfehler, 0 Warnungen, 0 externe Requests**; kompletter Ablauf F → F → E → W → F → F
-durchgespielt; 607 Bäume, **242 Draw-Calls** (220 ohne Kurs), 1,70 M Dreiecke, 54 Collider,
-**3,99 ms/Frame ≈ 250 fps** (der Kurs kostet 0,31 ms/Frame). `node tools/check-all.mjs` 60/60,
-`npm test` 24/24. Screenshots: `docs/screenshots/m0-4-{entry-deck,half-clipped,clipped-in,ladder,platform}.png`.
+Geprüft (2026-08-20, headless Chromium/SwiftShader, 1024×576, Seed 1): Seite lädt über `serve.py`,
+**0 Konsolenfehler, 0 Warnungen, 0 externe Requests**; kompletter Ablauf F → F → E → gehen → Sturz →
+Leertaste → weiter durchgespielt, alle drei Übungen überquert; 607 Bäume, **252–285 Draw-Calls**
+(192 ohne Kurs im Bild), 1,70–1,81 M Dreiecke, 60 Collider (61 während eines Sturzes),
+**2,7–4,4 ms/Frame**, Physik 0,1–0,3 ms. `node tools/check-all.mjs` 75/75, `npm test` **51/51**.
+Screenshots: `docs/screenshots/m0-5-{burma,planks,net,fall,recover}.png`.
 
 ## Was funktioniert
 - **Kern:** `js/main.js` (Boot + Loop-Verdrahtung), `core/{loop,input,rng,params,errors,events,renderer,physics}.js`,
@@ -52,15 +53,38 @@ durchgespielt; 607 Bäume, **242 Draw-Calls** (220 ohne Kurs), 1,70 M Dreiecke, 
   `player/climb-ladder.js` (Schienen-Fortbewegung, KCC aus, 0,9 m/s, Leiter-Pose), `ui/hud.js`
   (Karabiner-Widget + Prompt mit `<kbd>`), `audio/synth.js` + `audio/sfx.js` (WebAudio-Klicks,
   erst nach echter Nutzergeste). Ablauf: F → F (einhängen) → E (klettern) → oben F → F (Podestring).
+- **Übungen (M0.5):** `elements/element.js` (gemeinsames Interface: Rail-Spline `pointAt/tangentAt`,
+  Feder-Dämpfer-Wackelmodell, 12-mm-Sicherungsseil 2,05 m über der Trittlinie, `getDifficultyMetrics`),
+  `elements/element-parts.js` (Seile mit Durchhang, gepresste Klemmhülsen, Schäkel, geschlagene Seile
+  mit sichtbarem Schlag, Netzknoten), `elements/element-deform.js` (CPU-Deformer: der Timber-Builder
+  verschweißt alles zu einem Mesh pro Material, der Deformer bewegt es wieder – ein Vertex-Klassifikat
+  pro Bauteil, `offsets` pro Gruppe). Drei Übungen: `burma-bridge.js` (Trittseil + zwei Halteseile
+  1,32 m, Hanfsteigbügel, 2 % Durchhang, 0,60 m/s), `hanging-planks.js` (6–12 Bretter 60 × 22 × 5 cm
+  an Seilpaaren, **ein W-Druck = eine Planke**, 0,35 s Ausschwingpause, jede Planke ein eigenes
+  Pendel), `net-bridge.js` (Netz 1,2 m breit, 15 cm Masche, Delle folgt dem Kletterer, 0,50 m/s).
+- **Ressourcen (M0.5):** `player/balance.js` (instabiles inverses Pendel – aufrecht ist ein
+  Gleichgewicht, von dem man wegfällt; eine Hand am Seil macht es stabil und kostet Kraft),
+  `player/stamina.js`, `player/nerves.js` (Höhe logarithmisch, Exposition, Wackeln, Böen, Runterschauen,
+  Zeit; Erleichterung auf Podest / beim Atmen / bei Handkontakt; > 0,88 Einfrieren bis drei Atemzüge;
+  Vertrauen dämpft jeden künftigen Anstieg), `player/vitals.js` (besitzt die drei Instanzen, HUD,
+  Kamera-Atmen, Herzschlag- und Atem-Sounds, F1-Zeilen).
+- **Auf der Übung / Sturz (M0.5):** `player/on-element.js` (Zustand `element`, `ownsMovement`; W/S
+  fahren, A/D **lehnen**, Q / rechte Maustaste = Hände), `player/fall.js` (Zustand `fall`: dynamischer
+  Rapier-Ball 70 kg an einem Seil-Joint zu einem kinematischen Karabiner auf dem Sicherungsseil,
+  sichtbares Bandfalldämpfer-Band, Kamerasacken + Shake, `sfxHarnessCatch`; Hochziehen mit Leertaste,
+  Hangeln mit W/S, Retter mit E).
+- **Tests:** `node tools/check-all.mjs` (75 Dateien), `npm test` (**51 Tests**: RNG, Lighting, Belay,
+  Balance, Stamina, Nerves, check-all).
 - **Dev-Seiten:** `tools/dev/{forest,terrain,sky,player}.html` – je Modul isoliert testbar
   (`?seed=`, Views, Bot); Screenshots `docs/screenshots/dev-*.png`.
-- **Tests:** `node tools/check-all.mjs` (60 Dateien), `npm test` (24 Tests: RNG, Lighting, Belay, check-all).
 
 ## Was halb fertig ist
-- Hero-Bäume: `main.js#pickHeroTrees` setzt 7 Kiefern um den Spawn-Hub (Provisorium bis der
-  Layout-Generator M1.1 die Parcours-Bäume liefert).
-- HUD/Screens: nur CSS-Gerüst (`css/hud.css`, `css/screens.css`), noch kein `ui/hud.js`.
-- i18n: `assets/strings/en.json|de.json` existieren noch nicht (`core/i18n.js` fehlt).
+- Hero-Bäume: `main.js#pickHeroTrees` legt eine Kette aus 4 Parcours-Kiefern + 4 Deko-Stämmen an
+  (Provisorium bis der Layout-Generator M1.1 die Parcours-Bäume liefert).
+- HUD: Karabiner-Widget, Kraft-Ring und Herzschlag-Punkt stehen (`ui/hud.js`); Routen-Header,
+  Flow-Anzeige und Course-Map sind weiterhin nur CSS-Gerüst.
+- i18n: `assets/strings/en.json|de.json` existieren noch nicht (`core/i18n.js` fehlt); UI-Texte stehen
+  in `player/interaction.js#PROMPTS`.
 
 ## Was kaputt ist
 – nichts Bekanntes. Beobachtungen: siehe „Offen / Provisorisch“.
@@ -77,28 +101,42 @@ durchgespielt; 607 Bäume, **242 Draw-Calls** (220 ohne Kurs), 1,70 M Dreiecke, 
 – keine reproduzierten. Zu prüfen: Kamera-Kollision mit Kronen im echten Wald (nur in Dev-Seite getestet).
 
 ## Unmittelbar nächste Aufgabe
-**M0.5 Erste Übungen auf Schienen** (`ROADMAP.md`): `elements/element.js` (gemeinsames Interface
-`build`/`createPhysics`/`update`/`dispose`/`getEntryAnchor`/`getExitAnchor`/`getDifficultyMetrics`),
-Burma-Brücke, hängende Planken, Netz; Wackelmodell, Balance, Kraft, Nerven; Sturz in den Gurt
-(Rapier-Pendel), Hochziehen, Hangeln zum Podest. Das Anker-/Umhäng-System aus M0.4 trägt bereits:
-`course.anchors` erweitern und `belay.clipTo(anchorId)` je Element aufrufen.
+**M0.6 Flying Fox** (`ROADMAP.md`): `zipline/{physics,brakes}.js`, `elements/zipline.js`, Ego-Kamera
+mit weiterem Sichtfeld, Trolley-Sirren, Netzbremse mit „Beine hoch“, physische Ankunft. Das
+Element-Interface aus M0.5 trägt bereits: `registerElementKind("zipline", …)` und
+`createElementBase(spec, ctx, impl)` mit eigenem `impl.update` – Podeste, Anker und das
+Umhäng-Ritual funktionieren dann automatisch.
 
 ## Nächste fünf Aufgaben
-1. M0.5 Übungen auf Schienen: `elements/element.js` (Interface + Spline + Wackelmodell), Burma-Brücke,
-   hängende Planken, Netz; `player/{balance,stamina,nerves,fall}.js`; Sturz in den Gurt (Rapier-Pendel).
-2. M0.6 Flying Fox: `zipline/{physics,brakes}.js`, `elements/zipline.js`, Ego-Kamera, Netzbremse.
-3. M0.7 HUD 1:1 (`ui/hud.js` erweitern, `core/i18n.js`, `assets/strings/en.json|de.json`), Start-Banner +
+1. M0.6 Flying Fox: `zipline/{physics,brakes}.js`, `elements/zipline.js`, Ego-Kamera, Netzbremse.
+2. M0.7 HUD 1:1 (`ui/hud.js` erweitern, `core/i18n.js`, `assets/strings/en.json|de.json`), Start-Banner +
    Countdown, Sicherheits-Tooltip, `?autoplay=1`-Bot, Screenshots, Smoke-Checkliste, Tag `m0`.
+3. Politur M0.5: Hände/Füße per IK auf Halteseil und Planke (die Posen treffen die Seile noch nicht),
+   Tuning-Pass mit echten Testern (Balance-Fenster, Kraftkosten, Nervenanstieg), Wind-Böen hörbar.
 4. Performance-Pass: Terrain-Dreiecke (~1,3 M) auf Chunks/LOD reduzieren; Laubstreu-Textur kleiner
    kacheln (Blätter wirken ~40 cm groß); Kronen-Ausdünnung um die Kamera prüfen.
 5. Politur M0.4: eigener Kamerawinkel auf der Leiter, Hände/Füße auf `ladder.steps` (IK),
    Bodendetail-Ausschluss unter Deck und Podest.
 
 ## Offen / Provisorisch
-- **M0.4:** Der Kurs steht auf `heroTrees[0]` – der Layout-Generator (M1.1) ersetzt `first-course.js`.
-  Nur ein Podest, keine Kapazitätsprüfung (RULES.maxPerPlatform ist gesetzt, aber ungenutzt).
-- **M0.4:** Sicherungsseil und Karabiner sind Zustand, keine Physik – `belay.isSafe() === false`
-  (classic) wird nur mitgeschrieben, Stürze kommen in M0.5.
+- **M0.5:** `main.js#pickHeroTrees` legt jetzt bewusst eine **Kette** aus 4 Kiefern à 8,6 m an
+  (`COURSE`-Konstante) plus 4 Deko-Stämme, die 15 m Abstand zur Kette halten – sonst findet die
+  Greedy-Suche in `first-course.js` den falschen Baum. Ersetzt M1.1 durch den Layout-Generator.
+- **M0.5:** Die Posen treffen die Seile nicht: beim Greifen stehen die Arme seitlich ab statt auf dem
+  Halteseil zu liegen, auf den Planken fassen die Hände die Aufhängeseile nicht an. Braucht IK
+  (M0.7-Politur). Auf dem Netz fehlt die Vierfüßler-Hocke – es wird die normale Balance-Pose benutzt.
+- **M0.5:** Die Übungen haben **keine Collider** (`impl.createPhysics` ist nirgends implementiert) –
+  man kann nicht auf ein Seil fallen, nur an ihm entlanglaufen. Für M0 in Ordnung, weil der Zustand
+  `element` die Figur ohnehin kinematisch führt.
+- **M0.5:** Kraftkosten sind an einem Autopiloten gemessen, nicht an Menschen: Burma mit beiden Händen
+  kostet ~2/3 der Kraft, das Netz leert sie fast ganz. Beim ersten echten Testlauf nachziehen
+  (`player/tuning.js`: `BALANCE.topple/damping`, `STAMINA.gripDrain`, `NERVES.*Gain`).
+- **M0.5:** `nerves.frozen` friert die Bewegung ein, die Kamera zeigt es aber nur über das Zittern;
+  ein sichtbares Einfrieren (Vignette, Atem-Overlay) kommt mit dem HUD in M0.7.
+- **M0.4:** Der Kurs steht auf der Hero-Ketten-Kiefer – der Layout-Generator (M1.1) ersetzt
+  `first-course.js`. Keine Kapazitätsprüfung (RULES.maxPerPlatform ist gesetzt, aber ungenutzt).
+- **M0.4:** Karabiner sind weiterhin Zustand, keine Physik – `belay.isSafe() === false` (classic) wird
+  nur mitgeschrieben; im Sturz hängt die Figur immer am Sicherungsseil der Übung, egal was eingehängt ist.
 - **M0.4:** Podest-Collider ist ein Quader (16 cm dick, weil die KCC durch eine 5-cm-Platte sackt);
   der Stamm-Ausschnitt der Planken ist optisch, nicht physisch. Auf der Leiter ist die Figur
   kinematisch – keine Kollision, kein Absteigen zur Seite.
@@ -121,8 +159,11 @@ python serve.py             # http://127.0.0.1:8200/   (?debug=1 Panel · ?physi
 ```
 Browser-Pane in Claude Code: `.claude/launch.json` → „wipfel“. Steuerung: WASD, Maus (Klick = Pointer-Lock),
 Shift Sprint, Leertaste Sprung, **F einhängen/umhängen** (classic zusätzlich X für Karabiner B),
-**E klettern** (Leiter, dann W hoch / S runter), T Kamera, F1 Debug, F2 Physik-Wireframe, Esc Pause.
-Der erste Kurs steht auf der Hero-Kiefer nordöstlich vom Spawn – hinlaufen oder
+**E klettern / auf die Übung steigen**, T Kamera, F1 Debug, F2 Physik-Wireframe, Esc Pause.
+**Auf einer Übung:** W/S vor und zurück (auf den Planken **ein Druck = eine Planke**), A/D lehnen,
+**Q** linke Hand, **rechte Maustaste** rechte Hand, **R** atmen (nur im Stehen).
+**Im Gurt:** Leertaste hochziehen, W/S am Seil zum Podest hangeln, E Retter rufen.
+Der erste Kurs steht auf der Hero-Kiefer-Kette am Spawn – hinlaufen oder
 `WIPFEL.player.teleport(x, y, z)` mit `WIPFEL.course.entryDeck.group.position` benutzen.
 
 ## Wie testen
@@ -138,9 +179,13 @@ Manuelle Smoke-Checkliste: `docs/testing.md`.
 `?debug=1`/F1 Stats · `?physics=1`/F2 Rapier-Wireframe · `?seed=<n>` · `?fast=1` · `?locale=de` ·
 `?belay=continuous|smart|classic` (wirkt; ungültige Werte fallen auf `smart` zurück) ·
 `window.WIPFEL` = {loop, physics, scene, camera, renderer, rng, input, events, terrain, forest, sky,
-wind, player, **course, belay, hud, interaction**}.
-Skripten/Testen: `WIPFEL.player.teleport(x, y, z)`, `WIPFEL.course.anchors`,
-`WIPFEL.course.ladder.rail`, `WIPFEL.belay.state()`.
+wind, player, course, belay, hud, interaction, **vitals, debug**}.
+Skripten/Testen: `WIPFEL.player.teleport(x, y, z)`, `WIPFEL.player.setState("ground")`,
+`WIPFEL.course.{anchors, elements, platforms, graph}`, `WIPFEL.course.elements[i].getEntryAnchor().stand`,
+`WIPFEL.belay.state()`, `WIPFEL.vitals.{balance,stamina,nerves}` + `WIPFEL.vitals.probe()`,
+**`WIPFEL.debug.forceSlip(±1)`** (erzwingt einen Sturz auf der aktuellen Übung).
+F1-Zeilen seit M0.5: `element` (id + t), `balance`, `stamina`, `nerves` (Wert + Stufe),
+`heart bpm`, `trust`, `air below`.
 **Achtung headless:** In Chromium tickt `requestAnimationFrame` nur, wenn der Compositor Frames
 liefert – für scriptgesteuerte Läufe `loop.stop()`, `requestAnimationFrame` neutralisieren und
 `loop._tick(t)` mit festen 60-Hz-Zeitstempeln selbst aufrufen (siehe Session-Log).

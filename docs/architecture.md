@@ -165,15 +165,64 @@ the foot.
 
 ### `js/park/first-course.js`
 ```js
-createFirstCourse({ scene, physics, terrain, forest, rng, textures?, seed? }) → {
-  tree, facing, platform, ladder, entryDeck,
-  anchors: [{ id, position, kind, label }],         // "deck" (entry stub + ladder cable), "platform-ring"
-  ladderAnchorId, topAnchorId, anchorById(id), nearestAnchor(position, range), dispose()
+createFirstCourse({ scene, physics, terrain, forest, rng, wind?, textures?, seed? }) → {
+  tree, trees, facing, platform, platforms, ladder, entryDeck, elements,
+  anchors: [{ id, position, points, kind, label, range }],   // "deck", "platform-N-ring", "elem-<id>"
+  graph: { nodes, edges },                          // what the M1.1 layout generator will emit
+  ladderAnchorId, topAnchorId, anchorById(id), nearestAnchor(position, range),
+  elementFor(anchorId), entryFor(anchorId, position), nearestEntry(position, range),
+  update(dt, elapsed), dispose()
 }
 ```
-Picks the hero pine nearest `terrain.spawn`, puts the entry deck at its foot on the hub side, the
-ladder up that same side and the platform 4.5 m up. The entry stub and the ladder cable are one
-continuous system, exactly like in the real park.
+Walks the hero-pine chain from `terrain.spawn` (`main.js#pickHeroTrees` lays four pines out
+`COURSE.span` = 8.6 m apart, plus decorative trunks kept 15 m clear of the chain, so the greedy
+search here cannot pick up the wrong tree). Entry deck at the foot of the first trunk, ladder up the
+same side, then platform 1 → Burma bridge → 2 → hanging planks → 3 → cargo net → 4. Decks are
+levelled in **world** height (`firstDeckHeight` + `deckRise[i]`, clamped to 3.4–8.0 m above each
+trunk foot), because four trunks on a hillside have their feet metres apart. Middle decks are
+`kind: "transition"` with a smaller radius.
+
+## Rail elements (M0.5 – contracts)
+
+### `js/elements/element.js`
+```js
+registerElementKind(kind, factory)                  // concrete modules register themselves on import
+createElement(spec, ctx) → element                  // spec: { id, kind, label, lifelineAnchorId,
+                                                    //   groundY, entry: {platformId, position}, exit: {…} }
+createWobble(config) → { lateral, vertical, lateralVelocity, amplitude, excite(a, v?), update(dt), reset() }
+createElementBase(spec, ctx, impl) → {
+  id, kind, label, length, frame, config, group, colliders, wobble, handHold, lifeline,
+  walkSpeed, slipAngle, staminaDrain, occupancy: { active, t }, groundY,
+  pointAt(t, out), tangentAt(t, out), footholdAt(t), localOffsetAt(u, out),
+  getEntryAnchor(), getExitAnchor(),                // { id, elementId, platformId, position, stand, end }
+  getDifficultyMetrics(),                           // { physical, coordination, psychological, technical } 0–5
+  build(), createPhysics(), update(dt, elapsed), dispose()
+}
+```
+Local frame: origin at the entry foot point, +X along the span, +Y up, +Z to the climber's right; the
+visual group is placed and yawed to match, so every builder works in plain local metres. `wobble` is
+two damped harmonic oscillators (lateral sway, vertical bounce) excited by steps, leaning and wind.
+`lifeline` is the 12 mm steel cable from platform ring to platform ring, 2.05 m above the walking
+line, with `pointAt(t)` and `closestT(position)` – the carabiners ride it and it never moves.
+
+### `js/elements/element-parts.js` + `js/elements/element-deform.js`
+```js
+cableRun(builder, { from, to, sag?, radius?, material?, spread? }) → points[]
+ropeStrand(builder, { from, to, radius?, material?, twist? })      // visible lay of the strands
+cableTermination(builder, { at, along, radius? })                  // swaged sleeves + shackle pin
+lifelineCable(builder, frame, element)   netKnot(builder, { at, size?, yaw? })
+createDeformer(meshes, { classify, groupCount?, margin? }) → { offsets, update(shape?), rest(), dispose() }
+```
+The timber builder welds a whole element into one mesh per material, which is what keeps the draw
+calls down – so the deformer classifies every vertex once into a station `u`, a group (whole span, or
+one plank) and a weight, and rewrites the rest positions from `offsets` each frame.
+
+### The three exercises
+| Module | kind | Hardware | Movement | Metrics (p/c/ψ/t) |
+|---|---|---|---|---|
+| `js/elements/burma-bridge.js` | `burma-bridge` | 12 mm foot cable, two hand cables 1.32 m up fanning out, hemp stirrups every 1.15 m, 2 % sag | walk, 0.60 m/s, strong lateral wobble | 2·3·3·1 |
+| `js/elements/hanging-planks.js` | `hanging-planks` | 6–12 boards 60 × 22 × 5 cm on rope pairs from two carrier cables, pitch fitted to the span | **one press of W per plank**, 0.35 s swing wait, each plank its own pendulum | 1·4·4·1 |
+| `js/elements/net-bridge.js` | `net-bridge` | 1.2 m wide cargo net, 15 cm mesh, side cables + hand ropes, dent that follows the climber | crawl, 0.50 m/s, no balance loss, drains strength | 4·1·1·1 |
 
 ## Belay, interaction, HUD and audio (M0.4)
 
@@ -195,7 +244,7 @@ to the bus as `belay:*` by main.js.
 
 ### `js/player/interaction.js` + `js/player/climb-ladder.js`
 ```js
-createInteraction({ player, input, belay, course, hud, events }) → { update(dt), prompt, anchor, dispose() }
+createInteraction({ player, input, belay, course, hud, events, vitals? }) → { update(dt), prompt, anchor, entry, dispose() }
 createLadderState({ input, events }) → state          // register as "ladder"; ownsMovement, phase, progress
 ```
 Within 1.6 m of an anchor, `clip` (F / gamepad X, plus X for carabiner B in classic mode) runs one
@@ -203,10 +252,60 @@ ritual step; `interact` (E) within 1.5 m of `ladder.rail.start` while clipped to
 switches to state `ladder` (W up / S down at 0.9 m/s, the rig blends into `ladderPose`). Reaching
 either end returns to `ground`. Events: `player:ladder-enter` / `player:ladder-exit`.
 
+Since M0.5 the same module also runs the way onto an exercise: standing within `stepRange` (1.2 m) of
+an element's stand point that element's **lifeline wins over the platform ring** as the F target
+(otherwise the ring, which circles the trunk, swallows every clip on a small deck), and E only steps
+onto it once both carabiners are on that cable – otherwise the prompt says "Clip to the cable first".
+
+## Balance, strength, nerves and the fall (M0.5)
+
+### `js/player/{balance,stamina,nerves}.js` (pure logic, unit-tested)
+```js
+createBalance({ config? }) → { angle, angularVelocity, slipped,
+  update(dt, { lean, hands, speed, drive, noise, slipAngle, authority }) → { angle, slipped, load },
+  excite(a), nudge(dOmega), load(slipAngle?), catchAt(slipAngle?), reset(angle?) }
+createStamina({ config?, value? }) → { value, isEmpty, canGrip,
+  update(dt, { onPlatform, onElement, hanging, hauling, pullingUp, moving, hands, extraDrain }),
+  spend(amount), drain(rate, dt), reset(value?) }
+createNerves({ config?, value?, trust? }) → { value, trust, level, frozen, heartRate, tremor, cameraSway,
+  update(dt, { height, exposure, wobble, gust, lookDown, handContact, onElement, onPlatform, onGround, breathing }),
+  completeElement(), survivedFall(), shock(amount), reset(value?, keepTrust?) }
+```
+An *unstable* inverted pendulum: upright is an equilibrium you fall away from, so standing on a wire
+is work. A hand on a cable makes it stable (`handStiffness > topple`) and costs strength. Nerves rise
+with height (logarithmic), exposure, wobble, gusts, looking down and time; they fall on a platform,
+while breathing and on hand contact. Above `freezeThreshold` the climber freezes until three
+deliberate breaths (R held). There is deliberately **no nerve bar** – the readout is the heartbeat.
+
+### `js/player/vitals.js`
+```js
+createVitals({ player, input, terrain?, hud?, events? }) → {
+  balance, stamina, nerves, height, onPlatform, update(dt), reset(), probe(), dispose() }
+lookDownAmount(camera)          // 0..1, nothing below 25° of downward pitch counts
+```
+Owns the three instances, steps them while the climber is *not* on a rail (the rail states step them
+themselves), and turns them into feel: camera breathing, the HUD strength ring and heartbeat, the
+heartbeat and breathing sounds, and the F1 rows.
+
+### `js/player/on-element.js` + `js/player/fall.js`
+```js
+createElementState({ input, events?, balance, stamina, nerves, rng?, camera? }) → state   // "element"
+createFallState({ physics, input, scene?, events?, balance, stamina, nerves, camera? }) → state  // "fall"
+```
+Both use the `ownsMovement` pattern. On an element the climber is a parameter `t` along the rail:
+W/S travel (or step plank by plank on a discrete element), A/D **lean** into the pendulum, Q and the
+right mouse button put a hand on the hold. `fall` spawns one dynamic Rapier ball (70 kg, colliding
+with nothing) on a rope joint to a kinematic carabiner that slides along the lifeline, draws the
+lanyard, drops and shakes the camera, and offers three ways out: pull up (Space), haul to a platform
+(W/S) or the rescuer (E). Events: `player:element-enter|element-exit|slip|fell|recovered|rescued`.
+
 ### `js/ui/hud.js`
 ```js
-createHud(root) → { setBelay(stateA, stateB), setPrompt(text|null), setVitals({ stamina }), show(), hide(), dispose() }
+createHud(root) → { setBelay(stateA, stateB), setPrompt(text|null),
+  setVitals({ stamina, heartRate, level, frozen }), show(), hide(), dispose() }
 ```
+The heartbeat dot pulses at `--beat` (60 / bpm seconds) and takes its colour from the nerve level;
+`prefers-reduced-motion` stops the animation.
 Uses the existing classes in `css/hud.css`. Prompt markup: keys in square brackets become `<kbd>`
 (`setPrompt("Climb [E]")`); text is inserted as text nodes, never as HTML.
 
@@ -215,6 +314,9 @@ Uses the existing classes in `css/hud.css`. Prompt markup: keys in square bracke
 getSynth() → { ready, arm(), now(delay), noiseBurst(o), ping(o), envelope(o), setVolume(v), dispose() }
 armAudio(target)                       // creates the AudioContext on the first *trusted* gesture
 sfxCarabinerOpen(delay?)  sfxCarabinerLock(delay?)
+sfxHarnessCatch(force?, delay?)        // thump + lanyard jolt + webbing creak
+sfxHeartbeat(intensity?, delay?)       // lub-dub, only above VITALS.heartbeatFrom
+sfxBreath(seconds?, delay?)            // filtered-noise swell in and out, while R is held
 ```
 Nothing is allocated and no sound is scheduled before a real user gesture – that also keeps the
 console clean, because Chrome warns about an AudioContext started without one.

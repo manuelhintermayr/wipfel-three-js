@@ -69,8 +69,11 @@ export const RIG = Object.freeze({
  * `topple` makes upright unstable, so standing still is not free – you steer all the time.
  */
 export const BALANCE = Object.freeze({
-  topple: 5.4,              // 1/s² per radian – the destabilising term (this is the whole game)
-  damping: 1.5,             // 1/s – body damping without hands
+  // Measured against a no-input run on the Burma bridge: from a resting stance the climber has
+  // roughly four seconds before the tilt runs away, and every step shortens that. Any hotter and a
+  // green course becomes unplayable; any cooler and you can let go of the stick and walk across.
+  topple: 3.2,              // 1/s² per radian – the destabilising term (this is the whole game)
+  damping: 2.4,             // 1/s – body damping without hands (ankles and hips, not conscious)
   handStiffness: 13.0,      // 1/s² per radian and per hand – a hand on a cable pulls you upright
   handDamping: 3.4,         // 1/s per hand
   leanAuthority: 5.6,       // 1/s² at full stick – how hard the climber can lean
@@ -82,7 +85,7 @@ export const BALANCE = Object.freeze({
 
 /** Arm strength (js/player/stamina.js). Rates are "fraction of the full reserve per second". */
 export const STAMINA = Object.freeze({
-  gripDrain: 0.055,         // per hand on a hold
+  gripDrain: 0.016,         // per hand on a hold – both hands for a whole span still leaves a reserve
   elementDrain: 0.014,      // just being out there on a rail
   netDrain: 0.055,          // extra for wading through a cargo net
   hangDrain: 0.085,         // hanging in the harness
@@ -101,12 +104,15 @@ export const STAMINA = Object.freeze({
 export const NERVES = Object.freeze({
   heightReference: 3.0,     // metres – knee of the logarithm
   heightMax: 20.0,          // metres – where the height term saturates
-  heightGain: 0.052,
-  exposureGain: 0.055,      // no hand hold available / no hand on a hold
-  wobbleGain: 0.075,
+  // Budget, measured on the first Burma bridge (4.5 m up, ~12 s, no hands): the crossing should end
+  // around "scared" and never freeze a beginner mid-span, while one hand on the cable (handRelief)
+  // more than cancels the whole rise – that is the lesson the exercise is supposed to teach.
+  heightGain: 0.038,
+  exposureGain: 0.020,      // no hand hold available / no hand on a hold
+  wobbleGain: 0.020,
   gustGain: 0.030,
-  lookDownGain: 0.045,
-  elementGain: 0.022,       // simply standing on an element for another second
+  lookDownGain: 0.030,
+  elementGain: 0.008,       // simply standing on an element for another second
   platformRelief: 0.20,
   breathRelief: 0.26,
   handRelief: 0.055,        // per hand actually holding on
@@ -125,25 +131,43 @@ export const NERVES = Object.freeze({
   levels: Object.freeze([0.32, 0.62, 0.88]),   // calm | tense | scared | frozen
 });
 
+/**
+ * The bookkeeping around the three resources (js/player/vitals.js): when the climber counts as
+ * "up in the trees", when looking down starts to matter, and when the heartbeat becomes audible.
+ */
+export const VITALS = Object.freeze({
+  platformHeight: 1.6,      // metres above the terrain from which "on foot" means "on a platform"
+  lookDownStart: 25 * DEG,  // camera pitch below this counts as looking down (GDD §3.1)
+  lookDownFull: 52 * DEG,
+  heartbeatFrom: 0.40,      // nerve value above which the heartbeat is audible
+  heartbeatMax: 0.42,       // sfx gain at full panic
+});
+
 /** Walking a rail element (js/player/on-element.js). */
 export const ELEMENT_MOVE = Object.freeze({
-  speedMin: 0.40,           // m/s at full nerves
-  speedMax: 1.00,           // m/s calm and unhurried
   accel: 2.4,               // m/s² towards the wanted rail speed
   turnRate: 8,              // 1/s towards the rail tangent
   stepLength: 0.62,         // metres per step – drives the step rhythm that shakes the element
-  stepExcite: 0.55,         // wobble impulse per step
+  stepExcite: 0.24,         // wobble impulse (m/s of sideways cable travel) per step
+  wobbleDrive: 1.6,         // rad/s² of balance disturbance per m/s the element moves sideways
   hurryExcite: 1.9,         // extra impulse per m/s² of acceleration along the rail
-  leanExcite: 0.30,         // wobble impulse per second at full lateral stick
+  leanExcite: 0.22,         // wobble impulse per second at full lateral stick
   leanOffset: 0.16,         // metres the body shifts sideways at the slip angle
   exitMargin: 0.02,         // rail parameter tolerance at the ends
-  handReach: 0.5,           // hands cost this fraction extra while moving
+  handSlow: 0.12,           // fraction of the walking speed lost per hand on a hold
+  nervePenalty: 0.35,       // fraction of the walking speed lost at full nerves
+  cameraLift: 0.18,         // metres the camera pivot rises on an exercise (see over the rail)
+  // …and for elements you cross step by step (hanging planks): one press of W = one plank
+  stepWait: 0.35,           // seconds before the next step is accepted – let the plank settle
+  stepGlide: 7,             // 1/s – how fast the body arrives over the plank it stepped onto
+  missStepKick: 2.9,        // rad/s² into the balance when the plank was not where the foot went
 });
 
 /** Hanging in the harness after a slip (js/player/fall.js). */
 export const FALL = Object.freeze({
   lanyard: 0.85,            // Smart Belay lanyard (RESEARCH-DATA §5)
-  slack: 0.60,              // rope-joint slack on top of it
+  slack: 0.85,              // give in the whole system, so the harness ends up under the walking line
+  lanyardRadius: 0.016,     // the webbing, drawn from the carabiner down to the harness
   harnessHeight: 1.05,      // attachment point above the feet
   bodyRadius: 0.28,
   bodyDensity: 260,         // gives roughly a 70 kg climber on a 0.28 m ball

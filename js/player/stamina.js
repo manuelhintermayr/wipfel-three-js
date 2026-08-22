@@ -19,7 +19,7 @@ const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 export function createStamina({ config = STAMINA, value = 1 } = {}) {
   const C = config;
   let reserve = clamp01(value);
-  let exhausted = false;
+  let exhausted = reserve <= 0;      // starting empty means starting with the hands open
 
   /** Fraction per second the current load costs (negative = the reserve fills). */
   function rateOf(load) {
