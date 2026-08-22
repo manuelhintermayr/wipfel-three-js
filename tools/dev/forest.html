@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wipfel · dev · forest</title>
+  <link rel="stylesheet" href="../../css/base.css">
+  <style>
+    #info { position: fixed; left: 12px; top: 12px; max-width: 36rem; padding: 10px 12px; background: var(--hud-bg, rgba(20,24,20,.75));
+      border: 1px solid var(--hud-line, rgba(255,255,255,.15)); border-radius: var(--radius, 6px); color: #eee;
+      font: 12px/1.45 var(--font-mono, monospace); white-space: pre; pointer-events: none; }
+    #help { position: fixed; right: 12px; bottom: 12px; padding: 8px 10px; background: var(--hud-bg, rgba(20,24,20,.75)); border-radius: var(--radius, 6px);
+      font: 11px/1.4 var(--font-ui, sans-serif); color: var(--hud-muted, #bbb); pointer-events: none; }
+    #sheets { position: fixed; left: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+    #sheets canvas { display: block; border: 1px solid rgba(255,255,255,.3); background: #223; image-rendering: auto; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "../../vendor/three/three.module.js",
+      "rapier": "../../vendor/rapier/rapier.mjs"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="info">loading…</div>
+  <div id="sheets"></div>
+  <div id="help">click: mouse look · WASD/QE: fly · shift: fast · ?seed=N ?view=eye|top|free ?count=N ?tex=1 ?terrain=real ?cam=x,y,z&amp;look=x,y,z ?wind=0</div>
+  <div id="fatal" hidden role="alert"></div>
+  <script type="module">
+    import * as THREE from "three";
+    import { createRenderer } from "../../js/core/renderer.js";
+    import { initPhysics } from "../../js/core/physics.js";
+    import { Rng, makeNoise2D, fbm2D } from "../../js/core/rng.js";
+    import { WORLD } from "../../js/config.js";
+    import { createWind } from "../../js/world/wind.js";
+    import { createForest } from "../../js/world/forest.js";
+    import { makeBarkContactSheet } from "../../js/procgen/textures/bark.js";
+    import { makeFoliageContactSheet } from "../../js/procgen/textures/foliage.js";
+
+    const q = new URLSearchParams(location.search);
+    const seedRaw = q.get("seed");
+    const seed = seedRaw == null || seedRaw === "" ? 1 : (Number.isFinite(Number(seedRaw)) ? Number(seedRaw) : seedRaw);
+    const view = q.get("view") || "eye";
+    const count = Number(q.get("count")) || 600;
+    const info = document.getElementById("info");
+    const vec = (s, d) => { const p = (s || "").split(",").map(Number); return p.length === 3 && p.every(Number.isFinite) ? new THREE.Vector3(...p) : d; };
+
+    /** Stand-in terrain with the createTerrain() interface: gentle noisy slope descending to −Z, one hub, a path. */
+    function createStandInTerrain({ rng, scene, size }) {
+      const noise = makeNoise2D(`${rng.seed}:standin`);
+      const half = size / 2;
+      const heightAt = (x, z) => 0.09 * z + 3.2 * fbm2D(noise, x / 70 + 3.1, z / 70, 4) + 0.7 * fbm2D(noise, x / 16, z / 16 + 7.7, 3);
+      const slopeAt = (x, z) => { const e = 0.5, dx = (heightAt(x + e, z) - heightAt(x - e, z)) / (2 * e), dz = (heightAt(x, z + e) - heightAt(x, z - e)) / (2 * e); return Math.atan(Math.hypot(dx, dz)); };
+      const isPath = (x, z) => Math.abs(x - 8 * Math.sin(z / 45)) < 1.4 && z > 10;
+      const hubs = [{ x: 0, z: 0, radius: 12 }];
+      const res = 3, n = Math.round(size / res);
+      const geo = new THREE.PlaneGeometry(size, size, n, n);
+      geo.rotateX(-Math.PI / 2);
+      const pos = geo.attributes.position, col = new Float32Array(pos.count * 3);
+      const litter = new THREE.Color(0x5a4a30), moss = new THREE.Color(0x3f5a2c), path = new THREE.Color(0x8a7d62), c = new THREE.Color();
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i), z = pos.getZ(i);
+        pos.setY(i, heightAt(x, z));
+        const m = 0.5 + 0.5 * fbm2D(noise, x / 9, z / 9, 3);
+        c.copy(litter).lerp(moss, m * 0.8);
+        if (isPath(x, z)) c.copy(path);
+        col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+      }
+      geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+      geo.computeVertexNormals();
+      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 }));
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+      return { mesh, heightAt, slopeAt, isPath, hubs, spawn: { x: 0, y: heightAt(0, 0), z: 0 },
+        bounds: { min: { x: -half, z: -half }, max: { x: half, z: half } }, dispose() { scene.remove(mesh); geo.dispose(); mesh.material.dispose(); } };
+    }
+
+    async function main() {
+      const physics = await initPhysics();
+      const { renderer, scene, camera } = createRenderer(document.getElementById("app"));
+      const rng = new Rng(seed);
+
+      scene.background = new THREE.Color(0xa9c6dc);
+      scene.fog = new THREE.Fog(0xa9c6dc, 60, 420);
+      const hemi = new THREE.HemisphereLight(0xcfe3f5, 0x4a5a3a, 0.65);
+      scene.add(hemi);
+      const sun = new THREE.DirectionalLight(0xffe4bd, 2.6);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(2048, 2048);
+      sun.shadow.camera.near = 1; sun.shadow.camera.far = 400;
+      sun.shadow.camera.left = -80; sun.shadow.camera.right = 80; sun.shadow.camera.top = 80; sun.shadow.camera.bottom = -80;
+      sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.06;
+      scene.add(sun, sun.target);
+      const sunDir = new THREE.Vector3(-0.62, 0.42, -0.66).normalize();   // late afternoon, south-west
+
+      let terrain;
+      if (q.get("terrain") === "real") {
+        const { createTerrain } = await import("../../js/world/terrain.js");
+        terrain = createTerrain({ rng, physics, scene, size: WORLD.size, resolution: 2 });
+      } else {
+        terrain = createStandInTerrain({ rng, scene, size: WORLD.size });
+      }
+      const wind = createWind({ rng });
+      if (q.get("wind") === "0") wind.update = () => {};
+
+      const s = terrain.spawn;
+      const heroTrees = [
+        { x: s.x - 5, z: s.z + 13, species: "pine", height: 24 },
+        { x: s.x + 7, z: s.z + 10, species: "pine", height: 26 },
+        { x: s.x + 14, z: s.z + 21, species: "oak" },
+        { x: s.x - 13, z: s.z + 8, species: "beech" },
+        { x: s.x + 2, z: s.z + 27, species: "maple" },
+        { x: s.x - 9, z: s.z + 22, species: "pine", height: 22 },
+      ];
+      const t0 = performance.now();
+      const forest = createForest({ rng, scene, physics, terrain, wind, heroTrees, targetCount: count });
+      const buildMs = Math.round(performance.now() - t0);
+
+      // --- camera ---------------------------------------------------------------------------------
+      const eyeY = terrain.heightAt(s.x, s.z - 6) + 1.7;
+      const presets = {
+        eye: { pos: new THREE.Vector3(s.x, eyeY, s.z - 6), look: new THREE.Vector3(s.x, eyeY + 4, s.z + 30) },
+        top: { pos: new THREE.Vector3(s.x, terrain.heightAt(s.x, s.z) + 150, s.z - 60), look: new THREE.Vector3(s.x, terrain.heightAt(s.x, s.z), s.z + 40) },
+        free: { pos: new THREE.Vector3(s.x + 20, eyeY + 8, s.z - 30), look: new THREE.Vector3(s.x, eyeY + 8, s.z + 20) },
+      };
+      const preset = presets[view] || presets.eye;
+      camera.position.copy(vec(q.get("cam"), preset.pos));
+      camera.lookAt(vec(q.get("look"), preset.look));
+      const euler = new THREE.Euler(0, 0, 0, "YXZ");
+      euler.setFromQuaternion(camera.quaternion);
+      const keys = new Set();
+      window.addEventListener("keydown", (e) => keys.add(e.code));
+      window.addEventListener("keyup", (e) => keys.delete(e.code));
+      const canvas = renderer.domElement;
+      canvas.addEventListener("click", () => canvas.requestPointerLock());
+      window.addEventListener("mousemove", (e) => {
+        if (document.pointerLockElement !== canvas) return;
+        euler.y -= e.movementX * 0.0022; euler.x = THREE.MathUtils.clamp(euler.x - e.movementY * 0.0022, -1.5, 1.5);
+        camera.quaternion.setFromEuler(euler);
+      });
+
+      // --- contact sheets ------------------------------------------------------------------------
+      if (q.get("tex") === "1") {
+        const sheets = document.getElementById("sheets");
+        for (const c of [makeBarkContactSheet(seed, 160), makeFoliageContactSheet(seed, 160)]) sheets.appendChild(c);
+        const imp = document.createElement("canvas"); imp.width = 160 * 9; imp.height = 200;
+        const ictx = imp.getContext("2d"); let x = 0;
+        for (const sp of Object.keys(forest.archetypes)) for (const arch of forest.archetypes[sp]) {
+          const c = arch.lods[2].impostorCanvas; const w = 200 * c.width / c.height; ictx.drawImage(c, x, 0, w, 200); x += w + 4;
+        }
+        sheets.appendChild(imp);
+      }
+
+      // --- loop -----------------------------------------------------------------------------------
+      const fwd = new THREE.Vector3(), right = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+      let last = performance.now(), elapsed = 0, fps = 60, infoTimer = 0;
+      window.__devInfo = { calls: 0, triangles: 0, fps: 0, trees: forest.trees.length, buildMs, byLod: forest.stats.byLod, colliders: forest.stats.colliders, meshes: forest.stats.instancedMeshes };
+      function frame(now) {
+        const dt = Math.min(0.1, (now - last) / 1000); last = now; elapsed += dt;
+        fps = fps * 0.95 + (dt > 0 ? 1 / dt : 60) * 0.05;
+        const speed = (keys.has("ShiftLeft") ? 24 : 6) * dt;
+        camera.getWorldDirection(fwd); right.crossVectors(fwd, up).normalize();
+        if (keys.has("KeyW")) camera.position.addScaledVector(fwd, speed);
+        if (keys.has("KeyS")) camera.position.addScaledVector(fwd, -speed);
+        if (keys.has("KeyD")) camera.position.addScaledVector(right, speed);
+        if (keys.has("KeyA")) camera.position.addScaledVector(right, -speed);
+        if (keys.has("KeyE")) camera.position.y += speed;
+        if (keys.has("KeyQ")) camera.position.y -= speed;
+        wind.update(dt);
+        forest.update(dt, elapsed, camera.position);
+        sun.target.position.copy(camera.position).addScaledVector(fwd, 40);
+        sun.position.copy(sun.target.position).addScaledVector(sunDir, 160);
+        renderer.render(scene, camera);
+        infoTimer += dt;
+        if (infoTimer > 0.25) {
+          infoTimer = 0;
+          const r = renderer.info.render;
+          Object.assign(window.__devInfo, { calls: r.calls, triangles: r.triangles, fps: Math.round(fps), byLod: forest.stats.byLod.slice() });
+          info.textContent = [
+            `forest dev · seed ${seed} · view ${view} · ${forest.trees.length} trees (${forest.stats.heroes} hero) · build ${buildMs} ms`,
+            `fps ${Math.round(fps)} · draw calls ${r.calls} · triangles ${r.triangles.toLocaleString()} · instanced meshes ${forest.stats.instancedMeshes}`,
+            `lod0 ${forest.stats.byLod[0]} · lod1 ${forest.stats.byLod[1]} · lod2 ${forest.stats.byLod[2]} · colliders ${forest.stats.colliders} · wind ${wind.strength.toFixed(2)} (gust ${wind.gust.toFixed(2)})`,
+            `cam ${camera.position.x.toFixed(1)},${camera.position.y.toFixed(1)},${camera.position.z.toFixed(1)}`,
+          ].join("\n");
+          document.title = `forest · ${Math.round(fps)} fps · ${r.calls} calls · ${r.triangles} tris`;
+        }
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+      window.WIPFEL = { forest, wind, terrain, scene, camera, renderer, physics, sun };
+    }
+
+    main().catch((err) => {
+      console.error(err);
+      info.textContent = `ERROR: ${err && err.stack ? err.stack : err}`;
+    });
+  </script>
+</body>
+</html>

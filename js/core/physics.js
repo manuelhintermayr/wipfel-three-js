@@ -36,6 +36,7 @@ export class Physics {
     this.world.step(this.eventQueue);
   }
 
+  get debugEnabled() { return this._debug != null; }
   get bodyCount() { return this.world.bodies.len(); }
   get colliderCount() { return this.world.colliders.len(); }
 

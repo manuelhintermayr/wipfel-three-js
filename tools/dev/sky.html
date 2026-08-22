@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wipfel · dev · sky + lighting + skyline</title>
+  <style>
+    html, body, #app { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+    #info { position: fixed; left: 8px; top: 8px; padding: 6px 8px; font: 12px/1.4 ui-monospace, Consolas, monospace;
+            color: #eee; background: rgba(20, 24, 28, 0.6); border-radius: 4px; white-space: pre; pointer-events: none; }
+  </style>
+  <script type="importmap">
+  { "imports": { "three": "../../vendor/three/three.module.js" } }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="info">loading…</div>
+  <script type="module">
+    // Dev harness: sky dome, sun/shadows, fog and the distant skyline on a sloped test ground with stand-in trunks.
+    // URL params: ?hour=17.5 (6–24; 21 = night) ?yaw=150 (view azimuth, 180 = south, 90 = west) ?slope=5 ?seed=1
+    import * as THREE from "three";
+    import { createRenderer } from "../../js/core/renderer.js";
+    import { Rng } from "../../js/core/rng.js";
+    import { createSky } from "../../js/world/sky.js";
+    import { createSkyline } from "../../js/world/skyline.js";
+
+    const params = new URLSearchParams(location.search);
+    const num = (key, fallback) => { const v = parseFloat(params.get(key)); return Number.isFinite(v) ? v : fallback; };
+    const hour = num("hour", 17.5), yawDeg = num("yaw", 150), slopeDeg = num("slope", 5), seed = num("seed", 1);
+    const fov = num("fov", 0), pitchDeg = num("pitch", 1.7);   // fov 0 = project default; pitch = look up (+) / down (-)
+
+    const container = document.getElementById("app");
+    const info = document.getElementById("info");
+    const { renderer, scene, camera } = createRenderer(container);
+    const rng = new Rng(seed);
+
+    // --- test ground: 400 m plane descending towards the south (-Z) like the park slope --------------
+    const slope = slopeDeg * Math.PI / 180;
+    const heightAt = (z) => z * Math.tan(slope);
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(500, 500, 1, 1),
+      new THREE.MeshStandardMaterial({ color: 0x3d4a36, roughness: 0.96, metalness: 0 }),
+    );
+    ground.rotation.x = -Math.PI / 2 - slope;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // --- stand-in trunks (tall thin cylinders) with simple crowns, deterministic placement -------------
+    const trunkGeometry = new THREE.CylinderGeometry(0.28, 0.42, 1, 12, 1);
+    const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x5b4636, roughness: 0.92 });
+    const crownGeometry = new THREE.SphereGeometry(1, 12, 8);
+    const crownMaterial = new THREE.MeshStandardMaterial({ color: 0x2f4a2a, roughness: 0.95 });
+    const treeRng = rng.fork("trunks");
+    for (let i = 0; i < 12; i++) {
+      const angle = treeRng.float(0, Math.PI * 2), radius = treeRng.float(5, 32);
+      const x = Math.sin(angle) * radius, z = Math.cos(angle) * radius;
+      const height = treeRng.float(18, 26);
+      const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+      trunk.scale.set(1, height, 1);
+      trunk.position.set(x, heightAt(z) + height / 2, z);
+      trunk.castShadow = trunk.receiveShadow = true;
+      scene.add(trunk);
+      const crown = new THREE.Mesh(crownGeometry, crownMaterial);
+      const crownRadius = treeRng.float(2.5, 4);
+      crown.scale.set(crownRadius, crownRadius * 0.8, crownRadius);
+      crown.position.set(x, heightAt(z) + height - crownRadius * 0.4, z);
+      crown.castShadow = crown.receiveShadow = true;
+      scene.add(crown);
+    }
+
+    // --- sky + skyline ------------------------------------------------------------------------------
+    const sky = createSky({ scene, renderer, rng, hour });
+    const skyline = createSkyline({ scene, rng });
+
+    // --- camera: 1.7 m above the slope at the origin, looking along the yaw (default: south-west into the sun)
+    const yaw = yawDeg * Math.PI / 180, pitch = pitchDeg * Math.PI / 180;
+    if (fov > 0) { camera.fov = fov; camera.updateProjectionMatrix(); }
+    camera.position.set(0, 1.7, 0);
+    camera.lookAt(Math.sin(yaw) * 100 * Math.cos(pitch), 1.7 + 100 * Math.sin(pitch), Math.cos(yaw) * 100 * Math.cos(pitch));
+
+    // --- loop -----------------------------------------------------------------------------------------
+    let last = performance.now(), fps = 0, frames = 0;
+    window.__devInfo = { hour, calls: 0, fps: 0 };
+    function frame(now) {
+      const dt = Math.min(0.1, (now - last) / 1000);
+      last = now;
+      sky.update(dt, camera.position);
+      skyline.update(dt);
+      renderer.render(scene, camera);
+      const instant = dt > 0 ? 1 / dt : 0;
+      fps = frames < 5 ? instant : fps * 0.9 + instant * 0.1;
+      frames++;
+      const calls = renderer.info.render.calls;
+      window.__devInfo = { hour: sky.timeOfDay, calls, fps: Math.round(fps), triangles: renderer.info.render.triangles };
+      if (frames % 10 === 0) {
+        const d = sky.sunDirection;
+        info.textContent = `hour ${sky.timeOfDay.toFixed(2)}  fps ${Math.round(fps)}  calls ${calls}\n` +
+          `sun (${d.x.toFixed(2)}, ${d.y.toFixed(2)}, ${d.z.toFixed(2)})  exposure ${sky.exposure.toFixed(2)}  night ${sky.night.toFixed(2)}`;
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+    window.__sky = { sky, skyline, scene, camera, renderer };
+  </script>
+</body>
+</html>

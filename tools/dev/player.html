@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wipfel · dev · player (KCC, shoulder camera, rig)</title>
+  <style>
+    html, body, #app { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #0d1210; }
+    #app canvas { display: block; }
+    .panel { position: fixed; padding: 6px 9px; font: 12px/1.45 ui-monospace, Consolas, monospace; color: #eee;
+             background: rgba(20, 24, 28, 0.62); border-radius: 4px; white-space: pre; pointer-events: none; }
+    #hint { left: 8px; bottom: 8px; }
+    #info { left: 8px; top: 8px; }
+  </style>
+  <script type="importmap">
+  { "imports": { "three": "../../vendor/three/three.module.js", "rapier": "../../vendor/rapier/rapier.mjs" } }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="info" class="panel">loading…</div>
+  <div id="hint" class="panel">WASD move · Shift sprint · Space jump · T shoulder ↔ first person · mouse look (click to lock)
+F1 physics wireframe · ?bot=1 auto-walk · ?fp=1 first person · ?seed=N · ?debug=1</div>
+  <script type="module">
+    // Dev harness for js/player/*: stand-in terrain (trimesh), trunks/crates/steps/ramp (GROUP.STATIC),
+    // a pushable ball (GROUP.DYNAMIC), fixed-step loop, optional bot that walks a square path.
+    import * as THREE from "three";
+    import { createRenderer } from "../../js/core/renderer.js";
+    import { initPhysics, GROUP, groups } from "../../js/core/physics.js";
+    import { Loop } from "../../js/core/loop.js";
+    import { Input } from "../../js/core/input.js";
+    import { Rng, makeNoise2D, fbm2D } from "../../js/core/rng.js";
+    import { createPlayer } from "../../js/player/controller.js";
+
+    const params = new URLSearchParams(location.search);
+    const flag = (k) => params.has(k) && params.get(k) !== "0";
+    const seed = Number.isFinite(Number(params.get("seed"))) && params.get("seed") ? Number(params.get("seed")) : 1;
+    const botMode = flag("bot"), firstPerson = flag("fp"), debugPhysics = flag("debug");
+    const DEG = Math.PI / 180;
+    // bot extras: ?orbit=<deg> camera offset from the walk direction (180 = front view), ?idle=1 stand still
+    const botOrbit = (Number(params.get("orbit")) || 0) * DEG, botIdle = flag("idle");
+
+    const container = document.getElementById("app");
+    const infoEl = document.getElementById("info");
+    const physics = await initPhysics();
+    const R = physics.RAPIER;
+    const world = physics.world;
+    const { renderer, scene, camera } = createRenderer(container);
+    const rng = new Rng(seed);
+
+    scene.background = new THREE.Color(0x9fc3d9);
+    scene.fog = new THREE.Fog(0x9fc3d9, 40, 160);
+    scene.add(new THREE.HemisphereLight(0xcfe3f5, 0x3a4a34, 0.85));
+    const sun = new THREE.DirectionalLight(0xffe7c2, 2.2);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.near = 1; sun.shadow.camera.far = 160;
+    sun.shadow.camera.left = -30; sun.shadow.camera.right = 30; sun.shadow.camera.top = 30; sun.shadow.camera.bottom = -30;
+    sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
+    scene.add(sun, sun.target);
+
+    // --- stand-in terrain: gentle slope + fbm bumps, flat hub around the spawn, trimesh collider -------
+    function createStandInTerrain() {
+      const size = 96, cells = 80, half = size / 2;
+      const noise = makeNoise2D(rng.fork("terrain").int(0, 1e9));
+      const raw = (x, z) => z * Math.tan(5 * DEG) + fbm2D(noise, x * 0.045 + 3.1, z * 0.045 + 7.7, 4) * 1.6;
+      const hub = raw(0, 0);
+      const heightAt = (x, z) => THREE.MathUtils.lerp(hub, raw(x, z), THREE.MathUtils.smoothstep(Math.hypot(x, z), 5, 13));
+      const n = cells + 1;
+      const positions = new Float32Array(n * n * 3), colors = new Float32Array(n * n * 3);
+      const indices = new Uint32Array(cells * cells * 6);
+      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+        const x = -half + (i / cells) * size, z = -half + (j / cells) * size, y = heightAt(x, z);
+        const v = (j * n + i) * 3;
+        positions[v] = x; positions[v + 1] = y; positions[v + 2] = z;
+        const t = THREE.MathUtils.clamp((y - hub + 3) / 6, 0, 1);
+        colors[v] = 0.20 + 0.10 * t; colors[v + 1] = 0.30 + 0.12 * t; colors[v + 2] = 0.16 + 0.05 * t;
+      }
+      let k = 0;
+      for (let j = 0; j < cells; j++) for (let i = 0; i < cells; i++) {
+        const a = j * n + i, b = a + 1, c = a + n, d = c + 1;
+        indices[k++] = a; indices[k++] = c; indices[k++] = b;
+        indices[k++] = b; indices[k++] = c; indices[k++] = d;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+      geo.setIndex(new THREE.BufferAttribute(indices, 1));
+      geo.computeVertexNormals();
+      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }));
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+      world.createCollider(R.ColliderDesc.trimesh(positions, indices, R.TriMeshFlags.FIX_INTERNAL_EDGES)
+        .setCollisionGroups(groups(GROUP.TERRAIN)).setFriction(1));
+      return { mesh, heightAt, spawn: { x: 0, y: hub, z: 0 }, bounds: { min: { x: -half, z: -half }, max: { x: half, z: half } } };
+    }
+    const terrain = createStandInTerrain();
+
+    // --- static obstacles (GROUP.STATIC): trunks, crates, steps, ramp; one dynamic ball ---------------
+    const barkMat = new THREE.MeshStandardMaterial({ color: 0x5b4636, roughness: 0.92 });
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0x8b6a45, roughness: 0.85 });
+    const staticGroups = groups(GROUP.STATIC);
+    function addTrunk(x, z, radius = 0.45, height = 14) {
+      const y = terrain.heightAt(x, z);
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.8, radius, height, 14), barkMat);
+      m.position.set(x, y + height / 2 - 0.3, z); m.castShadow = m.receiveShadow = true; scene.add(m);
+      const body = world.createRigidBody(R.RigidBodyDesc.fixed().setTranslation(x, y + height / 2 - 0.3, z));
+      world.createCollider(R.ColliderDesc.cylinder(height / 2, radius).setCollisionGroups(staticGroups), body);
+    }
+    function addBox(x, y, z, sx, sy, sz, ry = 0, rx = 0, mat = woodMat) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
+      m.position.set(x, y, z); m.rotation.set(rx, ry, 0); m.castShadow = m.receiveShadow = true; scene.add(m);
+      const q = new THREE.Quaternion().setFromEuler(m.rotation);
+      const body = world.createRigidBody(R.RigidBodyDesc.fixed().setTranslation(x, y, z).setRotation({ x: q.x, y: q.y, z: q.z, w: q.w }));
+      world.createCollider(R.ColliderDesc.cuboid(sx / 2, sy / 2, sz / 2).setCollisionGroups(staticGroups), body);
+    }
+    for (const [x, z, r] of [[6.2, 0.5, 0.5], [-6.5, 3, 0.45], [2, 7.6, 0.55], [-3, -7.5, 0.4], [8.5, -6, 0.6], [0.5, 12, 0.5], [-10, -1, 0.5], [4.9, 1.6, 0.35], [-4.6, -5.2, 0.32]]) addTrunk(x, z, r);
+    const g = terrain.heightAt;
+    const stepsY = g(8, -2);
+    for (let i = 0; i < 4; i++) addBox(7 + i * 0.6, stepsY + 0.15 * (i + 1), -2, 0.6, 0.3 * (i + 1), 2);   // steps of 0.3 m (autostep) …
+    addBox(9.7, stepsY + 0.9, -2, 1.2, 1.8, 2);                                                        // … then a 0.6 m ledge (jump)
+    const cratesY = g(-6.6, 6.7);
+    addBox(-6, cratesY + 0.5, 6.5, 1, 1, 1); addBox(-7.2, cratesY + 0.5, 6.9, 1, 1, 1); addBox(-6.6, cratesY + 1.5, 6.7, 1, 1, 1);
+    const platY = g(-8, -8);
+    addBox(-8, platY + 1.35, -8, 3, 0.3, 3);                                                          // platform on posts (top +1.5)
+    for (const [px, pz] of [[-9.3, -9.3], [-6.7, -9.3], [-9.3, -6.7], [-6.7, -6.7]]) addBox(px, platY + 0.6, pz, 0.2, 1.2, 0.2);
+    addBox(-8, platY + 0.74, -5.06, 2, 0.12, 3.2, 0, 26 * DEG);                                        // ramp 26° up to the platform
+    addBox(11, g(11, 5) + 1.2, 5, 4, 0.2, 5, 0, 55 * DEG, barkMat);                                    // 55° bank (slides)
+    const ballBody = world.createRigidBody(R.RigidBodyDesc.dynamic().setTranslation(2.5, g(2.5, -1.5) + 1, -1.5).setLinearDamping(0.4).setAngularDamping(0.4));
+    world.createCollider(R.ColliderDesc.ball(0.35).setDensity(60).setFriction(0.8).setCollisionGroups(groups(GROUP.DYNAMIC)), ballBody);
+    const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(0.35, 24, 16), new THREE.MeshStandardMaterial({ color: 0xd8342c, roughness: 0.5 }));
+    ballMesh.castShadow = true; scene.add(ballMesh);
+
+    // --- input / bot ---------------------------------------------------------------------------------
+    const input = new Input(window);
+    container.addEventListener("click", () => input.requestPointerLock(renderer.domElement));
+    const bot = botMode ? createBot(input) : null;
+    const player = createPlayer({ physics, scene, camera, input: bot ? bot.input : input, terrain, rng: rng.fork("player") });
+    if (firstPerson) player.setThirdPerson(false);
+    if (debugPhysics) physics.setDebug(scene, true);
+
+    /** Drives the player along a square (waypoints), sprints on the second lap, jumps now and then. */
+    function createBot(real) {
+      const waypoints = [[4, 4], [-4, 4], [-4, -4], [4, -4]];
+      let wp = 0, laps = 0, elapsed = 0, jumpAt = 6.5;
+      const move = { x: 0, y: 0 };
+      const held = new Set(), pressedNow = new Set();
+      const botInput = {
+        move, look: real.look,
+        down: (a) => held.has(a) || real.down(a),
+        pressed: (a) => pressedNow.has(a) || real.pressed(a),
+        released: (a) => real.released(a),
+        poll() {}, endFrame() { pressedNow.clear(); },
+      };
+      const worldDir = new THREE.Vector3();
+      return {
+        input: botInput,
+        fixed(dt) {
+          elapsed += dt;
+          const cam = player.camera;
+          if (elapsed < 1.2 || botIdle) { move.x = move.y = 0; cam.yaw = botOrbit; cam.pitch = -14 * DEG; return; }
+          const [tx, tz] = waypoints[wp];
+          const p = player.position;
+          worldDir.set(tx - p.x, 0, tz - p.z);
+          if (worldDir.length() < 0.5) { wp = (wp + 1) % waypoints.length; if (wp === 0) laps++; }
+          worldDir.normalize();
+          move.x = worldDir.dot(cam.right); move.y = worldDir.dot(cam.forward);
+          if (laps >= 1) held.add("sprint"); else held.delete("sprint");
+          if (elapsed >= jumpAt) { pressedNow.add("jump"); jumpAt += 5.5; }
+          // camera trails the character (or orbits it by ?orbit=deg)
+          const wanted = Math.atan2(worldDir.x, worldDir.z) + botOrbit;
+          let d = wanted - cam.yaw; d -= Math.PI * 2 * Math.floor((d + Math.PI) / (Math.PI * 2));
+          cam.yaw = cam.yaw + d * Math.min(1, 2.2 * dt);
+          cam.pitch = -14 * DEG;
+        },
+      };
+    }
+
+    // --- terrain sanity: physics trimesh vs heightAt at random points ------------------------------------
+    let terrainErr = 0;
+    { const check = rng.fork("check"); const down = { x: 0, y: -1, z: 0 };
+      for (let i = 0; i < 60; i++) {
+        const x = check.float(-40, 40), z = check.float(-40, 40);
+        const hit = world.castRay(new R.Ray({ x, y: 60, z }, down), 120, true, undefined, groups(GROUP.PLAYER, GROUP.TERRAIN));
+        if (hit) terrainErr = Math.max(terrainErr, Math.abs((60 - hit.timeOfImpact) - terrain.heightAt(x, z)));
+      } }
+
+    // --- loop -----------------------------------------------------------------------------------------
+    const loop = new Loop();
+    const ballPrev = new THREE.Vector3(), ballCurr = new THREE.Vector3();
+    let wireframe = debugPhysics;
+    loop.on("input", () => { input.poll(); if (input.pressed("debug")) { wireframe = !wireframe; physics.setDebug(scene, wireframe); } });
+    loop.on("physics", (dt) => {
+      if (bot) bot.fixed(dt);
+      player.fixedUpdate(dt);
+      physics.step();
+      ballPrev.copy(ballCurr); const t = ballBody.translation(); ballCurr.set(t.x, t.y, t.z);
+    });
+    loop.on("gameplay", (dt) => player.update(dt));
+    loop.on("render", (alpha, dt) => {
+      player.render(alpha, dt);
+      ballMesh.position.lerpVectors(ballPrev, ballCurr, alpha);
+      const p = player.renderPosition;
+      sun.position.set(p.x + 40, p.y + 60, p.z + 20); sun.target.position.copy(p);
+      physics.updateDebug();
+      renderer.render(scene, camera);
+    });
+    let infoAcc = 0;
+    loop.on("ui", (dt) => {
+      infoAcc += dt;
+      const p = player.position;
+      window.__devInfo = {
+        pos: { x: +p.x.toFixed(3), y: +p.y.toFixed(3), z: +p.z.toFixed(3) },
+        grounded: player.grounded, mode: player.mode, speed: +player.speed.toFixed(2),
+        fps: +loop.stats.fps.toFixed(0), camDist: +player.camera.distance.toFixed(2), fov: +player.camera.fov.toFixed(1),
+        firstPerson: player.camera.isFirstPerson, terrainErr: +terrainErr.toFixed(4), drawCalls: renderer.info.render.calls,
+      };
+      if (infoAcc > 0.2) {
+        infoAcc = 0;
+        const d = window.__devInfo;
+        infoEl.textContent = `pos ${d.pos.x} ${d.pos.y} ${d.pos.z}\nmode ${d.mode} grounded ${d.grounded} speed ${d.speed} m/s\n`
+          + `cam ${d.firstPerson ? "first" : "shoulder"} dist ${d.camDist} fov ${d.fov}\nfps ${d.fps} draw ${d.drawCalls} terrainErr ${d.terrainErr}`;
+      }
+      input.endFrame();
+      if (bot) bot.input.endFrame();
+    });
+    window.__dev = { player, physics, scene, camera, loop, terrain };
+    loop.start();
+  </script>
+</body>
+</html>

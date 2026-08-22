@@ -8,6 +8,7 @@ export function readParams(search = location.search) {
   const seed = seedRaw == null || seedRaw === "" ? DEFAULTS.seed : (Number.isFinite(Number(seedRaw)) ? Number(seedRaw) : seedRaw);
   return Object.freeze({
     debug: flag("debug"),
+    physics: flag("physics"),   // Rapier wireframe (F2) – separate from the stats panel
     autoplay: flag("autoplay"),
     fast: flag("fast"),
     seed,

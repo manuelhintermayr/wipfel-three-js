@@ -8,7 +8,7 @@ const DEFAULT_BINDINGS = {
     ArrowUp: "moveUp", ArrowDown: "moveDown", ArrowLeft: "moveLeft", ArrowRight: "moveRight",
     ShiftLeft: "sprint", ShiftRight: "sprint",
     Space: "jump", KeyF: "clip", KeyQ: "handL", KeyE: "interact", KeyR: "breathe",
-    Tab: "map", Escape: "pause", KeyT: "camera", F1: "debug", KeyP: "photo",
+    Tab: "map", Escape: "pause", KeyT: "camera", F1: "debug", F2: "physdebug", KeyP: "photo",
     KeyX: "clip2", // classic belay mode: second carabiner
   },
   // right hand on keyboard: E is interact per GDD; hands are Q (left) and mouse right button (right)
@@ -43,7 +43,7 @@ export class Input {
     t.addEventListener("keydown", (e) => {
       const a = this.bindings.keys[e.code];
       if (!a) return;
-      if (e.code === "Tab" || e.code === "F1") e.preventDefault();
+      if (e.code === "Tab" || e.code === "F1" || e.code === "F2") e.preventDefault();
       if (!e.repeat) { this._down.add(a); this._pressed.add(a); }
     });
     t.addEventListener("keyup", (e) => {
