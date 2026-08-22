@@ -58,8 +58,11 @@ export const RULES = Object.freeze({
   ]),
 });
 
+/** Belay systems the park can be run with (GDD §safety, `?belay=`). Logic: js/player/belay.js. */
+export const BELAY_MODES = Object.freeze(["continuous", "smart", "classic"]);
+
 export const DEFAULTS = Object.freeze({
   seed: 1,
   locale: "en",
-  belayMode: "smart",        // "continuous" | "smart" | "classic"
+  belayMode: "smart",        // one of BELAY_MODES
 });

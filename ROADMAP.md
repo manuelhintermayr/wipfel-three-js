@@ -29,7 +29,7 @@ Generierung für dekoratives UI opfern.
       Ego-Umschaltung, prozedurale Figur mit Gurt/Helm und Posen-Blending (Zustände: idle, walk, run,
       crouch, ladder, balance, grab, hang, pull-up, jump, land, harness-fall, recover, zipline, net),
       Gamepad + Tastatur/Maus laut GDD-Tabelle.
-- [ ] **M0.4 Podest + Leiter + Umhängen** – Einstiegsdeck (~40 cm, Bank) mit Einhängepunkt,
+- [x] **M0.4 Podest + Leiter + Umhängen** – Einstiegsdeck (~40 cm, Bank) mit Einhängepunkt,
       Holz-Blockleiter als Schiene (Brett am Stamm, versetzte Klötze), Podest (Planken auf
       Rundholz-Kranz, Klemmen, Anker, Kapazität 3) mit Collider, Sicherungsseil um den Stamm,
       Karabiner-Zustandsautomat (Zwei-Klick-Ritual, Reihenfolge erzwungen), HUD-Karabiner-Widget,

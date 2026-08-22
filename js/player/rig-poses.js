@@ -137,5 +137,27 @@ export function landPose(out) {
   return out;
 }
 
+/**
+ * Climbing a block ladder: chest close to the spine, one hand reaching for the next hold, the
+ * opposite knee high on a step block. `phase` (radians) alternates the diagonal – left hand with
+ * right foot, as everyone climbs without being told to.
+ */
+export function ladderPose(out, phase = 0) {
+  out.fill(0);
+  const s = Math.sin(phase);
+  out[1] = -0.05 - 0.02 * Math.cos(2 * phase);   // pelvis dips with every pull
+  out[2] = 0.07;                                  // hips in towards the ladder
+  rot(out, "pelvis", 0, 0.06 * s, 0.04 * s);
+  rot(out, "spine", 0.05, -0.04 * s, 0);
+  rot(out, "chest", 0.10, -0.08 * s, 0);
+  rot(out, "neck", 0.06);
+  rot(out, "head", -0.34, 0.06 * s, 0);
+  setArm(out, "L", 1.95 + 0.42 * s, 0.24, 0.45 + 0.55 * Math.max(0, -s));
+  setArm(out, "R", 1.95 - 0.42 * s, 0.24, 0.45 + 0.55 * Math.max(0, s));
+  setLeg(out, "L", 0.55 - 0.42 * s, 0.85 - 0.55 * s, 0.22);
+  setLeg(out, "R", 0.55 + 0.42 * s, 0.85 + 0.55 * s, 0.22);
+  return out;
+}
+
 /** Stride length (metres per gait cycle) blended between walk and run. */
 export function strideLength(run, walkStride, runStride) { return lerp(walkStride, runStride, clamp(run, 0, 1)); }

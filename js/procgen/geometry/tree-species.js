@@ -72,6 +72,24 @@ export const TREE_SPECIES = Object.freeze({
 
 export const SPECIES_IDS = Object.freeze(Object.keys(TREE_SPECIES));
 
+/** Root flare of the trunk mesh: +65 % at the foot, gone after roughly a metre (tree-skeleton.js). */
+const FLARE_GAIN = 0.65;
+const FLARE_DECAY = 0.6;
+
+/**
+ * World trunk radius of a placed tree at `y` metres above its foot – the same taper and root flare
+ * `tree-skeleton.js#makeTrunkRadius` builds the mesh from. Anything clamped to a trunk (platforms,
+ * ladders, cable rings) has to follow this, or it floats at the top and sinks in at the bottom.
+ * @param {{ species: string, trunkRadius: number, height: number, scale?: number }} tree
+ * @param {number} y metres above the trunk foot
+ */
+export function trunkRadiusAt(tree, y) {
+  const spec = TREE_SPECIES[tree.species] || TREE_SPECIES.pine;
+  const t = Math.min(1, Math.max(0, y / Math.max(1e-3, tree.height)));
+  const flare = 1 + FLARE_GAIN * Math.exp(-Math.max(0, y) / (FLARE_DECAY * (tree.scale || 1)));
+  return Math.max(0.03, tree.trunkRadius * Math.pow(1 - t, spec.taper) * flare);
+}
+
 /** LOD budgets: card keep-ratio and card scale per LOD (0 = full, 1 = mid). LOD 2 = impostor. */
 export const TREE_LOD = Object.freeze({
   cardKeep: [1.0, 0.36],

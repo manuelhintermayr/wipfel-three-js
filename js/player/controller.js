@@ -12,6 +12,8 @@ import { PLAYER } from "./tuning.js";
 import { createStateMachine } from "./states.js";
 import { createCameraController } from "./camera.js";
 import { createRig } from "./rig.js";
+import { createLadderState } from "./climb-ladder.js";
+import { ladderPose } from "./rig-poses.js";
 
 const { damp } = THREE.MathUtils;
 const TWO_PI = Math.PI * 2;
@@ -22,10 +24,11 @@ const SPAWN_LIFT = 0.05;
 /**
  * @param {{ physics: import("../core/physics.js").Physics, scene: THREE.Scene, camera: THREE.PerspectiveCamera,
  *           input: import("../core/input.js").Input, terrain?: { heightAt(x:number,z:number): number, spawn?: {x,y,z} },
- *           rng: import("../core/rng.js").Rng, spawn?: {x:number,y:number,z:number} }} options
+ *           rng: import("../core/rng.js").Rng, spawn?: {x:number,y:number,z:number},
+ *           events?: { emit(name: string, payload?: object): void } }} options
  *   `spawn` is the feet position (defaults to terrain.spawn, then heightAt(0,0)).
  */
-export function createPlayer({ physics, scene, camera, input, terrain = null, rng, spawn = null }) {
+export function createPlayer({ physics, scene, camera, input, terrain = null, rng, spawn = null, events = null }) {
   const R = physics.RAPIER;
   const world = physics.world;
   const gravity = PHYSICS.gravity.y;
@@ -82,7 +85,10 @@ export function createPlayer({ physics, scene, camera, input, terrain = null, rn
       return "ground";
     },
   };
-  const fsm = createStateMachine({ states: { ground: groundState, air: airState }, initial: "air" });
+  const ladderState = createLadderState({ input, events });
+  const fsm = createStateMachine({ states: { ground: groundState, air: airState, ladder: ladderState }, initial: "air" });
+  rig.registerPose("ladder", (out) => ladderPose(out, ladderState.phase));
+  let ladderWeight = 0;
 
   function jump() {
     jumpBuffer = 0;
@@ -133,20 +139,30 @@ export function createPlayer({ physics, scene, camera, input, terrain = null, rn
     heading = wrapAngle(heading + wrapAngle(target - heading) * (1 - Math.exp(-PLAYER.turnRate * dt)));
   }
 
+  /** True while the active state moves the body itself (ladder, later element/zipline rails). */
+  function ownsMovement() {
+    const state = fsm.get();
+    return !!(state && state.ownsMovement);
+  }
+
   /** Physics is authoritative – but if the body tunnelled below the terrain, put it back on top. */
   function applyTerrainFallback() {
     if (!terrain || typeof terrain.heightAt !== "function") return;
+    if (ownsMovement()) return;
     const h = terrain.heightAt(position.x, position.z);
     if (Number.isFinite(h) && position.y < h - PLAYER.fallbackDepth) player.teleport(position.x, h + SPAWN_LIFT, position.z);
   }
 
   function updatePoseWeights(dt) {
     const inAir = fsm.is("air");
+    const onLadder = fsm.is("ladder");
     airWeight = damp(airWeight, inAir ? 1 : 0, inAir ? 7 : 12, dt);
     landWeight = damp(landWeight, 0, 5, dt);
-    rig.setMoveBlend(Math.hypot(velocity.x, velocity.z) / PLAYER.sprintSpeed);
+    ladderWeight = damp(ladderWeight, onLadder ? 1 : 0, 9, dt);
+    rig.setMoveBlend(onLadder ? 0 : Math.hypot(velocity.x, velocity.z) / PLAYER.sprintSpeed);
     rig.setPose("air", airWeight);
     rig.setPose("land", landWeight);
+    rig.setPose("ladder", ladderWeight);
   }
 
   // --- public object -------------------------------------------------------------------------------
@@ -174,9 +190,11 @@ export function createPlayer({ physics, scene, camera, input, terrain = null, rn
       readMoveInput();
       fsm.tick(dt);
       fsm.dispatch("update", player, dt);
-      moveBody(dt);
-      fsm.dispatch("postMove", player);
-      updateHeading(dt);
+      if (!ownsMovement()) {                     // ladder & co. drive the body themselves
+        moveBody(dt);
+        fsm.dispatch("postMove", player);
+        updateHeading(dt);
+      }
       jumpBuffer = Math.max(0, jumpBuffer - dt);
       applyTerrainFallback();
     },
@@ -202,6 +220,33 @@ export function createPlayer({ physics, scene, camera, input, terrain = null, rn
     },
 
     setThirdPerson(on) { cameraCtl.setFirstPerson(!on); },
+
+    /** Face this yaw (radians) – used by states that steer the body themselves. */
+    setHeading(yaw) { heading = wrapAngle(yaw); },
+
+    /**
+     * Switch to rail locomotion on a block ladder (js/elements/ladder.js).
+     * @returns {boolean} false when the player is not in a state that may start climbing
+     */
+    climbLadder(ladder) {
+      if (!ladder || fsm.is("ladder")) return false;
+      jumpBuffer = 0;
+      fsm.set("ladder", player, { ladder });
+      return fsm.is("ladder");
+    },
+
+    /** Leave the ladder wherever the climber currently is. */
+    leaveLadder() {
+      if (!fsm.is("ladder")) return false;
+      fsm.set("ground", player);
+      return true;
+    },
+
+    /** Move the feet without touching camera smoothing or interpolation history (rail states). */
+    moveTo(x, y, z) {
+      position.set(x, y, z);
+      body.setNextKinematicTranslation({ x, y: y + PLAYER.feetOffset, z });
+    },
 
     /** Place the feet at (x, y, z) immediately, resetting motion and interpolation. */
     teleport(x, y, z) {

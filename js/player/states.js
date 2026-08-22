@@ -21,6 +21,8 @@ export function createStateMachine({ states, initial }) {
     get time() { return time; },
     is(name) { return current === name; },
     has(name) { return Object.prototype.hasOwnProperty.call(table, name); },
+    /** The state object itself – lets the owner read declarative flags such as `ownsMovement`. */
+    get(name = current) { return table[name] || null; },
 
     /** Register (or replace) a state; used by later modes (ladder, element, …). */
     add(name, state) { table[name] = state; },

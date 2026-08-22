@@ -17,6 +17,13 @@ import { createTerrain } from "./world/terrain.js";
 import { createGroundDetail } from "./world/ground-detail.js";
 import { createForest } from "./world/forest.js";
 import { createPlayer } from "./player/controller.js";
+import { getWoodTextures } from "./procgen/textures/wood.js";
+import { createFirstCourse } from "./park/first-course.js";
+import { createBelay } from "./player/belay.js";
+import { createInteraction } from "./player/interaction.js";
+import { createHud } from "./ui/hud.js";
+import { armAudio } from "./audio/synth.js";
+import { sfxCarabinerOpen, sfxCarabinerLock } from "./audio/sfx.js";
 
 async function boot() {
   installGlobalHandlers();
@@ -51,11 +58,22 @@ async function boot() {
   const groundDetail = createGroundDetail({ rng: rng.fork("ground-detail"), scene, terrain, wind });
   const heroTrees = pickHeroTrees(terrain, rng.fork("hero-trees"));
   const forest = createForest({ rng: rng.fork("forest"), scene, physics, terrain, wind, heroTrees });
-  const buildMs = Math.round(performance.now() - t0);
-  log.info(`world built in ${buildMs} ms · trees ${forest.trees.length} · hubs ${terrain.hubs.length}`);
 
-  // --- player ----------------------------------------------------------------------------------------
-  const player = createPlayer({ physics, scene, camera, input, terrain, rng: rng.fork("player") });
+  // --- park (M0.4: entry deck → block ladder → first platform) -----------------------------------------
+  const wood = getWoodTextures(params.seed);
+  const course = createFirstCourse({ scene, physics, terrain, forest, rng: rng.fork("course"), textures: wood });
+  const buildMs = Math.round(performance.now() - t0);
+  log.info(`world built in ${buildMs} ms · trees ${forest.trees.length} · hubs ${terrain.hubs.length} · course on tree #${course.tree.id}`);
+
+  // --- player + belay + HUD ----------------------------------------------------------------------------
+  const player = createPlayer({ physics, scene, camera, input, terrain, rng: rng.fork("player"), events });
+  const belay = createBelay({ mode: params.belayMode, onEvent: (e) => events.emit(`belay:${e.type}`, e) });
+  const hud = createHud(document.getElementById("hud"));
+  hud.setVitals({ stamina: 1 });
+  const interaction = createInteraction({ player, input, belay, course, hud, events });
+  armAudio(window);
+  events.on("belay:open", () => sfxCarabinerOpen());
+  events.on("belay:click", () => sfxCarabinerLock(0.14));
 
   // --- debug panel -----------------------------------------------------------------------------------
   const debug = new DebugPanel(document.getElementById("debug"), () => ({
@@ -72,6 +90,8 @@ async function boot() {
     "player": `${player.position.x.toFixed(1)}, ${player.position.y.toFixed(1)}, ${player.position.z.toFixed(1)}`,
     mode: player.mode,
     "speed m/s": player.speed.toFixed(2),
+    belay: `${belay.state().A.state}/${belay.state().B.state} @ ${belay.currentAnchor() || "–"}`,
+    prompt: interaction.prompt || "–",
     "world ms": buildMs,
   }));
   if (params.debug) debug.toggle(true);
@@ -91,6 +111,7 @@ async function boot() {
   });
   loop.on("gameplay", (dt, elapsed) => {
     player.update(dt);
+    interaction.update(dt);
     wind.update(dt);
     sky.update(dt, player.position);
     skyline.update(dt);
@@ -109,7 +130,10 @@ async function boot() {
 
   container.addEventListener("click", () => input.requestPointerLock(renderer.domElement));
 
-  window.WIPFEL = { version: GAME.version, params, loop, physics, scene, camera, renderer, rng, input, events, terrain, forest, sky, wind, player, ready: true };
+  window.WIPFEL = {
+    version: GAME.version, params, loop, physics, scene, camera, renderer, rng, input, events,
+    terrain, forest, sky, wind, player, course, belay, hud, interaction, ready: true,
+  };
   loop.start();
   events.emit("boot:ready", { params });
   log.info("boot complete");
