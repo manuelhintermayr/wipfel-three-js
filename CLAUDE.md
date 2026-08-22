@@ -46,7 +46,10 @@ weiterarbeiten. Bestehende Systeme werden nie blind neu gebaut.
     Kontext lang: zuerst Handover committen, dann weiter.
 11. **Server nur `serve.py`** (no-store, MIME). Ein alter `python -m http.server` kann Chrome alte Module
     aus dem Cache liefern lassen.
-12. **Prioritätsreihenfolge:** Korrektheit → Spielgefühl → stabile Physik → Lesbarkeit → Architektur →
+12. **Subagenten NIE auf Fable 5.** Fable 5 ist nur Orchestrator. Jeder `Agent`-/Workflow-Aufruf setzt
+    explizit `model: "opus"` (maximal Opus 4.8) oder kleiner – ohne `model` erbt der Agent Fable und
+    verbrennt Manuels Kontingent. Im Zweifel keine Subagenten, direkt im Chat arbeiten.
+13. **Prioritätsreihenfolge:** Korrektheit → Spielgefühl → stabile Physik → Lesbarkeit → Architektur →
     visuelle Qualität → Inhaltsmenge → Politur.
 
 ## Testing (Details: `docs/testing.md`)

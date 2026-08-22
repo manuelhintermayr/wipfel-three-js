@@ -13,18 +13,18 @@ Generierung für dekoratives UI opfern.
 
 ## M0 · „Ein Brett“ – ein blauer Parcours, der sich richtig anfühlt
 
-- [ ] **M0.1 Bootstrap** – `vendor/` (Three.js ES-Build + Addons, Rapier compat), `tools/vendor.ps1`,
+- [x] **M0.1 Bootstrap** – `vendor/` (Three.js ES-Build + Addons, Rapier compat), `tools/vendor.ps1`,
       `index.html` mit Import-Map, `css/base.css`, `js/main.js`, `js/config.js` (Konstanten),
       `core/loop.js` (fester Physikschritt 60 Hz, Render-Interpolation, Phasen input → physics →
       gameplay → render → ui), `core/rng.js`, `core/input.js`, `ui/debug.js` (F1 / `?debug=1`),
       Fehlerbildschirm bei WebGL-/Rapier-Init-Fehler; leere Szene mit Boden-Collider und fallender
       Testkugel; 0 Konsolenfehler, 0 externe Requests. Erster Unit-Test (`node --test`): RNG-Determinismus.
-- [ ] **M0.2 Weltausschnitt** – Hang-Terrain aus geschichtetem kohärentem Rauschen mit erosionsartiger
+- [x] **M0.2 Weltausschnitt** – Hang-Terrain aus geschichtetem kohärentem Rauschen mit erosionsartiger
       Formung (flachere Hubs, steilere Ränder, Wege), Bodendetail (Laub, Wurzeln, Steine, Grasbüschel),
       40–60 instanzierte Bäume mit Rinde/Normal-Map, Astwerk, Blattmassen mit Wind, Dichtekarte,
       Ausschlusszonen um Wege/Podeste, „Hero-Bäume“ höherer Qualität für Parcours; Himmel, Sonne mit
       Schatten, Nebel/Tiefe, Tone-Mapping, ferne Skyline-Silhouette. Draw-Calls im Debug-Panel.
-- [ ] **M0.3 Spieler am Boden** – Rapier-Character-Controller (Kapsel), Gehen/Sprint/Springen/Hänge,
+- [x] **M0.3 Spieler am Boden** – Rapier-Character-Controller (Kapsel), Gehen/Sprint/Springen/Hänge,
       Schulterkamera mit Kollisionsvermeidung (Kronen ausdünnen, kein Clipping durch Stämme),
       Ego-Umschaltung, prozedurale Figur mit Gurt/Helm und Posen-Blending (Zustände: idle, walk, run,
       crouch, ladder, balance, grab, hang, pull-up, jump, land, harness-fall, recover, zipline, net),

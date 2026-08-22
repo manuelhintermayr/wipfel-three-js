@@ -52,6 +52,10 @@ Keine Behauptungen wie „produktionsreif“, „fotorealistisch“, „60 fps�
 Nachweis (Screenshot, Messung im Debug-Panel). Provisorisches heißt provisorisch – in `HANDOVER.md`
 unter „Offen/Provisorisch“.
 
+## Subagenten
+Nie auf Fable 5. Jeder Agent-/Workflow-Aufruf setzt explizit `model: "opus"` (max. Opus 4.8) oder
+kleiner; ohne Angabe erbt der Agent das Orchestrator-Modell. Im Zweifel: keine Subagenten.
+
 ## Autonomie
 Normale Engineering-Entscheidungen selbst treffen (ADR schreiben). Nur anhalten bei zwei grundsätzlich
 verschiedenen Produktrichtungen, irreversiblen/destruktiven Operationen oder wenn Nutzereingaben

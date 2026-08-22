@@ -129,8 +129,8 @@ Wichtel + Übungsparcours. Farbe immer mit Form/Icon (◈ ◆ ◐ ◆ ✦ bzw. �
 ---
 
 ## Offen (von der jeweiligen Session zu entscheiden und hier einzutragen)
-- ADR-013 · Three.js-Version + Addon-Liste · offen
-- ADR-014 · Rapier-compat-Version + Vendor-Dateistruktur · offen
+- ADR-013 · Three.js 0.185.1 (`three.module.js` + `three.core.js`, Addons einzeln bei Bedarf) · 2026-08-17 · angenommen
+- ADR-014 · @dimforge/rapier3d-compat 0.20.0 (`dist/rapier.mjs`, WASM inline, keine relativen Imports) · 2026-08-17 · angenommen
 - ADR-015 · Figur-Stil und Rig-Ansatz (Posen-Blending vs. leichtes IK) · offen
 - ADR-016 · Baumarten-Mix und Blatt-Instancing-Ansatz · offen
 - ADR-017 · Podest-Geometrie (Achteck vs. Ring) und Klemmen-Detailgrad · offen

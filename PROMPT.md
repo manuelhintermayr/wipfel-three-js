@@ -275,6 +275,8 @@ Plan dieser Session, erster Commit.
 - **Nie länger als ~45 Minuten ohne Commit.** Größere Aufgabe → `wip:`-Commit + Satz in `HANDOVER.md`.
   Kaputte Stände nur committen, wenn ausdrücklich als `wip:` markiert und zur Sicherung nötig.
 - Wird der Kontext lang: **zuerst** `HANDOVER.md` vervollständigen und committen, dann weiter.
+- **Subagenten nur mit `model: "opus"` (maximal Opus 4.8) oder kleiner – nie Fable erben lassen;**
+  im Zweifel keine Subagenten und direkt im Chat arbeiten (harte Regel von Manuel).
 - Werkzeugfallen: Write/Edit haben große Dateien auf diesem Mount abgeschnitten → kleine Dateien,
   `node --check` nach jedem Edit, bei Verdacht neu schreiben. Git-`index.lock` nur löschen, wenn kein
   Git-Prozess läuft.
