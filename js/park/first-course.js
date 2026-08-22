@@ -1,105 +1,248 @@
-// The first thing the player ever climbs: entry deck → block ladder → platform, all on the hero pine
-// nearest the spawn hub. Until the layout generator (M1.1) exists this module owns the whole
-// arrangement so main.js stays a wiring file.
+// The first course: entry deck → block ladder → platform 1 → Burma bridge → platform 2 → hanging
+// planks → platform 3 → cargo net → platform 4. Until the layout generator (M1.1) exists this
+// module owns the whole arrangement so main.js stays a wiring file.
 //
-// Belay anchors: the entry stub and the ladder cable are one continuous system (anchor id "deck"),
-// exactly like in the real park – you clip in at the bottom and stay on that cable until you reach
-// the platform's safety ring ("platform-ring") and perform the ritual again.
+// Belay anchors, exactly as in the real park: the entry stub and the ladder cable are one system
+// ("deck"); every platform has its cable ring ("platform-N-ring"); every exercise has its own
+// lifeline ("elem-<id>") which you can clip into from either of its two platforms. The two-click
+// ritual at each platform is therefore ring → next lifeline, ring → next lifeline.
 import * as THREE from "three";
 import { getWoodTextures } from "../procgen/textures/wood.js";
 import { trunkRadiusAt } from "../procgen/geometry/tree-species.js";
+import { createTimberBuilder } from "./timber.js";
 import { createPlatform } from "./platform.js";
 import { createEntryDeck } from "./entry-deck.js";
 import { createBlockLadder } from "../elements/ladder.js";
+import { createElement } from "../elements/element.js";
+import "../elements/burma-bridge.js";        // side effect: registers the element kind
+import "../elements/hanging-planks.js";
+import "../elements/net-bridge.js";
 
 export const FIRST_COURSE = Object.freeze({
-  platformHeight: 4.5,       // deck surface above the trunk foot
+  /** Deck heights above each trunk foot – the course climbs, then eases off for the finish. */
+  platformHeights: Object.freeze([4.5, 5.5, 6.5, 6.0]),
   platformRadius: 1.25,
   deckGap: 0.55,             // clearance between trunk surface and the entry deck edge
+  edgeOffset: 1.15,          // where an exercise leaves the deck, measured from the trunk axis
   interactRange: 1.6,        // how close you must be to an anchor to clip in
-  ladderRange: 1.5,          // …and to the ladder base to start climbing
+  ringRange: 2.1,            // …the platform ring circles the trunk, so anywhere on the deck counts
+  elementRange: 1.9,
+  ladderRange: 1.5,
+  minSpan: 6.0,              // trunk distance an exercise needs
+  maxSpan: 13.5,
+  /** Which exercise goes between which pair of platforms (GDD §3.4: rope, timber, net). */
+  layout: Object.freeze([
+    Object.freeze({ id: "burma-1", kind: "burma-bridge", label: "Burma bridge" }),
+    Object.freeze({ id: "planks-1", kind: "hanging-planks", label: "Hanging planks" }),
+    Object.freeze({ id: "net-1", kind: "net-bridge", label: "Cargo net" }),
+  ]),
 });
 
 /**
- * @param {{ scene: THREE.Scene, physics, terrain, forest, rng, textures?, seed? }} options
- *   `textures` = a set from `procgen/textures/wood.js`; omitted, it is fetched for `seed`.
- * @returns {{ tree, platform, ladder, entryDeck, anchors: Array<{id, position: THREE.Vector3, kind: string}>,
- *   anchorById(id): object|null, nearestAnchor(position, range): object|null, dispose(): void }}
+ * @param {{ scene: THREE.Scene, physics, terrain, forest, rng, wind?, textures?, seed? }} options
+ * @returns {{ tree, facing, platform, platforms, ladder, entryDeck, elements,
+ *   anchors: Array<{id, position: THREE.Vector3, points: THREE.Vector3[], kind: string, range: number}>,
+ *   anchorById(id), nearestAnchor(position, range), elementFor(anchorId), entryFor(anchorId, position),
+ *   update(dt, elapsed), dispose(): void }}
  */
-export function createFirstCourse({ scene, physics, terrain, forest, rng, textures = null, seed = 1 }) {
+export function createFirstCourse({ scene, physics, terrain, forest, rng, wind = null, textures = null, seed = 1 }) {
   const wood = textures || getWoodTextures(seed);
-  const tree = pickCourseTree(forest, terrain);
-  if (!tree) throw new Error("first course: the forest has no hero tree to build on");
+  const trees = pickCourseTrees(forest, terrain, FIRST_COURSE.platformHeights.length);
+  if (!trees.length) throw new Error("first course: the forest has no hero tree to build on");
 
   const hub = terrain.spawn || { x: 0, z: 0 };
-  const facing = Math.atan2(hub.x - tree.x, hub.z - tree.z);   // yaw from the trunk towards the hub
+  const tree = trees[0];
+  const facing = Math.atan2(hub.x - tree.x, hub.z - tree.z);   // yaw from the first trunk to the hub
   const outward = new THREE.Vector3(Math.sin(facing), 0, Math.cos(facing));
 
-  const platform = createPlatform({
-    scene, physics, tree, height: FIRST_COURSE.platformHeight, radius: FIRST_COURSE.platformRadius,
-    kind: "entry", facing, rng: rng.fork("platform"), textures: wood,
-  });
+  const platforms = trees.map((t, i) => createPlatform({
+    scene, physics, tree: t, height: FIRST_COURSE.platformHeights[i], radius: FIRST_COURSE.platformRadius,
+    kind: i === 0 ? "entry" : "standard", facing: platformFacing(trees, i, facing),
+    rng: rng.fork(`platform-${i}`), textures: wood,
+  }));
+  platforms.forEach((p, i) => { p.id = `platform-${i + 1}`; });
 
-  // clear of the root flare, not of the nominal trunk radius
+  // --- M0.4: the way up ------------------------------------------------------------------------------
   const deckDistance = trunkRadiusAt(tree, 0.5) + FIRST_COURSE.deckGap + 0.80;
   const deckX = tree.x + outward.x * deckDistance;
   const deckZ = tree.z + outward.z * deckDistance;
   const entryDeck = createEntryDeck({
     scene, physics, position: { x: deckX, y: terrain.heightAt(deckX, deckZ), z: deckZ },
-    facing: facing + Math.PI,                                  // the deck looks back at the tree
-    rng: rng.fork("entry-deck"), textures: wood,
+    facing: facing + Math.PI, rng: rng.fork("entry-deck"), textures: wood,
   });
-
   const ladder = createBlockLadder({
-    scene, physics, tree, fromY: entryDeck.top, toY: platform.top, side: facing,
+    scene, physics, tree, fromY: entryDeck.top, toY: platforms[0].top, side: facing,
     rng: rng.fork("ladder"), textures: wood,
   });
 
-  const anchors = [
-    { id: "deck", position: entryDeck.clipAnchor, kind: "cable-stub", label: "entry cable" },
-    { id: "platform-ring", position: platform.anchorPoints.ring, kind: "ring", label: "platform ring" },
-  ];
+  // --- M0.5: the exercises ---------------------------------------------------------------------------
+  const timber = createTimberBuilder({ textures: wood });
+  const ctx = { scene, physics, rng: rng.fork("elements"), timber, wind };
+  const elements = [];
+  for (let i = 0; i + 1 < trees.length && i < FIRST_COURSE.layout.length; i++) {
+    elements.push(buildElement(FIRST_COURSE.layout[i], trees[i], trees[i + 1], platforms[i], platforms[i + 1], terrain, ctx));
+  }
+
+  const anchors = buildAnchors(entryDeck, platforms, elements);
+  const byId = new Map(anchors.map((a) => [a.id, a]));
+  const elementByAnchor = new Map(elements.map((e) => [e.lifeline.anchorId, e]));
 
   return {
-    tree,
-    facing,
-    platform,
+    tree, facing, trees,
+    /** M0.4 compatibility: the first platform, the one the ladder arrives at. */
+    platform: platforms[0],
+    platforms,
     ladder,
     entryDeck,
+    elements,
     anchors,
-    /** Anchor the ladder cable belongs to – you may start climbing while clipped to it. */
     ladderAnchorId: "deck",
-    /** Anchor you must reach at the top before leaving the ladder cable. */
-    topAnchorId: "platform-ring",
+    topAnchorId: "platform-1-ring",
 
-    anchorById(id) { return anchors.find((a) => a.id === id) || null; },
+    anchorById(id) { return byId.get(id) || null; },
 
-    /** Closest anchor within `range` metres of a world position, or null. */
+    /** Closest anchor to a world position, respecting each anchor's own reach. */
     nearestAnchor(position, range = FIRST_COURSE.interactRange) {
-      let best = null, bestDistance = range;
+      let best = null, bestScore = Infinity;
       for (const anchor of anchors) {
-        const d = anchor.position.distanceTo(position);
-        if (d <= bestDistance) { best = anchor; bestDistance = d; }
+        const reach = Math.max(range, anchor.range);
+        for (const point of anchor.points) {
+          const d = point.distanceTo(position);
+          if (d <= reach && d < bestScore) { best = anchor; bestScore = d; }
+        }
       }
       return best;
     },
 
+    /** The exercise that hangs on this lifeline anchor, or null. */
+    elementFor(anchorId) { return elementByAnchor.get(anchorId) || null; },
+
+    /**
+     * Standing here, clipped to this lifeline: which end of which exercise could you step onto?
+     * @returns {{ element: object, end: "entry"|"exit" }|null}
+     */
+    entryFor(anchorId, position, range = FIRST_COURSE.elementRange) {
+      const element = elementByAnchor.get(anchorId);
+      if (!element) return null;
+      for (const end of ["entry", "exit"]) {
+        const anchor = end === "entry" ? element.getEntryAnchor() : element.getExitAnchor();
+        if (anchor.stand.distanceTo(position) <= range) return { element, end };
+      }
+      return null;
+    },
+
+    update(dt, elapsed) { for (const element of elements) element.update(dt, elapsed); },
+
     dispose() {
+      for (const element of elements) element.dispose();
+      timber.dispose();
       ladder.dispose();
       entryDeck.dispose();
-      platform.dispose();
+      for (const platform of platforms) platform.dispose();
     },
   };
 }
 
-/** The hero pine closest to the spawn hub – hero trees have trunk colliders and room around them. */
-function pickCourseTree(forest, terrain) {
-  const spawn = terrain.spawn || { x: 0, z: 0 };
-  let best = null, bestDistance = Infinity;
-  for (const tree of forest.trees) {
-    if (!tree.isHero) continue;
-    const d = Math.hypot(tree.x - spawn.x, tree.z - spawn.z);
-    if (d < bestDistance) { best = tree; bestDistance = d; }
+/** One exercise between two platforms, entering and leaving at deck height on the deck edge. */
+function buildElement(layout, treeA, treeB, platformA, platformB, terrain, ctx) {
+  const dir = new THREE.Vector3(treeB.x - treeA.x, 0, treeB.z - treeA.z).normalize();
+  const edge = FIRST_COURSE.edgeOffset;
+  const entry = new THREE.Vector3(treeA.x + dir.x * edge, platformA.top, treeA.z + dir.z * edge);
+  const exit = new THREE.Vector3(treeB.x - dir.x * edge, platformB.top, treeB.z - dir.z * edge);
+  const midX = (entry.x + exit.x) / 2, midZ = (entry.z + exit.z) / 2;
+  const element = createElement({
+    id: layout.id,
+    kind: layout.kind,
+    label: layout.label,
+    lifelineAnchorId: `elem-${layout.id}`,
+    groundY: terrain.heightAt(midX, midZ),
+    entry: { platformId: platformA.id, position: entry },
+    exit: { platformId: platformB.id, position: exit },
+  }, ctx);
+  element.build();
+  element.createPhysics();
+  return element;
+}
+
+/**
+ * Anchor list for the belay. A platform ring is judged from the trunk axis (it circles the trunk,
+ * so you can clip in from anywhere on the deck); an exercise lifeline can be reached from both of
+ * its platforms, so it carries two points.
+ */
+function buildAnchors(entryDeck, platforms, elements) {
+  const anchors = [
+    { id: "deck", position: entryDeck.clipAnchor, points: [entryDeck.clipAnchor], kind: "cable-stub", label: "entry cable", range: FIRST_COURSE.interactRange },
+  ];
+  platforms.forEach((platform, i) => {
+    anchors.push({
+      id: `${platform.id}-ring`,
+      position: platform.anchorPoints.ring,
+      points: [platform.anchorPoints.ringCentre],
+      kind: "ring",
+      label: `platform ${i + 1} ring`,
+      range: FIRST_COURSE.ringRange,
+    });
+  });
+  for (const element of elements) {
+    const entry = element.getEntryAnchor(), exit = element.getExitAnchor();
+    anchors.push({
+      id: element.lifeline.anchorId,
+      position: entry.position,
+      points: [entry.position, exit.position],
+      kind: "lifeline",
+      label: element.label,
+      elementId: element.id,
+      range: FIRST_COURSE.elementRange,
+    });
   }
-  return best;
+  return anchors;
+}
+
+/** The deck of a middle platform faces between the exercise that arrives and the one that leaves. */
+function platformFacing(trees, index, entryFacing) {
+  if (index === 0) return entryFacing;                         // deck 1 looks at the ladder and the hub
+  const here = trees[index];
+  const before = trees[index - 1];
+  const after = trees[index + 1] || null;
+  const inbound = Math.atan2(before.x - here.x, before.z - here.z);
+  if (!after) return inbound;
+  const outbound = Math.atan2(after.x - here.x, after.z - here.z);
+  return Math.atan2(Math.sin(inbound) + Math.sin(outbound), Math.cos(inbound) + Math.cos(outbound));
+}
+
+/**
+ * The chain of hero pines the course hangs on: start at the one nearest the spawn hub, then keep
+ * taking the nearest unused hero that is a sensible span away and roughly continues the direction
+ * travelled so far. Heroes that do not fit are skipped, which is why this survives a forest that
+ * was seeded differently.
+ */
+function pickCourseTrees(forest, terrain, count) {
+  const spawn = terrain.spawn || { x: 0, z: 0 };
+  const heroes = forest.trees.filter((t) => t.isHero);
+  if (!heroes.length) return [];
+  const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+
+  let start = heroes[0];
+  for (const tree of heroes) if (distance(tree, spawn) < distance(start, spawn)) start = tree;
+  const chain = [start];
+  const used = new Set([start]);
+
+  while (chain.length < count) {
+    const last = chain[chain.length - 1];
+    const heading = chain.length > 1
+      ? { x: last.x - chain[chain.length - 2].x, z: last.z - chain[chain.length - 2].z }
+      : null;
+    let best = null, bestScore = Infinity;
+    for (const tree of heroes) {
+      if (used.has(tree)) continue;
+      const d = distance(tree, last);
+      if (d < FIRST_COURSE.minSpan || d > FIRST_COURSE.maxSpan) continue;
+      if (heading && (tree.x - last.x) * heading.x + (tree.z - last.z) * heading.z <= 0) continue;
+      if (d < bestScore) { best = tree; bestScore = d; }
+    }
+    if (!best) break;                                          // fewer trees than planned: shorter course
+    chain.push(best);
+    used.add(best);
+  }
+  return chain;
 }

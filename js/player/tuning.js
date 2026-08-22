@@ -49,6 +49,11 @@ export const CAMERA = Object.freeze({
   fovRate: 6,               // 1/s – smoothing of the field of view
   pivotYRate: 14,           // 1/s – vertical follow smoothing (steps, autostep pops)
   eyeHeight: 1.62,          // first-person camera above the feet when no eye anchor is given
+  shakeDecay: 1.05,         // seconds for full trauma to fall back to zero
+  shakePitch: 0.055,        // radians at full trauma
+  shakeYaw: 0.045,
+  shakeRoll: 0.070,
+  breathMax: 0.05,          // radians of nerve-driven sway at full panic
 });
 
 export const RIG = Object.freeze({
@@ -57,4 +62,100 @@ export const RIG = Object.freeze({
   strideRun: 3.2,           // metres per gait cycle at sprint speed
   gaitBlendSpeed: 0.6,      // m/s at which the idle→gait blend reaches 1
   poseSmoothing: 18,        // 1/s – exponential smoothing of joint targets
+});
+
+/**
+ * Balance pendulum (js/player/balance.js). Positive angle = tipping to the climber's right.
+ * `topple` makes upright unstable, so standing still is not free – you steer all the time.
+ */
+export const BALANCE = Object.freeze({
+  topple: 5.4,              // 1/s² per radian – the destabilising term (this is the whole game)
+  damping: 1.5,             // 1/s – body damping without hands
+  handStiffness: 13.0,      // 1/s² per radian and per hand – a hand on a cable pulls you upright
+  handDamping: 3.4,         // 1/s per hand
+  leanAuthority: 5.6,       // 1/s² at full stick – how hard the climber can lean
+  leanSpeedPenalty: 0.45,   // fraction of authority lost at full walking speed
+  maxAngularVelocity: 4.5,  // rad/s clamp so a huge excitation cannot teleport the angle
+  slipAngle: 0.42,          // default threshold (radians ≈ 24°); elements override it
+  recoverAngle: 0.6,        // fraction of the slip angle the angle is reset to after a catch
+});
+
+/** Arm strength (js/player/stamina.js). Rates are "fraction of the full reserve per second". */
+export const STAMINA = Object.freeze({
+  gripDrain: 0.055,         // per hand on a hold
+  elementDrain: 0.014,      // just being out there on a rail
+  netDrain: 0.055,          // extra for wading through a cargo net
+  hangDrain: 0.085,         // hanging in the harness
+  haulDrain: 0.13,          // hand-over-hand along the lifeline
+  pullUpDrain: 0.40,        // pulling yourself back up onto the rail
+  regenPlatform: 0.24,      // standing on a platform
+  regenStanding: 0.085,     // standing still on an element
+  regenMoving: 0.02,
+  recoverThreshold: 0.16,   // hands stay open until the reserve is back above this
+});
+
+/**
+ * Nerves (js/player/nerves.js) – the real opponent. All gains are "per second at full input".
+ * Height uses a logarithm: the first five metres cost far more than the next five.
+ */
+export const NERVES = Object.freeze({
+  heightReference: 3.0,     // metres – knee of the logarithm
+  heightMax: 20.0,          // metres – where the height term saturates
+  heightGain: 0.052,
+  exposureGain: 0.055,      // no hand hold available / no hand on a hold
+  wobbleGain: 0.075,
+  gustGain: 0.030,
+  lookDownGain: 0.045,
+  elementGain: 0.022,       // simply standing on an element for another second
+  platformRelief: 0.20,
+  breathRelief: 0.26,
+  handRelief: 0.055,        // per hand actually holding on
+  groundRelief: 0.55,
+  trustGain: 0.42,          // how much full trust dampens every rise
+  trustPerElement: 0.18,    // trust gained per completed element
+  trustPerFall: 0.07,       // …and per fall that turned out to be harmless
+  freezeThreshold: 0.88,
+  freezeRelease: 0.62,      // value the climber is left at after breathing through it
+  breathSeconds: 1.6,       // one deliberate breath
+  breathsToRelease: 3,
+  heartRateCalm: 58,
+  heartRateMax: 168,
+  tremorGain: 0.55,         // rad/s² of balance noise at full nerves
+  cameraSwayGain: 0.030,    // radians of camera breathing at full nerves
+  levels: Object.freeze([0.32, 0.62, 0.88]),   // calm | tense | scared | frozen
+});
+
+/** Walking a rail element (js/player/on-element.js). */
+export const ELEMENT_MOVE = Object.freeze({
+  speedMin: 0.40,           // m/s at full nerves
+  speedMax: 1.00,           // m/s calm and unhurried
+  accel: 2.4,               // m/s² towards the wanted rail speed
+  turnRate: 8,              // 1/s towards the rail tangent
+  stepLength: 0.62,         // metres per step – drives the step rhythm that shakes the element
+  stepExcite: 0.55,         // wobble impulse per step
+  hurryExcite: 1.9,         // extra impulse per m/s² of acceleration along the rail
+  leanExcite: 0.30,         // wobble impulse per second at full lateral stick
+  leanOffset: 0.16,         // metres the body shifts sideways at the slip angle
+  exitMargin: 0.02,         // rail parameter tolerance at the ends
+  handReach: 0.5,           // hands cost this fraction extra while moving
+});
+
+/** Hanging in the harness after a slip (js/player/fall.js). */
+export const FALL = Object.freeze({
+  lanyard: 0.85,            // Smart Belay lanyard (RESEARCH-DATA §5)
+  slack: 0.60,              // rope-joint slack on top of it
+  harnessHeight: 1.05,      // attachment point above the feet
+  bodyRadius: 0.28,
+  bodyDensity: 260,         // gives roughly a 70 kg climber on a 0.28 m ball
+  linearDamping: 1.40,      // the harness and the air settle the pendulum in about two seconds
+  angularDamping: 3.0,
+  catchShake: 0.85,         // camera trauma on the first catch
+  catchShakeLater: 0.42,
+  cameraDrop: 0.35,         // metres the camera pivot sinks while hanging
+  haulSpeed: 0.34,          // m/s hand-over-hand along the lifeline
+  pullUpSeconds: 1.2,
+  pullUpReach: 1.35,        // max distance to the rail point that still allows a pull-up
+  rescueDelay: 3.0,         // seconds before the rescue prompt appears
+  rescueFadeSeconds: 1.1,
+  settleSeconds: 2.0,       // after this the pendulum is considered calm (HUD, prompts)
 });

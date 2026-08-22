@@ -40,12 +40,23 @@ export function createStateMachine({ states, initial }) {
       if (next.enter) next.enter(ctx, data);
     },
 
-    /** Call `hook` on the active state; if it returns a different state name, transition to it. */
+    /**
+     * Call `hook` on the active state. A hook may request a transition by returning the next
+     * state's name, or `{ state, data }` when the next state needs to be told something (which
+     * element the climber just slipped off, where the rescue should put them down).
+     */
     dispatch(hook, ctx, ...args) {
       const state = table[current];
       if (!state || typeof state[hook] !== "function") return null;
       const requested = state[hook](ctx, ...args);
-      if (typeof requested === "string" && requested !== current) machine.set(requested, ctx);
+      if (typeof requested === "string") {
+        if (requested !== current) machine.set(requested, ctx);
+        return requested;
+      }
+      if (requested && typeof requested === "object" && typeof requested.state === "string") {
+        if (requested.state !== current) machine.set(requested.state, ctx, requested.data);
+        return requested.state;
+      }
       return requested;
     },
 

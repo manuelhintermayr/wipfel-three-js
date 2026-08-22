@@ -89,6 +89,8 @@ export function createPlayer({ physics, scene, camera, input, terrain = null, rn
   const fsm = createStateMachine({ states: { ground: groundState, air: airState, ladder: ladderState }, initial: "air" });
   rig.registerPose("ladder", (out) => ladderPose(out, ladderState.phase));
   let ladderWeight = 0;
+  /** States registered from outside (element, fall) plus their blended pose weight. */
+  const extraStates = [];
 
   function jump() {
     jumpBuffer = 0;
@@ -156,13 +158,18 @@ export function createPlayer({ physics, scene, camera, input, terrain = null, rn
   function updatePoseWeights(dt) {
     const inAir = fsm.is("air");
     const onLadder = fsm.is("ladder");
+    const onRail = onLadder || extraStates.some((s) => fsm.is(s.name));
     airWeight = damp(airWeight, inAir ? 1 : 0, inAir ? 7 : 12, dt);
     landWeight = damp(landWeight, 0, 5, dt);
     ladderWeight = damp(ladderWeight, onLadder ? 1 : 0, 9, dt);
-    rig.setMoveBlend(onLadder ? 0 : Math.hypot(velocity.x, velocity.z) / PLAYER.sprintSpeed);
+    rig.setMoveBlend(onRail ? 0 : Math.hypot(velocity.x, velocity.z) / PLAYER.sprintSpeed);
     rig.setPose("air", airWeight);
     rig.setPose("land", landWeight);
     rig.setPose("ladder", ladderWeight);
+    for (const extra of extraStates) {
+      extra.weight = damp(extra.weight, fsm.is(extra.name) ? 1 : 0, extra.blendRate, dt);
+      rig.setPose(extra.poseName, extra.weight);
+    }
   }
 
   // --- public object -------------------------------------------------------------------------------
@@ -223,6 +230,34 @@ export function createPlayer({ physics, scene, camera, input, terrain = null, rn
 
     /** Face this yaw (radians) – used by states that steer the body themselves. */
     setHeading(yaw) { heading = wrapAngle(yaw); },
+
+    /**
+     * Register a locomotion state built outside the controller (element, fall, zipline). A state
+     * that exposes `pose(out)` also gets a rig overlay that fades in while the state is active.
+     * @param {string} name
+     * @param {{ ownsMovement?: boolean, pose?: (out: Float32Array) => void, blendRate?: number }} state
+     */
+    addState(name, state) {
+      fsm.add(name, state);
+      if (typeof state.pose === "function") {
+        const poseName = `state-${name}`;
+        rig.registerPose(poseName, state.pose);
+        extraStates.push({ name, poseName, weight: 0, blendRate: state.blendRate || 9 });
+      }
+      return player;
+    },
+
+    /**
+     * Switch locomotion state from the outside (stepping onto an element, a rescue putting the
+     * climber back on a platform). `data` is handed to the state's `enter` hook.
+     * @returns {boolean} true when the state exists and is now active
+     */
+    setState(name, data = null) {
+      if (!fsm.has(name)) return false;
+      jumpBuffer = 0;
+      fsm.set(name, player, data);
+      return fsm.is(name);
+    },
 
     /**
      * Switch to rail locomotion on a block ladder (js/elements/ladder.js).

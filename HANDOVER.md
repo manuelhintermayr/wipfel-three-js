@@ -10,8 +10,8 @@
 Nächster Schritt: **M0.5 Erste Übungen auf Schienen**.
 
 ## Letzter funktionierender Commit
-Stand M0.4 (noch nicht committet – Commit-Nachricht: `feat(park): first platform, block ladder and
-belay ritual`). Davor: `bc9cec7 feat(world): integrate terrain, forest, sky/skyline, wind, ground
+`f667efa feat(park): first platform, block ladder and belay ritual (entry deck, wood textures, HUD widget, click sfx)`.
+Davor: `43748ba docs(handover): session 1`, `bc9cec7 feat(world): integrate terrain, forest, sky/skyline, wind, ground
 detail and player into main loop`.
 
 Geprüft (2026-08-17, headless Chromium/SwiftShader, 1280×720, Seed 1): Seite lädt über `serve.py`,

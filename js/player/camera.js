@@ -40,12 +40,19 @@ export function createCameraController({ camera, physics, input = null, target =
   let clearance = 1;                   // fraction of the arm currently free of obstacles
   let pivotY = null;                   // vertically smoothed pivot height
   let disposed = false;
+  let trauma = 0;                      // 0..1 shake energy, decays on its own
+  let shakeTime = 0;
+  let breathing = 0;                   // radians of nerve-driven sway
+  let breathPhase = 0;
+  let pivotOffset = 0;                 // metres the pivot is pulled down (hanging in the harness)
+  let reducedMotion = false;
 
   const forward = new THREE.Vector3(0, 0, 1);
   const right = new THREE.Vector3(-1, 0, 0);
   const look = new THREE.Vector3(0, 0, 1);
   const pivot = new THREE.Vector3();
   const arm = new THREE.Vector3();
+  let offsetPitch = 0, offsetYaw = 0, offsetRoll = 0;
 
   camera.rotation.order = "YXZ";
   camera.fov = fov;
@@ -63,7 +70,26 @@ export function createCameraController({ camera, physics, input = null, target =
     right.crossVectors(forward, UP).normalize();
     const cp = Math.cos(pitch);
     look.set(cp * Math.sin(yaw), Math.sin(pitch), cp * Math.cos(yaw));
-    camera.rotation.set(pitch, yaw + Math.PI, 0);
+    camera.rotation.set(pitch + offsetPitch, yaw + Math.PI + offsetYaw, offsetRoll);
+  }
+
+  /**
+   * Two things move the camera besides the player: the shake of a harness catch (trauma, squared so
+   * it fades believably) and the slow sway of someone breathing too fast up there. Both collapse to
+   * nothing when reduced motion is on – that switch lands in the options screen in M1.7.
+   */
+  function updateShake(dt) {
+    shakeTime += dt;
+    breathPhase += dt * (1.1 + 1.4 * breathing / Math.max(1e-4, CAMERA.breathMax));
+    trauma = Math.max(0, trauma - dt / CAMERA.shakeDecay);
+    if (reducedMotion) { offsetPitch = offsetYaw = offsetRoll = 0; return; }
+    const k = trauma * trauma;
+    offsetPitch = k * CAMERA.shakePitch * Math.sin(shakeTime * 37.1)
+      + breathing * 0.6 * Math.sin(breathPhase);
+    offsetYaw = k * CAMERA.shakeYaw * Math.sin(shakeTime * 29.3 + 1.7)
+      + breathing * Math.sin(breathPhase * 0.63 + 0.9);
+    offsetRoll = k * CAMERA.shakeRoll * Math.sin(shakeTime * 23.7 + 3.1)
+      + breathing * 0.8 * Math.sin(breathPhase * 0.41 + 2.2);
   }
 
   function updateFov(dt, sprintMix) {
@@ -83,7 +109,7 @@ export function createCameraController({ camera, physics, input = null, target =
   }
 
   function updateThirdPerson(dt, targetPos, sprintMix) {
-    const wantedY = targetPos.y + CAMERA.pivotHeight;
+    const wantedY = targetPos.y + CAMERA.pivotHeight - pivotOffset;
     pivotY = pivotY == null ? wantedY : damp(pivotY, wantedY, CAMERA.pivotYRate, dt);
     pivot.set(targetPos.x, pivotY, targetPos.z);
 
@@ -120,11 +146,21 @@ export function createCameraController({ camera, physics, input = null, target =
 
     setFirstPerson(on) { firstPerson = !!on; },
     /** Forget smoothing state (after a teleport). */
-    reset() { pivotY = null; clearance = 1; },
+    reset() { pivotY = null; clearance = 1; trauma = 0; },
     /** Shoulder offset in metres; negative x swaps to the left shoulder. */
     setShoulder(x, y = shoulderY) { shoulderX = x; shoulderY = y; },
     /** Additional FOV in degrees (zipline speed feel etc.). */
     setExtraFov(deg) { extraFov = deg; },
+
+    /** Kick the camera: 0..1. A harness catch is ~0.85, a landing ~0.3. Decays by itself. */
+    addShake(amount) { trauma = clamp(trauma + amount, 0, 1); },
+    get shake() { return trauma; },
+    /** Nerve-driven breathing sway in radians (js/player/nerves.js#cameraSway). */
+    setBreathing(radians) { breathing = clamp(radians, 0, CAMERA.breathMax); },
+    /** Sink the pivot – the camera drops with the climber into the harness. */
+    setPivotOffset(metres) { pivotOffset = clamp(metres, -1, 1.5); },
+    /** Accessibility switch (options screen, M1.7): no shake, no sway. */
+    setReducedMotion(on) { reducedMotion = !!on; },
 
     /**
      * Once per rendered frame, after the target's interpolated position is known.
@@ -136,6 +172,7 @@ export function createCameraController({ camera, physics, input = null, target =
     update(dt, targetPos, targetVel = null, eyePos = null) {
       if (disposed) return;
       readInput();
+      updateShake(dt);
       updateBasis();
       const speed = targetVel ? Math.hypot(targetVel.x, targetVel.z) : 0;
       const sprintMix = smoothstep(speed, PLAYER.walkSpeed * 1.15, PLAYER.sprintSpeed * 0.9);
