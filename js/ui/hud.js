@@ -5,6 +5,8 @@
 // Prompt markup: keys are written in square brackets and become <kbd> elements, e.g.
 // `setPrompt("Clip in [F]")`. Text is inserted as text nodes, never as HTML.
 
+import { t } from "../core/i18n.js";
+
 const KEY_PATTERN = /\[([^\]]{1,12})\]/g;
 
 /**
@@ -20,16 +22,16 @@ export function createHud(root) {
 
   const vitals = element("div", "hud-vitals");
   const belayBox = element("div", "box");
-  belayBox.appendChild(element("span", "label", "Belay"));
+  belayBox.appendChild(element("span", "label", t("hud.belay")));
   const carabiners = [element("i", "carabiner clipped"), element("i", "carabiner clipped")];
   for (const icon of carabiners) belayBox.appendChild(icon);
   const staminaBox = element("div", "box");
-  staminaBox.appendChild(element("span", "label", "Str"));
+  staminaBox.appendChild(element("span", "label", t("hud.strength")));
   const ring = element("span", "ring");
   ring.appendChild(document.createElement("i"));
   staminaBox.appendChild(ring);
   const heartBox = element("div", "box heart calm");
-  heartBox.appendChild(element("span", "label", "Bpm"));
+  heartBox.appendChild(element("span", "label", t("hud.bpm")));
   const bpmLabel = element("span", "bpm", "58");
   heartBox.append(bpmLabel, document.createElement("i"));
   vitals.append(belayBox, staminaBox, heartBox);
@@ -40,7 +42,7 @@ export function createHud(root) {
   // Speedometer (mockup: SPEED / 38 / KM/H, bottom right) – only ever visible on a zip line.
   const speed = element("div", "hud-speed");
   const speedValue = element("div", "value", "0");
-  speed.append(element("div", "label", "Speed"), speedValue, element("div", "unit", "km/h"));
+  speed.append(element("div", "label", t("hud.speed")), speedValue, element("div", "unit", t("hud.kmh")));
   speed.hidden = true;
 
   layer.append(vitals, prompt, speed);

@@ -59,7 +59,7 @@ Generierung für dekoratives UI opfern.
       Durchhang**, Ankunftspodest 2,42 m, Bremszone ab 50,1 m; Höchstgeschwindigkeit 21,2 / 22,5 /
       23,5 / **24,3 km/h** je Größenklasse (Beine unten 1,0–1,5 km/h weniger), Fahrt 11,5–13,4 s.
       Unit-Tests `tests/unit/zipline.test.mjs` (18).
-- [ ] **M0.7 HUD v1 (Mockup 1:1), Tuning, Nachweis** – Routen-Header (Farbbalken, Kategorie, Name,
+- [x] **M0.7 HUD v1 (Mockup 1:1), Tuning, Nachweis** – Routen-Header (Farbbalken, Kategorie, Name,
       Fortschritt, Zeit, Best), Flow-Anzeige (Platzhalter-Logik bis M2), Modus-Icons, Zipline-Overlay
       mit Tacho, Sicherheits-Tooltip, Start-Banner mit Kennzahlen + Countdown 3-2-1-GO, Karabiner-
       Widget, Kraft-Ring, Herzschlag, Kontext-Prompt; `en.json`/`de.json`; Atmen, Tuning-Pass,

@@ -19,15 +19,16 @@ import { createWobble } from "../elements/element.js";
 import { ziplinePose } from "./rig-poses.js";
 import { lookDownAmount } from "./vitals.js";
 import { sfxTrolley, sfxWindRush, sfxZipArrive } from "../audio/sfx.js";
+import { t } from "../core/i18n.js";
 
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const clampSigned = (v) => (v < -1 ? -1 : v > 1 ? 1 : v);
 
 export const ZIP_PROMPTS = Object.freeze({
-  seated: "Push off [Space]",
-  riding: "Legs up [Space]  ·  Twist [A][D]",
-  zone: "Legs up! hold [Space]",
-  stalled: "Haul yourself in [W]",
+  get seated() { return t("prompt.zipPush"); },
+  get riding() { return t("prompt.zipRiding"); },
+  get zone() { return t("prompt.zipZone"); },
+  get stalled() { return t("prompt.zipStalled"); },
 });
 
 /**
@@ -253,7 +254,7 @@ export function createZiplineState({ input, events = null, camera = null, hud = 
     if (camera) camera.addShake(outcome === "clean" ? ZIP_RIDE.arriveShake : ZIP_RIDE.messyShake);
     if (outcome === "clean") nerves.completeElement();
     else nerves.shock(ZIP_RIDE.messyNerves);
-    if (hud) hud.setNotice(`Top speed ${maxKmh.toFixed(0)} km/h`, ZIP_RIDE.noticeSeconds);
+    if (hud) hud.setNotice(t("notice.topSpeed", { kmh: maxKmh.toFixed(0) }), ZIP_RIDE.noticeSeconds);
     if (events) events.emit("zip:finished", { element: element.id, maxKmh, outcome, platform: anchor.platformId });
     player.teleport(anchor.stand.x, anchor.stand.y, anchor.stand.z);
     return "ground";

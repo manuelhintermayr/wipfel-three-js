@@ -39,7 +39,7 @@ export const FIRST_COURSE = Object.freeze({
   interactRange: 1.6,        // how close you must be to an anchor to clip in
   ringRange: 2.1,            // …the platform ring circles the trunk, so anywhere on the deck counts
   elementRange: 1.9,         // reach of an exercise lifeline, measured from its two cable ends
-  stepRange: 1.2,            // stand this close to the deck edge and you are "at" that exercise
+  stepRange: 2.05,           // reachable from anywhere on a platform – nobody pixel-hunts a deck edge
   ladderRange: 1.5,
   minSpan: 6.0,              // trunk distance an exercise needs
   maxSpan: 13.5,
@@ -310,7 +310,7 @@ function buildElement(layout, treeA, treeB, platformA, platformB, terrain, ctx) 
  */
 function buildAnchors(entryDeck, platforms, elements, zip = null) {
   const anchors = [
-    { id: "deck", position: entryDeck.clipAnchor, points: [entryDeck.clipAnchor], kind: "cable-stub", label: "entry cable", range: FIRST_COURSE.interactRange },
+    { id: "deck", position: entryDeck.clipAnchor, points: [entryDeck.clipAnchor], kind: "cable-stub", label: "entry cable", range: 2.3 },
   ];
   if (zip) {
     anchors.push({

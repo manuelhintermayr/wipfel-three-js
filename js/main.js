@@ -27,6 +27,10 @@ import { createFallState } from "./player/fall.js";
 import { createZiplineState } from "./player/on-zipline.js";
 import { createHud } from "./ui/hud.js";
 import { armAudio } from "./audio/synth.js";
+import { initI18n } from "./core/i18n.js";
+import { createSave } from "./core/save.js";
+import { createSession } from "./game/session.js";
+import { createAutoplay } from "./game/autoplay.js";
 import { sfxCarabinerOpen, sfxCarabinerLock, sfxHarnessCatch } from "./audio/sfx.js";
 
 async function boot() {
@@ -35,6 +39,8 @@ async function boot() {
   log.info(`${GAME.name} ${GAME.version} · seed=${params.seed} · debug=${params.debug}`);
 
   const container = document.getElementById("app");
+  const save = createSave();
+  await initI18n({ locale: save.data.locale || params.locale });
   let physics, view;
   try {
     physics = await initPhysics();
@@ -79,6 +85,8 @@ async function boot() {
   player.addState("fall", createFallState({ physics, input, scene, events, balance, stamina, nerves, camera: player.camera }));
   player.addState("zipline", createZiplineState({ input, events, camera: player.camera, hud, stamina, nerves, wind }));
   const interaction = createInteraction({ player, input, belay, course, hud, events, vitals });
+  const session = createSession({ player, course, events, hud, save, root: document.getElementById("hud") });
+  const autoplay = params.autoplay ? createAutoplay({ player, course, interaction, events, belay, session }) : null;
   armAudio(window);
   events.on("belay:open", () => sfxCarabinerOpen());
   events.on("belay:click", () => sfxCarabinerLock(0.14));
@@ -110,8 +118,9 @@ async function boot() {
   if (params.physics) physics.setDebug(scene, true);
 
   // --- loop wiring -----------------------------------------------------------------------------------
-  loop.on("input", () => {
+  loop.on("input", (frameDt) => {
     input.poll();
+    if (autoplay) autoplay.update(frameDt);   // synthesises key events – must run before consumers read edges
     if (input.pressed("debug")) debug.toggle();
     if (input.pressed("physdebug")) physics.setDebug(scene, !physics.debugEnabled);
     if (input.pressed("pause")) loop.paused = !loop.paused;
@@ -123,6 +132,7 @@ async function boot() {
   });
   loop.on("gameplay", (dt, elapsed) => {
     player.update(dt);
+    session.update(dt);
     course.update(dt, elapsed);
     vitals.update(dt);
     interaction.update(dt);
@@ -147,7 +157,7 @@ async function boot() {
 
   window.WIPFEL = {
     version: GAME.version, params, loop, physics, scene, camera, renderer, rng, input, events,
-    terrain, forest, sky, wind, player, course, belay, hud, interaction, vitals,
+    terrain, forest, sky, wind, player, course, belay, hud, interaction, vitals, session, save, autoplay,
     debug: {
       /** Force the slip a play-test needs on demand (screenshots, smoke runs). */
       forceSlip(angle = 1) {

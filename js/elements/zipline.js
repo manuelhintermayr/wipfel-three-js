@@ -18,6 +18,7 @@ import { cableRun, cableTermination, netKnot } from "./element-parts.js";
 import { createZipPhysics, ZIP_PHYSICS } from "../zipline/physics.js";
 import { createNetBrake } from "../zipline/brakes.js";
 import { createCanvas, toTexture } from "../procgen/textures/tree-texture-utils.js";
+import { t } from "../core/i18n.js";
 
 export const ZIPLINE = Object.freeze({
   cableRadius: 0.006,        // 12 mm steel, same wire as every lifeline in the park
@@ -109,7 +110,7 @@ export function createZipline(spec, ctx) {
   element.oneWay = true;
   /** Both cable ends are dead-ends on a post: reachable from anywhere on their deck. */
   element.anchorRange = 2.6;
-  element.enterPrompt = "Sit in [E]";
+  Object.defineProperty(element, "enterPrompt", { get: () => t("prompt.zipSit") });
   element.clipPrompt = "Clip to the zip line [F]";
   element.seatDrop = ZIPLINE.seatDrop;
   element.slingLength = ZIPLINE.slingLength;

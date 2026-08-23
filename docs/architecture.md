@@ -458,3 +458,19 @@ console clean, because Chrome warns about an AudioContext started without one.
 - No module touches `document` except `ui/*`. No module reads `location` except `core/params.js`.
 - Files ≤ ~400 lines; split by responsibility. JSDoc on public factories.
 - Debug-only globals live on `window.WIPFEL` (set in `main.js`).
+
+
+## Game layer (M0.7 – contracts)
+
+| Module | API |
+|---|---|
+| `js/core/i18n.js` | `initI18n({locale, dicts?})` (fetches `assets/strings/<locale>.json`, en fallback), `t(key, vars?)`, `formatTime(s)`; missing keys render as the key |
+| `js/core/save.js` | `createSave(storage?) → {data, routeBest(id), recordRun(id,{seconds,falls})→isBest, setLocale, flush}`; schema-versioned, corrupt data collapses to defaults |
+| `js/game/route.js` | `createRouteRun(def)`: idle→armed→countdown(3-2-1-GO)→running→done; `completeObstacle(id)` dedupes; `BLUE_I` definition |
+| `js/game/session.js` | binds events (`player:ladder-exit`, `player:element-exit`, `player:fell`, `zip:finished`) to the run, drives the route HUD (header, start banner near the entry deck, countdown, one-time safety tip), stores best times, emits `route:completed` |
+| `js/ui/hud-route.js` | mockup-1:1 route header (`--cat-color` bar, category, ● numeral · name, progress/time/best), FLOW placeholder, start banner with key figures, countdown discs, safety tooltip |
+| `js/game/autoplay.js` | `?autoplay=1`: prompt-driven smoke bot in the **input phase** (synthetic key events must precede edge consumers); starts on the entry deck, goal-directed clipping (only the route's next anchor), plank tapping, holds Space on the zip; platform-hop self-help after repeated stalls (logged as "shortcut") |
+
+Input-phase rule: anything that synthesises keyboard events (bots) must run inside `loop.on("input")` –
+edge sets (`input.pressed`) are cleared in the ui phase, so events fired later are invisible to the
+next frame's physics.

@@ -5,73 +5,16 @@
 > `ROADMAP.md`. Eine neue Session muss allein mit dieser Datei + `ROADMAP.md` weiterarbeiten können.
 
 ## Aktueller Meilenstein
-**M0 „Ein Brett“** – M0.1 Bootstrap ✓, M0.2 Weltausschnitt ✓, M0.3 Spieler am Boden ✓ (Session 1,
-2026-08-17), M0.4 Podest + Leiter + Umhängen ✓ (Session 1, 2026-08-17), **M0.5 Erste Übungen auf
-Schienen ✓** (Session 2, 2026-08-20), **M0.P Performance-Pass ✓** (2026-08-24),
-**M0.6 Flying Fox ✓** (2026-08-24).
-Nächster Schritt: **M0.7 HUD v1 (Mockup 1:1), Tuning, Nachweis** → Tag `m0`.
-
-## Flying Fox (2026-08-24, M0.6)
-Der Kurs endet jetzt mit der Seilrutsche: Podest 4 → 12-mm-Seil über die Lichtung → Ankunftspodest
-am Rand des Spawn-Hubs → Rampe hinunter auf Hackschnitzel → zurück zum Einstiegsdeck. Ablauf:
-**F → F** (Zwei-Klick auf `zip-1`) → **E** „Sit in“ → **Leertaste** abstoßen und gedrückt halten
-(= Beine hoch = weniger Luftwiderstand **und** die Haltung, die die Netzbremse verlangt) →
-rot-weiße Markierhülse → Netz → Ankunft → **F → F** auf den Anker `landing` → Rampe hinunter.
-
-Zahlen (Seed 1, aus `zip-plan.js` gesucht, nicht gesetzt): **56,0 m Spannweite, 5,50 % Gefälle,
-3,08 m Fall, 1,12 m Durchhang (Erwachsener), Ankunftspodest 2,42 m, Bodenfreiheit 2,3 m unter den
-Füßen, Bremszone ab 50,1 m.** Höchstgeschwindigkeit **21,2 / 22,5 / 23,5 / 24,3 km/h** für die vier
-Größenklassen (getuckt; mit Beinen unten 1,0–1,5 km/h weniger), Fahrtzeit 11,5–13,4 s. Ein
-Gegenwind von 8 m/s lässt auch den Erwachsenen stehenbleiben, 7 m/s reichen für ein Kind – dann
-**W** halten und sich hinter der Rolle hangeln (Kraftkosten, langsamer wenn die Reserve leer ist).
-
-Geprüft (2026-08-24, headless Chromium/SwiftShader, 1280 × 720, Seed 1): **0 Konsolenfehler,
-0 Warnungen, 0 externe Requests**; kompletter Ablauf mit echten Tastaturereignissen (F, F, E,
-Leertaste) sauber gefahren, danach der schmutzige Fall (Leertaste loslassen → `outcome: "messy"`,
-Ruck + Kameraschlag + Nervenstoß) und der Steckenbleiber (`WIPFEL.debug.setRiderMass(32)` +
-`setWindAlong(-7)` → hält bei 67 % an, Prompt „Haul yourself in [W]“, W bewegt 0,42 m/s).
-Rückweg über die Rampe getestet, M0.5-Ablauf (Burma) unverändert. Draw-Calls **253 im Ritt / 262 auf
-Podest 4**, 331–359 k Dreiecke, 63 Collider. `node tools/check-all.mjs` 85/85, `npm test` **77**.
-Screenshots: `docs/screenshots/m0-6-{start,ride,brake,land}.png`.
+**M0 „Ein Brett“ ABGESCHLOSSEN** (Tag `m0`, Session 2, 2026-08-25): M0.1–M0.7 plus Performance-Pass.
+First Playable: Kassa fehlt noch (M1.3) – der Einstieg ist direkt im Spiel; Route „Blue I · Fox Trail“
+ist Start bis Ziel spielbar. Nächster Schritt: **M1.1 Park-Definition + Layout-Generator**.
 
 ## Letzter funktionierender Commit
-Noch nicht committet: der M0.5-Stand liegt im Arbeitsverzeichnis (Geometrie + Reinlogik kamen
-versehentlich schon mit `15596ce docs(handover): record M0.4 commit hash` mit, die Verdrahtung ist
-uncommitted). Davor: `f667efa feat(park): first platform, block ladder and belay ritual`.
-
-Geprüft (2026-08-20, headless Chromium/SwiftShader, 1024×576, Seed 1): Seite lädt über `serve.py`,
-**0 Konsolenfehler, 0 Warnungen, 0 externe Requests**; kompletter Ablauf F → F → E → gehen → Sturz →
-Leertaste → weiter durchgespielt, alle drei Übungen überquert; 607 Bäume, **252–285 Draw-Calls**
-(192 ohne Kurs im Bild), 1,70–1,81 M Dreiecke, 60 Collider (61 während eines Sturzes),
-Physik 0,1–0,3 ms. `node tools/check-all.mjs` 75/75, `npm test` **51/51**.
-Screenshots: `docs/screenshots/m0-5-{burma,planks,net,fall,recover}.png`.
-
-## Performance-Pass (2026-08-24, M0.P)
-Gemessen headless Chromium/SwiftShader, **1280×720, Seed 1**, drei Blicke: (a) Spawn am Boden,
-(b) auf Podest 1 den Kurs entlang, (c) am Spawn hangab zur Skyline, (d) Draufsicht aus 220 m.
-`renderMs` = ein erzwungener `renderer.render` + `readPixels` (Software-Rasterizer, nur als
-Vorher/Nachher-Vergleich brauchbar; **fps ist headless nicht messbar**, rAF liefert kaum Frames).
-
-| Blick | Dreiecke vorher → nachher | Draw-Calls vorher → nachher | renderMs vorher → nachher |
-|---|---|---|---|
-| a Spawn | 1 703 912 → **260 602** (−85 %) | 198 → **141** | 800 → **580** |
-| b Podest 1 | 1 797 722 → **356 230** (−80 %) | 286 → **262** | 2191 → **1294** |
-| c hangab | 1 738 858 → **286 374** (−84 %) | 256 → **209** | 1096 → **769** |
-| d Draufsicht | 1 793 742 → **361 698** (−80 %) | 292 → **259** | – |
-
-Budgets erfüllt: ≤ 700 k Dreiecke im schlimmsten Blick (356 k), Terrain ≤ 250 k (**14 k** in
-Blick c, 35 k in der Draufsicht), < 300 Draw-Calls (max. 262), Draufsicht < 600 k. Der Schattenpass
-kostet jetzt 87–91 statt 139 Calls. Anteile inkl. Schattenpass (Gruppe ausgeblendet, Differenz
-gemessen): Figur **98** Calls, Wald 59, Kurs ~32, Bodendetail 9, Terrain 4 (Blick c) bzw. 18
-(Draufsicht). Weltaufbau 15,6 s statt 18,8 s (Einzelmessung, Software-Renderer). Determinismus
-geprüft: zwei Ladevorgänge mit Seed 1 liefern identische Hashes über Höhenfeld, Chunk-Vertices und
-Baumliste (Spawn 11,10 / 4,75 / −163,31 · 607 Bäume · 36 Chunks à 40 Zellen).
-**0 Konsolenfehler, 0 Warnungen, 0 externe Requests**; `node tools/check-all.mjs` 78/78,
-`npm test` **59/59**. Spielprobe mit echten Tastaturereignissen nach dem Umbau: F → F am
-Burma-Sicherungsseil (`elem-burma-1`, beide Karabiner), E → Zustand `element`, W + Q → auf Podest 2
-angekommen (Zustand `ground`, 9,6 m). Screenshots: `docs/screenshots/perf-{before,after}-{a,b,c}.png`
-(gleiches Protokoll, direkt vergleichbar) und `perf-after-canopy.png` (Nahtprüfung: keine Risse an
-den Chunk-Grenzen).
+Tag `m0` (siehe `git log --oneline -3`). Geprüft (2026-08-25, headless Chromium, 1280×720, Seed 1):
+`?autoplay=1` spielt die komplette Route durch – Einhängen (F,F), Blockleiter, Burma-Brücke, hängende
+Planken (Schritt-für-Schritt), Netz, Flying Fox mit Netzbremse, Landung – **„route completed in
+95.20 s · falls 0“**, Bestzeit im Save; **0 Konsolenfehler, 0 externe Requests**; 225–284 Draw-Calls,
+0,29–0,37 M Dreiecke. `check-all` 94/94, `npm test` 88/88. Screenshots `docs/screenshots/m0-7-*.png`.
 
 ## Was funktioniert
 - **Kern:** `js/main.js` (Boot + Loop-Verdrahtung), `core/{loop,input,rng,params,errors,events,renderer,physics}.js`,
@@ -143,6 +86,14 @@ den Chunk-Grenzen).
 - **Dev-Seiten:** `tools/dev/{forest,terrain,sky,player}.html` – je Modul isoliert testbar
   (`?seed=`, Views, Bot); Screenshots `docs/screenshots/dev-*.png`.
 
+- **Route/HUD (M0.7):** `core/i18n.js` + `assets/strings/en.json|de.json` (EN Standard, DE komplett;
+  Prompts, HUD, Routen), `core/save.js` (Schema v1, Bestzeiten, validiert), `game/route.js` (Run-
+  Lebenszyklus idle→armed→countdown→running→done, unit-getestet), `game/session.js` (Events → Route,
+  Start-Banner am Deck, Countdown 3-2-1-GO, Safety-Tooltip beim ersten Klick, Bestzeit-Notice),
+  `ui/hud-route.js` (Routen-Header mit Farbbalken 1:1 nach Mockup, FLOW-Platzhalter, Banner mit
+  Kennzahlen, Countdown-Scheiben), `game/autoplay.js` (?autoplay=1: prompt-getriebener Bot, spielt
+  die ganze Route; Podest-Hops als dokumentierte Selbsthilfe).
+
 ## Was halb fertig ist
 - Hero-Bäume: `main.js#pickHeroTrees` legt eine Kette aus 4 Parcours-Kiefern + 4 Deko-Stämmen an
   (Provisorium bis der Layout-Generator M1.1 die Parcours-Bäume liefert).
@@ -181,11 +132,10 @@ geändert `js/world/{terrain,ground-detail,forest}.js`, `js/world/terrain/materi
 – keine reproduzierten. Zu prüfen: Kamera-Kollision mit Kronen im echten Wald (nur in Dev-Seite getestet).
 
 ## Unmittelbar nächste Aufgabe
-**M0.7 HUD v1 (Mockup 1:1), Tuning, Nachweis** (`ROADMAP.md`): Routen-Header, Flow-Anzeige,
-Modus-Icons, Sicherheits-Tooltip, Start-Banner + Countdown, `core/i18n.js` +
-`assets/strings/{en,de}.json` (die Prompts stehen noch in `player/interaction.js#PROMPTS` und
-`player/on-zipline.js#ZIP_PROMPTS`), `?autoplay=1`-Bot, Smoke-Checkliste, Tag `m0`.
-Der Tacho (`hud.setSpeed`) und die Kurznachricht (`hud.setNotice`) sind seit M0.6 da.
+**M1.1 Park-Definition + Layout-Generator** (`ROADMAP.md`): `assets/parks/sonnwendberg.json`, seeded
+Generator auf dem Graphen mit Validierung (Anker, Seilwinkel, Lichtraum, Baumdurchdringung,
+Kontinuität, Landezonen, Zip-Gefälle 3–6 %, Podest-Zugang); `first-course.js` wird zum Konsumenten
+der generierten Definition. Unit-Tests: Graph-Konnektivität, Generator-Validität für N Seeds.
 
 ## Nächste fünf Aufgaben
 1. M0.7 HUD 1:1 (`ui/hud.js` erweitern, `core/i18n.js`, `assets/strings/en.json|de.json`), Start-Banner +
@@ -268,6 +218,15 @@ Der Tacho (`hud.setSpeed`) und die Kurznachricht (`hud.setNotice`) sind seit M0.
 - Figur: Kopf/Hände einfach; Posen-Blending ok; Kletterposen (ladder, balance, grab, hang, zipline)
   existieren als Namen, sind aber noch nicht animiert.
 - `?autoplay=1` noch ohne Wirkung im Hauptspiel (Bot existiert nur in `tools/dev/player.html`).
+
+- **M0.7:** Bodennavigation ist eine Bot-Grenze: `?autoplay=1` startet auf dem Einstiegsdeck und
+  hüpft nach Stürzen zurück zum nächsten Element-Einstieg (im Log als „shortcut“). Menschen laufen
+  normal – der freie Walk wurde in M0.4 manuell verifiziert.
+- **M0.7:** Physik-Kante am Deck: Rapier-Autostep verweigert die Stufe-vor-Deck-Doppelkante; gelöst
+  über eine 28°-Rampen-Kollision unter der Stufe (Autostep steht auf 0,44). Ein sichtbarer
+  Hackschnitzel-Keil wäre die schönere Politur.
+- **M0.7:** Kein Kassa-Screen (M1.3), kein Ticket-Timer im HUD (M1.5); FLOW zeigt statisch x1,0;
+  fps auf echter Hardware weiter unbelegt (headless 60+ nur ohne Screenshot-Last).
 
 ## Wie starten
 ```

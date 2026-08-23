@@ -6,6 +6,7 @@
 // js/player/{climb-ladder,on-element,fall}.js.
 import * as THREE from "three";
 import { FIRST_COURSE } from "../park/first-course.js";
+import { t } from "../core/i18n.js";
 
 export const INTERACTION = Object.freeze({
   chestHeight: 1.25,                 // anchors are judged from the harness, not from the feet
@@ -14,18 +15,24 @@ export const INTERACTION = Object.freeze({
   stepRange: FIRST_COURSE.stepRange,
 });
 
-/** UI strings; they move to assets/strings/*.json with i18n in M0.7. */
+/** Prompt text comes from i18n (assets/strings/*.json); labels resolve per element kind. */
+const ELEMENT_LABEL_KEYS = Object.freeze({
+  "burma-bridge": "element.burma",
+  "hanging-planks": "element.planks",
+  "net-bridge": "element.net",
+  "zipline": "element.zipline",
+});
 export const PROMPTS = Object.freeze({
-  clipIn: "Clip in [F]",
-  clipSecond: "Clip second carabiner [F]",
-  clipFirst: "Clip to the cable first [F]",
-  climb: "Climb [E]",
-  onLadder: "Climb [W]  ·  Down [S]",
-  onElement: "Go [W]  ·  Lean [A][D]  ·  Hold [Q][RMB]  ·  Breathe [R]",
-  frozen: "Breathe [R]  ·  hold until the hands stop shaking",
-  hanging: "Pull up [Space]  ·  Haul [W][S]",
-  rescue: "Pull up [Space]  ·  Haul [W][S]  ·  Rescue [E]",
-  stepOn: (label) => `Step onto the ${label} [E]`,
+  get clipIn() { return t("prompt.clipIn"); },
+  get clipSecond() { return t("prompt.clipSecond"); },
+  get clipFirst() { return t("prompt.clipFirst"); },
+  get climb() { return t("prompt.climb"); },
+  get onLadder() { return t("prompt.onLadder"); },
+  get onElement() { return t("prompt.onElement"); },
+  get frozen() { return t("prompt.frozen"); },
+  get hanging() { return t("prompt.hanging"); },
+  get rescue() { return t("prompt.rescue"); },
+  stepOn: (element) => t("prompt.stepOn", { label: t(ELEMENT_LABEL_KEYS[element.kind] || "element.burma") }),
 });
 
 /**
@@ -81,7 +88,7 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
     if (player.mode === "element") return PROMPTS.onElement;
     if (player.mode === "ladder") return PROMPTS.onLadder;
     const next = startable();
-    if (readyToStepOn()) return next.element.enterPrompt || PROMPTS.stepOn(next.element.label);
+    if (readyToStepOn()) return next.element.enterPrompt || PROMPTS.stepOn(next.element);
     if (anchor && !established(anchor.id)) return belay.pendingAnchor() === anchor.id ? PROMPTS.clipSecond : PROMPTS.clipIn;
     if (next) return next.element.clipPrompt || PROMPTS.clipFirst;
     if (clippedToLadderCable() && atLadderBase() && player.mode === "ground") return PROMPTS.climb;

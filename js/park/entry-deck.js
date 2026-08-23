@@ -20,6 +20,9 @@ export const ENTRY_DECK = Object.freeze({
   postRadius: 0.07,
   postSink: 0.28,            // how far the posts go into the ground
   benchSeatHeight: 0.44,     // above the deck
+  benchLength: 1.00,         // half the deck: the +X half stays a free lane to the cable stub
+  benchCentreX: -0.58,
+  stepCentreX: 0.55,
   benchDepth: 0.30,
   stubHeight: 1.00,          // cable above the deck
   stubPostHeight: 1.18,
@@ -44,6 +47,7 @@ export function createEntryDeck({ scene, physics, position, facing = 0, rng, tex
 
   buildSubstructure(builder, { frameY, rng });
   buildDeckPlanks(builder, { deckY, rng });
+  buildStep(builder, { deckY, rng });
   buildBench(builder, { deckY, rng });
   buildClipStub(builder, { deckY, rng });
   buildSign(builder, { deckY });
@@ -70,6 +74,23 @@ export function createEntryDeck({ scene, physics, position, facing = 0, rng, tex
       signMap.dispose();
     },
   };
+}
+
+/**
+ * Half-height step board on the approach side: 0.42 m onto the deck is more than the character
+ * controller's 0.3 m autostep, exactly like a real knee-high deck needs its Trittstufe.
+ */
+function buildStep(builder, { deckY, rng }) {
+  const D = ENTRY_DECK;
+  const stepY = deckY * 0.52;
+  const z = -D.depth / 2 - 0.19;
+  for (const x of [D.stepCentreX - 0.28, D.stepCentreX + 0.28]) {
+    builder.cylinderBetween({ from: { x, y: 0, z }, to: { x, y: stepY - 0.045, z }, radius: 0.055, segments: 8 });
+  }
+  builder.box({
+    length: 0.86, width: 0.34, thickness: 0.045,
+    position: { x: D.stepCentreX, y: stepY - 0.0225 + rng.float(-0.002, 0.002), z },
+  });
 }
 
 /** Six round posts sunk into the forest floor, carrying two bearer logs. */
@@ -108,13 +129,13 @@ function buildBench(builder, { deckY, rng }) {
   const D = ENTRY_DECK;
   const z = -D.depth / 2 + 0.24;
   const seatY = deckY + D.benchSeatHeight;
-  for (const x of [-0.72, 0.72]) {
+  for (const x of [D.benchCentreX - 0.38, D.benchCentreX + 0.38]) {
     builder.cylinderBetween({ from: { x, y: deckY - 0.06, z }, to: { x, y: seatY - 0.03, z }, radius: 0.055, segments: 8 });
   }
   for (let i = 0; i < 2; i++) {
     builder.box({
-      length: 1.85, width: D.plankWidth * 0.85, thickness: 0.045,
-      position: { x: 0, y: seatY + rng.float(-0.002, 0.002), z: z + (i - 0.5) * (D.plankWidth * 0.85 + D.plankGap) },
+      length: D.benchLength, width: D.plankWidth * 0.85, thickness: 0.045,
+      position: { x: D.benchCentreX, y: seatY + rng.float(-0.002, 0.002), z: z + (i - 0.5) * (D.plankWidth * 0.85 + D.plankGap) },
       material: "plank",
     });
   }
@@ -199,9 +220,25 @@ function createColliders(physics, { position, facing, deckY }) {
   const deck = R.ColliderDesc.cuboid(D.width / 2, half, D.depth / 2)
     .setTranslation(deckCentre.x, position.y + deckY - half, deckCentre.z)
     .setRotation(rotation).setCollisionGroups(groups(GROUP.STATIC)).setFriction(0.95);
-  const seat = local(0, -D.depth / 2 + 0.24);
-  const bench = R.ColliderDesc.cuboid(0.95, 0.03, 0.16)
+  // Rapier's autostep refuses the step-board + deck-face double step, so the walkable approach is
+  // a flat ramp collider under the boards (a trodden hackschnitzel wedge, ~29°): ground → deck top.
+  const rampRun = 0.80;
+  const rampPitch = -Math.atan2(deckY, rampRun);
+  const yawQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), facing);
+  const pitchQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), rampPitch);
+  const rampQ = yawQ.multiply(pitchQ);
+  const rampPos = local(D.stepCentreX, -D.depth / 2 - rampRun / 2);
+  const ramp = R.ColliderDesc.cuboid(0.45, 0.02, Math.hypot(deckY, rampRun) / 2)
+    .setTranslation(rampPos.x, position.y + deckY / 2 - 0.02, rampPos.z)
+    .setRotation({ x: rampQ.x, y: rampQ.y, z: rampQ.z, w: rampQ.w })
+    .setCollisionGroups(groups(GROUP.STATIC)).setFriction(0.95);
+  const stepPos = local(D.stepCentreX, -D.depth / 2 - 0.19);
+  const step = R.ColliderDesc.cuboid(0.43, 0.03, 0.17)
+    .setTranslation(stepPos.x, position.y + deckY * 0.52 - 0.03, stepPos.z)
+    .setRotation(rotation).setCollisionGroups(groups(GROUP.STATIC)).setFriction(0.95);
+  const seat = local(D.benchCentreX, -D.depth / 2 + 0.24);
+  const bench = R.ColliderDesc.cuboid(D.benchLength / 2 + 0.05, 0.03, 0.16)
     .setTranslation(seat.x, position.y + deckY + D.benchSeatHeight, seat.z)
     .setRotation(rotation).setCollisionGroups(groups(GROUP.STATIC));
-  return [physics.world.createCollider(deck), physics.world.createCollider(bench)];
+  return [physics.world.createCollider(deck), physics.world.createCollider(ramp), physics.world.createCollider(step), physics.world.createCollider(bench)];
 }

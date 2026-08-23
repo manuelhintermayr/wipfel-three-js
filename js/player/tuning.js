@@ -24,7 +24,7 @@ export const PLAYER = Object.freeze({
   fallbackDepth: 1.5,       // teleport back onto terrain.heightAt when the body ends up this far below it
   kcc: Object.freeze({
     offset: 0.02,
-    autostepHeight: 0.35,
+    autostepHeight: 0.44,     // a tall human step: entry decks (0.42) are walkable; the step board is flavour
     autostepMinWidth: 0.2,
     snapToGround: 0.3,
     maxSlopeClimb: 45 * DEG,
