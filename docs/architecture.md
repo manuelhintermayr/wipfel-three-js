@@ -27,7 +27,9 @@ Units: metres, seconds, kilograms. +Y up. The slope descends towards −Z (south
 ### `js/world/terrain.js`
 ```js
 createTerrain({ rng, physics, scene, size = WORLD.size, resolution = 2 }) → {
-  mesh,                       // THREE.Mesh, receives shadows, procedural ground material
+  group,                      // THREE.Group of chunk meshes, receive shadows, never cast
+  chunks, chunkStats,         // [{ mesh, lod, minX, maxX, minZ, maxZ }] · { chunks, cells, byLod }
+  update(dt, focusPos),       // gameplay phase: LOD per chunk (call it from main.js after sky.update)
   heightAt(x, z),             // metres (bilinear), for placement + spawn
   normalAt(x, z, out?),       // THREE.Vector3
   slopeAt(x, z),              // radians
@@ -40,10 +42,36 @@ createTerrain({ rng, physics, scene, size = WORLD.size, resolution = 2 }) → {
 ```
 Heightfield: layered coherent noise (fbm) + slope N→S + erosion-inspired shaping (talweg carving,
 smoothing on paths, flattened hubs) – never raw white noise. Rapier: `ColliderDesc.heightfield` in
-GROUP.TERRAIN. Material: procedural canvas albedo/normal/roughness for leaf litter, dirt, moss; blend by
-slope/height/moisture in the fragment shader (onBeforeCompile) or vertex colours. `ground-detail.js`
-scatters stones, roots, grass tufts, twigs as InstancedMesh (seeded, exclusion via `isPath`, later via
-platform positions).
+GROUP.TERRAIN (one collider over the whole field, independent of the mesh LOD). Material: procedural
+canvas albedo/normal/roughness for leaf litter, dirt, moss; blend by slope/height/moisture in the
+fragment shader (onBeforeCompile) and vertex colours.
+
+### `js/world/terrain/chunks.js` + `js/world/terrain/chunk-index.js`
+```js
+buildChunkIndex(cells, strides) → { index: Uint32Array, ranges: [{start,count}], vertexCount }   // pure
+chunkLodFor(distance, current, { near, mid, hysteresis }) → 0|1|2                                 // pure
+createTerrainChunks({ field, sampler, rng, material, duffSlopeDeg }) → { group, chunks, stats, ranges, update(focusPos), dispose() }
+```
+`CHUNKS` = 6 × 6 chunks of 80 m, strides `[1, 2, 4]` (2 / 4 / 8 m grid), `near` 70 m, `mid` 170 m,
+`hysteresis` 14 m, `skirtDepth` 2.6 m. Every chunk owns **one** vertex buffer and **one** index
+buffer holding the three triangle lists back to back – `geometry.setDrawRange` picks the level, so an
+LOD switch uploads nothing and can never crack *inside* a chunk. Against a neighbour at a different
+level each level also draws a **skirt**: a wall along the four chunk edges hanging `skirtDepth` below
+the rim, built from four extra vertex rows that all levels share. Vertex normals come from
+`sampler.normalAt` (not `computeVertexNormals`), so shading is continuous across chunk borders.
+Vertices are in world space (`matrixAutoUpdate = false`); LOD selection uses the distance to the
+chunk's nearest point, so **geometry never depends on the camera** and the world stays deterministic.
+Chunk meshes carry real bounding boxes: in a ground-level view the frustum keeps 4–12 of the 36.
+
+### `js/world/ground-detail.js`
+```js
+createGroundDetail({ rng, scene, terrain, wind?, exclude? }) → { meshes, uniforms, update(dt, focusPos?), dispose() }
+```
+Scatters pebbles, stones, roots, twigs, grass tufts and leaf clumps as six InstancedMeshes (seeded,
+exclusion via `isPath` and hubs). Each spot is baked into a matrix + colour **once**; `update` re-packs
+the instance buffers with the spots inside `GROUND_DETAIL.radius` (45–90 m per family) whenever the
+focus has moved `refreshMoveMetres`, and sets `mesh.count`. Pebbles, twigs and leaf clumps do not cast
+shadows – they are smaller than a shadow-map texel (`SKY.shadow.size` 70 m over 2048).
 
 ### `js/world/forest.js` (+ `js/procgen/geometry/tree.js`, `js/procgen/textures/bark.js`, `foliage.js`)
 ```js
@@ -59,7 +87,9 @@ tube; branches = few L-system tubes; foliage = instanced alpha-tested cluster ca
 needle textures) with wind displacement in the vertex shader; LOD (near full geometry, mid reduced
 cards, far crossed impostor quads). Density map + exclusion (paths, hubs, hero-tree clearance) +
 course-aware "hero" trees with Rapier cylinder colliders (GROUP.STATIC). All instancing; target
-< 120 draw calls for the whole forest.
+< 120 draw calls for the whole forest. `FOREST_LOD`: `near` 45 m, `mid` 100 m, hysteresis 1.12.
+Only LOD 0 casts shadows – a LOD 1 tree is already outside the 70 m sun shadow box, so submitting it
+would cost draw calls for nothing.
 
 ### `js/world/wind.js`
 ```js

@@ -7,8 +7,8 @@ import { buildTreeArchetypeSet, disposeTreeCaches, TREE_SPECIES } from "../procg
 import { placeTrees } from "./forest-placement.js";
 
 export const FOREST_LOD = Object.freeze({
-  near: 48,                 // metres: LOD 0 (full) inside
-  mid: 135,                 // metres: LOD 1 inside, impostors beyond
+  near: 45,                 // metres: LOD 0 (full) inside
+  mid: 100,                 // metres: LOD 1 inside, impostors beyond
   hysteresis: 1.12,         // switch back only after leaving by this factor
   refreshMoveMetres: 3,     // rebuild instance buffers after the focus moved this far
   colliderRadius: 60,       // non-hero trees within this distance of the spawn get trunk colliders …
@@ -68,8 +68,12 @@ export function createForest({ rng, scene, physics, terrain, wind, heroTrees = [
           mesh.setColorAt(0, _c.set(1, 1, 1));
           mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
           if (part.depthMaterial) mesh.customDepthMaterial = part.depthMaterial;
-          mesh.castShadow = part.castShadow;
+          // only LOD 0 casts: the sun shadow box is SKY.shadow.size (70 m) wide, so a tree that is
+          // far enough away to be LOD 1 never reaches into it – submitting it only costs a draw call.
+          mesh.castShadow = part.castShadow && lod === 0;
           mesh.receiveShadow = part.receiveShadow;
+          // instances are re-packed on every refresh, and InstancedMesh caches its bounding sphere –
+          // culling would need a recompute per refresh and would drop trees when it goes stale.
           mesh.frustumCulled = false;
           mesh.name = `tree-${species}-${variant}-lod${lod}-${partName}`;
           group.add(mesh);
@@ -79,6 +83,8 @@ export function createForest({ rng, scene, physics, terrain, wind, heroTrees = [
       });
     });
   }
+  // cache the three buckets per tree so refresh() never builds a key string per tree per refresh
+  for (const t of trees) t.buckets = [0, 1, 2].map((lod) => buckets.get(`${t.species}:${t.variant}:${lod}`));
 
   // 4. colliders: heroes + trees near the spawn
   const colliders = [];
@@ -122,14 +128,15 @@ export function createForest({ rng, scene, physics, terrain, wind, heroTrees = [
       const d = Math.hypot(t.x - focus.x, t.z - focus.z);
       t.lod = lodFor(t, d);
       stats.byLod[t.lod]++;
-      buckets.get(`${t.species}:${t.variant}:${t.lod}`).trees.push(t);
+      t.buckets[t.lod].trees.push(t);
     }
     for (const b of buckets.values()) {
       for (const { mesh, part } of b.meshes) {
-        b.trees.forEach((t, i) => {
+        for (let i = 0; i < b.trees.length; i++) {
+          const t = b.trees[i];
           mesh.setMatrixAt(i, t.matrix);
           mesh.setColorAt(i, part === "trunk" ? t.trunkColor : t.foliageColor);
-        });
+        }
         mesh.count = b.trees.length;
         mesh.instanceMatrix.needsUpdate = true;
         mesh.instanceColor.needsUpdate = true;

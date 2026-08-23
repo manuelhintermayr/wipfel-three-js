@@ -76,9 +76,12 @@ export function makeTaperedTube(points, radiusFn, tubularSegments = 16, radialSe
   return geo;
 }
 
-/** Rounded, noise-displaced, flattened stone (radius ≈ 1, smooth normals). */
-export function createStoneGeometry(rng, { flatten = 0.6, roughness = 0.3 } = {}) {
-  const geo = new THREE.SphereGeometry(1, 14, 10);
+/**
+ * Rounded, noise-displaced, flattened stone (radius ≈ 1, smooth normals). `segments` is the
+ * triangle budget: a 5–14 cm pebble never covers enough pixels to pay for the default ring count.
+ */
+export function createStoneGeometry(rng, { flatten = 0.6, roughness = 0.3, segments = [14, 10] } = {}) {
+  const geo = new THREE.SphereGeometry(1, segments[0], segments[1]);
   const noise = makeNoise2D(rng.fork("stone").seed);
   const off = rng.float(0, 50), pos = geo.attributes.position, v = new THREE.Vector3();
   for (let i = 0; i < pos.count; i++) {

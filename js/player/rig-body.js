@@ -41,12 +41,12 @@ export function ovalLathe(profile, sx, sz, radial = 22) {
   return geo;
 }
 
-export function addMesh(parent, geometry, material, { x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1 } = {}) {
+export function addMesh(parent, geometry, material, { x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1, castShadow = true } = {}) {
   const m = new THREE.Mesh(geometry, material);
   m.position.set(x, y, z);
   m.rotation.set(rx, ry, rz);
   m.scale.set(sx, sy, sz);
-  m.castShadow = true;
+  m.castShadow = castShadow;
   m.receiveShadow = true;
   parent.add(m);
   return m;

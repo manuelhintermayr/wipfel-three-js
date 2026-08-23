@@ -89,6 +89,7 @@ async function boot() {
     "physics ms": loop.stats.physicsMs.toFixed(2),
     "draw calls": renderer.info.render.calls,
     triangles: renderer.info.render.triangles,
+    "terrain lod": terrain.chunkStats.byLod.join("/"),
     bodies: physics.bodyCount,
     colliders: physics.colliderCount,
     trees: forest.trees.length,
@@ -125,7 +126,8 @@ async function boot() {
     wind.update(dt);
     sky.update(dt, player.position);
     skyline.update(dt);
-    groundDetail.update(dt);
+    terrain.update(dt, player.position);
+    groundDetail.update(dt, player.position);
     forest.update(dt, elapsed, player.position);
   });
   loop.on("render", (alpha, dt) => {

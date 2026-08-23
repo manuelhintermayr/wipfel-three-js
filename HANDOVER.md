@@ -7,7 +7,8 @@
 ## Aktueller Meilenstein
 **M0 „Ein Brett“** – M0.1 Bootstrap ✓, M0.2 Weltausschnitt ✓, M0.3 Spieler am Boden ✓ (Session 1,
 2026-08-17), M0.4 Podest + Leiter + Umhängen ✓ (Session 1, 2026-08-17), **M0.5 Erste Übungen auf
-Schienen ✓** (Session 2, 2026-08-20). Nächster Schritt: **M0.6 Flying Fox**.
+Schienen ✓** (Session 2, 2026-08-20), **M0.P Performance-Pass ✓** (2026-08-24).
+Nächster Schritt: **M0.6 Flying Fox**.
 
 ## Letzter funktionierender Commit
 Noch nicht committet: der M0.5-Stand liegt im Arbeitsverzeichnis (Geometrie + Reinlogik kamen
@@ -18,18 +19,47 @@ Geprüft (2026-08-20, headless Chromium/SwiftShader, 1024×576, Seed 1): Seite l
 **0 Konsolenfehler, 0 Warnungen, 0 externe Requests**; kompletter Ablauf F → F → E → gehen → Sturz →
 Leertaste → weiter durchgespielt, alle drei Übungen überquert; 607 Bäume, **252–285 Draw-Calls**
 (192 ohne Kurs im Bild), 1,70–1,81 M Dreiecke, 60 Collider (61 während eines Sturzes),
-**2,7–4,4 ms/Frame**, Physik 0,1–0,3 ms. `node tools/check-all.mjs` 75/75, `npm test` **51/51**.
+Physik 0,1–0,3 ms. `node tools/check-all.mjs` 75/75, `npm test` **51/51**.
 Screenshots: `docs/screenshots/m0-5-{burma,planks,net,fall,recover}.png`.
+
+## Performance-Pass (2026-08-24, M0.P)
+Gemessen headless Chromium/SwiftShader, **1280×720, Seed 1**, drei Blicke: (a) Spawn am Boden,
+(b) auf Podest 1 den Kurs entlang, (c) am Spawn hangab zur Skyline, (d) Draufsicht aus 220 m.
+`renderMs` = ein erzwungener `renderer.render` + `readPixels` (Software-Rasterizer, nur als
+Vorher/Nachher-Vergleich brauchbar; **fps ist headless nicht messbar**, rAF liefert kaum Frames).
+
+| Blick | Dreiecke vorher → nachher | Draw-Calls vorher → nachher | renderMs vorher → nachher |
+|---|---|---|---|
+| a Spawn | 1 703 912 → **260 602** (−85 %) | 198 → **141** | 800 → **580** |
+| b Podest 1 | 1 797 722 → **356 230** (−80 %) | 286 → **262** | 2191 → **1294** |
+| c hangab | 1 738 858 → **286 374** (−84 %) | 256 → **209** | 1096 → **769** |
+| d Draufsicht | 1 793 742 → **361 698** (−80 %) | 292 → **259** | – |
+
+Budgets erfüllt: ≤ 700 k Dreiecke im schlimmsten Blick (356 k), Terrain ≤ 250 k (**14 k** in
+Blick c, 35 k in der Draufsicht), < 300 Draw-Calls (max. 262), Draufsicht < 600 k. Der Schattenpass
+kostet jetzt 87–91 statt 139 Calls. Anteile inkl. Schattenpass (Gruppe ausgeblendet, Differenz
+gemessen): Figur **98** Calls, Wald 59, Kurs ~32, Bodendetail 9, Terrain 4 (Blick c) bzw. 18
+(Draufsicht). Weltaufbau 15,6 s statt 18,8 s (Einzelmessung, Software-Renderer). Determinismus
+geprüft: zwei Ladevorgänge mit Seed 1 liefern identische Hashes über Höhenfeld, Chunk-Vertices und
+Baumliste (Spawn 11,10 / 4,75 / −163,31 · 607 Bäume · 36 Chunks à 40 Zellen).
+**0 Konsolenfehler, 0 Warnungen, 0 externe Requests**; `node tools/check-all.mjs` 78/78,
+`npm test` **59/59**. Spielprobe mit echten Tastaturereignissen nach dem Umbau: F → F am
+Burma-Sicherungsseil (`elem-burma-1`, beide Karabiner), E → Zustand `element`, W + Q → auf Podest 2
+angekommen (Zustand `ground`, 9,6 m). Screenshots: `docs/screenshots/perf-{before,after}-{a,b,c}.png`
+(gleiches Protokoll, direkt vergleichbar) und `perf-after-canopy.png` (Nahtprüfung: keine Risse an
+den Chunk-Grenzen).
 
 ## Was funktioniert
 - **Kern:** `js/main.js` (Boot + Loop-Verdrahtung), `core/{loop,input,rng,params,errors,events,renderer,physics}.js`,
   `ui/debug.js` (F1 Panel; **F2 / `?physics=1`** = Rapier-Wireframe – getrennt, weil das Heightfield-
   Wireframe alles überdeckt), `js/config.js` (Kategorien Green/Blue/Red/Black/Legendary, Regeln,
   Größenklassen).
-- **Welt:** `world/terrain.js` (+ `terrain/{heightfield,paths,material}.js`; Hang N→S, Wege, Hubs
-  `spawn@(11,-163) r20`, `hut@(-115,33)`, `deck-east@(113,-33)`, `deck-top@(-16,147)`; Rapier-Heightfield,
-  `heightAt/normalAt/slopeAt/isPath`), `world/ground-detail.js` (+ `procgen/geometry/ground-props.js`,
-  `procgen/textures/{ground,texture-utils}.js`: Laub, Steine, Wurzeln, Gras – instanziert, Wind),
+- **Welt:** `world/terrain.js` (+ `terrain/{heightfield,paths,material,chunks,chunk-index}.js`; Hang N→S,
+  Wege, Hubs `spawn@(11,-163) r20`, `hut@(-115,33)`, `deck-east@(113,-33)`, `deck-top@(-16,147)`;
+  Rapier-Heightfield, `heightAt/normalAt/slopeAt/isPath`; **6 × 6 Chunks à 80 m mit Index-LOD
+  (2/4/8 m) und Skirts, `terrain.update(dt, focusPos)`**), `world/ground-detail.js` (+ `procgen/geometry/ground-props.js`,
+  `procgen/textures/{ground,texture-utils}.js`: Laub, Steine, Wurzeln, Gras – instanziert, Wind,
+  **Distanzausblendung 45–90 m je Familie über `update(dt, focusPos)`**),
   `world/forest.js` (+ `forest-placement.js`, `procgen/geometry/tree*.js`, `procgen/textures/{bark,foliage,tree-texture-utils}.js`:
   Kiefer/Eiche/Buche/Ahorn/Hasel, 3 LODs, Instancing, Hero-Bäume mit Collidern, Wind-Shader),
   `world/wind.js`, `world/sky.js` (Dome, Sonne, Hemi, Nebel, Exposure, Tag/Nacht, `setTimeOfDay`),
@@ -73,8 +103,8 @@ Screenshots: `docs/screenshots/m0-5-{burma,planks,net,fall,recover}.png`.
   Rapier-Ball 70 kg an einem Seil-Joint zu einem kinematischen Karabiner auf dem Sicherungsseil,
   sichtbares Bandfalldämpfer-Band, Kamerasacken + Shake, `sfxHarnessCatch`; Hochziehen mit Leertaste,
   Hangeln mit W/S, Retter mit E).
-- **Tests:** `node tools/check-all.mjs` (75 Dateien), `npm test` (**51 Tests**: RNG, Lighting, Belay,
-  Balance, Stamina, Nerves, check-all).
+- **Tests:** `node tools/check-all.mjs` (78 Dateien), `npm test` (**59 Tests**: RNG, Lighting, Belay,
+  Balance, Stamina, Nerves, Chunk-Index, check-all).
 - **Dev-Seiten:** `tools/dev/{forest,terrain,sky,player}.html` – je Modul isoliert testbar
   (`?seed=`, Views, Bot); Screenshots `docs/screenshots/dev-*.png`.
 
@@ -90,7 +120,11 @@ Screenshots: `docs/screenshots/m0-5-{burma,planks,net,fall,recover}.png`.
 – nichts Bekanntes. Beobachtungen: siehe „Offen / Provisorisch“.
 
 ## Dateien, an denen gerade gearbeitet wird
-– keine (sauberer Stand nach Commit).
+– keine. Der Performance-Pass (M0.P) liegt uncommitted im Arbeitsverzeichnis: neu
+`js/world/terrain/{chunks,chunk-index}.js` + `tests/unit/chunk-index.test.mjs`; geändert
+`js/world/{terrain,ground-detail,forest}.js`, `js/world/terrain/material.js`,
+`js/procgen/geometry/ground-props.js`, `js/player/{rig-body,rig-gear}.js`, `js/main.js`,
+`tools/dev/{terrain,forest}.html`.
 
 ## Wichtige Architekturentscheidungen
 `docs/architecture.md` (Modulverträge – Park/Belay/HUD/Audio seit M0.4 eingetragen),
@@ -113,10 +147,11 @@ Umhäng-Ritual funktionieren dann automatisch.
    Countdown, Sicherheits-Tooltip, `?autoplay=1`-Bot, Screenshots, Smoke-Checkliste, Tag `m0`.
 3. Politur M0.5: Hände/Füße per IK auf Halteseil und Planke (die Posen treffen die Seile noch nicht),
    Tuning-Pass mit echten Testern (Balance-Fenster, Kraftkosten, Nervenanstieg), Wind-Böen hörbar.
-4. Performance-Pass: Terrain-Dreiecke (~1,3 M) auf Chunks/LOD reduzieren; Laubstreu-Textur kleiner
-   kacheln (Blätter wirken ~40 cm groß); Kronen-Ausdünnung um die Kamera prüfen.
-5. Politur M0.4: eigener Kamerawinkel auf der Leiter, Hände/Füße auf `ladder.steps` (IK),
+4. Politur M0.4: eigener Kamerawinkel auf der Leiter, Hände/Füße auf `ladder.steps` (IK),
    Bodendetail-Ausschluss unter Deck und Podest.
+5. Figur zusammenfassen: `player/rig*.js` baut 64 Einzel-Meshes → 98 Draw-Calls (mit Schatten) und
+   damit der grösste Posten im Budget. Ein Mesh pro Material (SkinnedMesh oder Merge pro Pose-Update)
+   würde ~90 Calls sparen; erst nach M0.6, weil es die Posen-Pipeline anfasst.
 
 ## Offen / Provisorisch
 - **M0.5:** `main.js#pickHeroTrees` legt jetzt bewusst eine **Kette** aus 4 Kiefern à 8,6 m an
@@ -146,8 +181,17 @@ Umhäng-Ritual funktionieren dann automatisch.
   ein eigener Leiter-Kamerawinkel wäre besser (M0.7-Politur).
 - **M0.4:** HUD zeigt nur Karabiner-Widget, Kraft-Ring (fix 1,0) und Prompt; UI-Texte stehen noch
   im Code (`player/interaction.js#PROMPTS`), i18n kommt mit M0.7.
-- Terrain-Mesh sehr dicht (~1,3 M Dreiecke) → Chunk-LOD nötig (Budget: < 300 Draw-Calls, ≥ 55 fps).
-- Bodentextur (Laub) zu groß skaliert; Waldboden-Farbton in der Distanz zu dunkel/monoton.
+- **M0.P:** Die Distanzradien des Bodendetails (`GROUND_DETAIL.radius`: Kiesel 45 m, Zweige 55 m,
+  Gras 70 m, Steine/Wurzeln 80 m, Laubhaufen 90 m) sind am Bild gewählt, nicht an echten Augen –
+  beim ersten Testlauf auf Ploppen beim Gehen achten (Rebuild alle `refreshMoveMetres` = 6 m). Ein
+  weicher Übergang bräuchte ein Scale-Fade im Vertex-Shader.
+- **M0.P:** Kiesel und Steine haben jetzt gröbere Kugeln (8×6 bzw. 10×8 statt 14×10) und werfen
+  (Kiesel/Zweige/Laubhaufen) keinen Schatten mehr – bei 5–14 cm unter der Schattenmap-Texelgrösse
+  (3,4 cm), aber ein Look-Pass sollte das aus Augenhöhe gegenprüfen.
+- **M0.P:** fps ist im Headless-Chromium **nicht** messbar (rAF liefert kaum Frames, SwiftShader
+  braucht Sekunden pro Bild). Die Budgetzusage „≥ 55 fps auf iGPU" ist damit **nicht** nachgewiesen –
+  nur Dreiecke, Draw-Calls und ein Software-Render-Vergleich. Auf echter Hardware nachmessen.
+- Figur: `player/rig*.js` = 64 Meshes → 98 Draw-Calls mit Schatten (siehe „Nächste fünf Aufgaben" 5).
 - Bäume: gut lesbar, aber Kronen noch „kartig“ bei LOD 1/2; Astwerk sparsam; weiterer Look-Pass in M2.
 - Figur: Kopf/Hände einfach; Posen-Blending ok; Kletterposen (ladder, balance, grab, hang, zipline)
   existieren als Namen, sind aber noch nicht animiert.
@@ -185,10 +229,12 @@ Skripten/Testen: `WIPFEL.player.teleport(x, y, z)`, `WIPFEL.player.setState("gro
 `WIPFEL.belay.state()`, `WIPFEL.vitals.{balance,stamina,nerves}` + `WIPFEL.vitals.probe()`,
 **`WIPFEL.debug.forceSlip(±1)`** (erzwingt einen Sturz auf der aktuellen Übung).
 F1-Zeilen seit M0.5: `element` (id + t), `balance`, `stamina`, `nerves` (Wert + Stufe),
-`heart bpm`, `trust`, `air below`.
+`heart bpm`, `trust`, `air below`; seit M0.P `terrain lod` (Chunks je LOD, Summe 36).
 **Achtung headless:** In Chromium tickt `requestAnimationFrame` nur, wenn der Compositor Frames
 liefert – für scriptgesteuerte Läufe `loop.stop()`, `requestAnimationFrame` neutralisieren und
-`loop._tick(t)` mit festen 60-Hz-Zeitstempeln selbst aufrufen (siehe Session-Log).
+`loop._tick(t)` mit festen 60-Hz-Zeitstempeln selbst aufrufen (siehe Session-Log). Screenshots zeigen
+immer das letzte vom Loop gerenderte Bild: für eine eigene Kameraposition erst `loop.stop()`, dann
+`renderer.render(scene, cam)`, dann den Screenshot.
 
 ## Aktueller Seed / Reproduktionsfälle
 Standard-Seed 1 (`DEFAULTS.seed`). Spawn (11.1, 4.8, −163.3) auf Hub `spawn`. Reproduktionsfälle: –

@@ -40,6 +40,14 @@ Generierung für dekoratives UI opfern.
       Hand-Zittern, Einfrieren + Atmen); Sturz in den Gurt (Rapier-Pendel), Hochziehen, Hangeln zum
       Podest, Retter-Reset; erster Sturz dramatisch (Aufprall-/Gurtspannungs-Sound, Kamerasacken,
       Haptik-Abstraktion, Atem).
+- [x] **M0.P Performance-Pass** – Terrain als 6 × 6 Chunks à 80 m mit Index-LOD (2/4/8 m, ein
+      Vertex-/Indexbuffer je Chunk, `setDrawRange`) und Skirts gegen T-Junction-Risse,
+      `terrain.update(dt, focusPos)`; Bodendetail nach Distanz (45–90 m je Familie) neu gepackt;
+      Laubstreu von 5,5 m auf 2,0 m gekachelt (Blätter 7–16 cm statt ~40 cm) plus Makro-Variation
+      gegen die Wiederholung; Wald-Impostoren ab 100 m statt 135 m; Schattenpass entrümpelt
+      (Terrain, Wald-LOD 1, Kiesel/Zweige/Gurtzeug werfen nicht mehr). 1280 × 720, Seed 1:
+      **1,70–1,80 M → 0,26–0,36 M Dreiecke**, **198–292 → 141–262 Draw-Calls**, Terrain 115 k → 14 k
+      im Bodenblick. Unit-Test `chunk-index.test.mjs`. fps auf echter Hardware noch offen.
 - [ ] **M0.6 Flying Fox** – analytische Fahrt (Gefälle, Durchhang, Masse, Wind), Ego-Kamera mit
       weiterem Sichtfeld, Trolley-Sirren, Vegetation zieht vorbei, Netzbremse mit „Beine hoch“,
       physische Ankunft; Höchstgeschwindigkeit als Nachfahrt-Statistik.

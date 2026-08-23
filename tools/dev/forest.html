@@ -170,6 +170,7 @@
         if (keys.has("KeyE")) camera.position.y += speed;
         if (keys.has("KeyQ")) camera.position.y -= speed;
         wind.update(dt);
+        if (terrain.update) terrain.update(dt, camera.position);   // only the real terrain has chunks
         forest.update(dt, elapsed, camera.position);
         sun.target.position.copy(camera.position).addScaledVector(fwd, 40);
         sun.position.copy(sun.target.position).addScaledVector(sunDir, 160);

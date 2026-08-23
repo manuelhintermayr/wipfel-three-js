@@ -166,7 +166,8 @@
         if (keys.has("d") || keys.has("arrowright")) focus.addScaledVector(right, mv);
         if (keys.size) focus.y = terrain.heightAt(focus.x, focus.z) + 2;
         updateCamera();
-        detail && detail.update(dt);
+        terrain.update(dt, camera.position);
+        detail && detail.update(dt, camera.position);
         physics.updateDebug();
         renderer.render(scene, camera);
         frames++; fpsTime += dt;
@@ -177,7 +178,7 @@
         const ballErr = balls.map((b) => { const t = b.body.translation(); return (t.y - 0.5 - terrain.heightAt(t.x, t.z)).toFixed(3); }).join(" / ");
         const detailCount = detail ? detail.meshes.reduce((s, m) => s + m.count, 0) : 0;
         info.textContent = [
-          `terrain dev · seed ${seed} · ${fps.toFixed(0)} fps · draw calls ${renderer.info.render.calls} · tris ${renderer.info.render.triangles.toLocaleString()}`,
+          `terrain dev · seed ${seed} · ${fps.toFixed(0)} fps · draw calls ${renderer.info.render.calls} · tris ${renderer.info.render.triangles.toLocaleString()} · chunk lod ${terrain.chunkStats.byLod.join("/")}`,
           `gen: physics ${(t1 - t0).toFixed(0)} ms · ground textures ${(tTex - t1).toFixed(0)} ms · terrain ${(t2 - tTex).toFixed(0)} ms · detail ${(t3 - t2).toFixed(0)} ms · instances ${detailCount}`,
           `height ${hMin.toFixed(1)}…${hMax.toFixed(1)} m (drop ${(hMax - hMin).toFixed(1)}) · slope mean ${(slopeSum / samples * 180 / Math.PI).toFixed(1)}° max ${(slopeMax * 180 / Math.PI).toFixed(1)}° · path max ${(pathSlopeMax * 180 / Math.PI).toFixed(1)}°`,
           `collider ray check: max |ray−heightAt| ${rayMaxErr.toFixed(3)} m, misses ${rayMisses}/80 · balls Δy ${ballErr}`,
