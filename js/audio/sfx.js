@@ -18,7 +18,92 @@ export const SFX = Object.freeze({
   heart: Object.freeze({ lub: 62, dub: 48, duration: 0.11, spacing: 0.20, gain: 0.30 }),
   /** Air through the nose and out again – filtered noise, no pitch. */
   breath: Object.freeze({ inFreq: 620, inSweep: 880, outFreq: 500, outSweep: 300, q: 1.1, gain: 0.16 }),
+  /** Steel rollers on a steel wire: a sawtooth whine plus the grain of the rollers, both rising. */
+  trolley: Object.freeze({
+    whine: Object.freeze({ from: 74, to: 330, filterFrom: 420, filterTo: 2100, q: 3.4, gain: 0.20 }),
+    grain: Object.freeze({ filterFrom: 900, filterTo: 3400, q: 1.6, gain: 0.14 }),
+    idle: 0.05,              // the whirr you still hear when the trolley is barely moving
+  }),
+  /** Air past the ears: band-passed noise, loudness with the square of the speed. */
+  rush: Object.freeze({ filterFrom: 320, filterTo: 1250, q: 0.7, gain: 0.30 }),
+  /** Feet on the deck, or the whole rig hitting it – the difference the net makes. */
+  arrive: Object.freeze({
+    clean: Object.freeze({ thud: 118, thudTo: 58, gain: 0.34, scuff: 1400, scuffTo: 700, scuffGain: 0.16 }),
+    messy: Object.freeze({ thud: 88, thudTo: 40, gain: 0.55, clatter: 2300, clatterTo: 900, clatterGain: 0.26 }),
+  }),
 });
+
+/** A handle that does nothing – returned while the page has not been touched yet. */
+const SILENT = Object.freeze({ set() {}, stop() {} });
+
+/**
+ * The trolley whirr, for as long as the ride lasts. Feed it `v01` (0 = parked, 1 = flat out) every
+ * frame; pitch, brightness and volume follow.
+ * @returns {{ set(v01: number): void, stop(): void }} always a handle, silent when audio is off
+ */
+export function sfxTrolley(v01 = 0) {
+  const synth = getSynth();
+  if (!synth.ready) return SILENT;
+  const s = SFX.trolley;
+  const whine = synth.voice({ source: "osc", type: "sawtooth", frequency: s.whine.from, filterFreq: s.whine.filterFrom, q: s.whine.q, gain: 0, glide: 0.06 });
+  const grain = synth.voice({ source: "noise", filterFreq: s.grain.filterFrom, q: s.grain.q, gain: 0, glide: 0.06 });
+  if (!whine || !grain) return SILENT;
+  const handle = {
+    set(v) {
+      const x = Math.max(0, Math.min(1, v));
+      const level = s.idle + (1 - s.idle) * x;
+      whine.set({ frequency: mix(s.whine.from, s.whine.to, x), filterFreq: mix(s.whine.filterFrom, s.whine.filterTo, x), gain: s.whine.gain * level });
+      grain.set({ filterFreq: mix(s.grain.filterFrom, s.grain.filterTo, x), gain: s.grain.gain * level * x });
+    },
+    stop() { whine.stop(); grain.stop(); },
+  };
+  handle.set(v01);
+  return handle;
+}
+
+/**
+ * Wind rush past the ears. Same contract as `sfxTrolley`; the gain follows `v01²`, which is what
+ * makes the last third of a zip line sound like the fast part.
+ * @returns {{ set(v01: number): void, stop(): void }}
+ */
+export function sfxWindRush(v01 = 0) {
+  const synth = getSynth();
+  if (!synth.ready) return SILENT;
+  const s = SFX.rush;
+  const air = synth.voice({ source: "noise", filter: "bandpass", filterFreq: s.filterFrom, q: s.q, gain: 0, glide: 0.09 });
+  if (!air) return SILENT;
+  const handle = {
+    set(v) {
+      const x = Math.max(0, Math.min(1, v));
+      air.set({ filterFreq: mix(s.filterFrom, s.filterTo, x), gain: s.gain * x * x });
+    },
+    stop() { air.stop(); },
+  };
+  handle.set(v01);
+  return handle;
+}
+
+/** The arrival: shoes finding the deck, or the whole rig arriving at once. */
+export function sfxZipArrive(clean = true, delay = 0) {
+  const synth = getSynth();
+  if (!synth.ready) return false;
+  const at = synth.now(delay);
+  if (clean) {
+    const s = SFX.arrive.clean;
+    synth.ping({ at, duration: 0.20, frequency: s.thud, toFrequency: s.thudTo, gain: s.gain, type: "sine" });
+    synth.noiseBurst({ at: at + 0.03, duration: 0.22, frequency: s.scuff, sweepTo: s.scuffTo, q: 1.2, gain: s.scuffGain });
+    return true;
+  }
+  const s = SFX.arrive.messy;
+  synth.ping({ at, duration: 0.34, frequency: s.thud, toFrequency: s.thudTo, gain: s.gain, type: "sine" });
+  for (let i = 0; i < 3; i++) {                                // trolley, carabiners and shoes, all at once
+    synth.noiseBurst({ at: at + i * 0.055, duration: 0.10, frequency: s.clatter - i * 320, sweepTo: s.clatterTo, q: 5.5, gain: s.clatterGain * (1 - i * 0.25) });
+  }
+  synth.noiseBurst({ at: at + 0.14, duration: 0.40, frequency: 900, sweepTo: 420, q: 1.0, gain: 0.14, attack: 0.05 });
+  return true;
+}
+
+const mix = (a, b, t) => a + (b - a) * t;
 
 /** Gate springs open: a short, bright, metallic tick (~40 ms). */
 export function sfxCarabinerOpen(delay = 0) {

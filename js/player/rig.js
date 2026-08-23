@@ -116,7 +116,15 @@ export function createRig({ rng }) {
       applyTarget(dt);
       updateLanyard(dt);
     },
-    setVisible(on) { root.visible = !!on; },
+    /**
+     * `hideHead` keeps the body but drops the skull, the ears and the hair – the standard trick for
+     * a first-person state that still wants you to see your own arms and knees (the zip line).
+     * The eye anchor still reports its world position while the head is hidden.
+     */
+    setVisible(on, hideHead = false) {
+      root.visible = !!on;
+      joints.head.visible = !hideHead;
+    },
     dispose() {
       root.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
       for (const mat of Object.values(materials)) mat.dispose();

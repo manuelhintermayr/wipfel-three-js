@@ -7,8 +7,32 @@
 ## Aktueller Meilenstein
 **M0 „Ein Brett“** – M0.1 Bootstrap ✓, M0.2 Weltausschnitt ✓, M0.3 Spieler am Boden ✓ (Session 1,
 2026-08-17), M0.4 Podest + Leiter + Umhängen ✓ (Session 1, 2026-08-17), **M0.5 Erste Übungen auf
-Schienen ✓** (Session 2, 2026-08-20), **M0.P Performance-Pass ✓** (2026-08-24).
-Nächster Schritt: **M0.6 Flying Fox**.
+Schienen ✓** (Session 2, 2026-08-20), **M0.P Performance-Pass ✓** (2026-08-24),
+**M0.6 Flying Fox ✓** (2026-08-24).
+Nächster Schritt: **M0.7 HUD v1 (Mockup 1:1), Tuning, Nachweis** → Tag `m0`.
+
+## Flying Fox (2026-08-24, M0.6)
+Der Kurs endet jetzt mit der Seilrutsche: Podest 4 → 12-mm-Seil über die Lichtung → Ankunftspodest
+am Rand des Spawn-Hubs → Rampe hinunter auf Hackschnitzel → zurück zum Einstiegsdeck. Ablauf:
+**F → F** (Zwei-Klick auf `zip-1`) → **E** „Sit in“ → **Leertaste** abstoßen und gedrückt halten
+(= Beine hoch = weniger Luftwiderstand **und** die Haltung, die die Netzbremse verlangt) →
+rot-weiße Markierhülse → Netz → Ankunft → **F → F** auf den Anker `landing` → Rampe hinunter.
+
+Zahlen (Seed 1, aus `zip-plan.js` gesucht, nicht gesetzt): **56,0 m Spannweite, 5,50 % Gefälle,
+3,08 m Fall, 1,12 m Durchhang (Erwachsener), Ankunftspodest 2,42 m, Bodenfreiheit 2,3 m unter den
+Füßen, Bremszone ab 50,1 m.** Höchstgeschwindigkeit **21,2 / 22,5 / 23,5 / 24,3 km/h** für die vier
+Größenklassen (getuckt; mit Beinen unten 1,0–1,5 km/h weniger), Fahrtzeit 11,5–13,4 s. Ein
+Gegenwind von 8 m/s lässt auch den Erwachsenen stehenbleiben, 7 m/s reichen für ein Kind – dann
+**W** halten und sich hinter der Rolle hangeln (Kraftkosten, langsamer wenn die Reserve leer ist).
+
+Geprüft (2026-08-24, headless Chromium/SwiftShader, 1280 × 720, Seed 1): **0 Konsolenfehler,
+0 Warnungen, 0 externe Requests**; kompletter Ablauf mit echten Tastaturereignissen (F, F, E,
+Leertaste) sauber gefahren, danach der schmutzige Fall (Leertaste loslassen → `outcome: "messy"`,
+Ruck + Kameraschlag + Nervenstoß) und der Steckenbleiber (`WIPFEL.debug.setRiderMass(32)` +
+`setWindAlong(-7)` → hält bei 67 % an, Prompt „Haul yourself in [W]“, W bewegt 0,42 m/s).
+Rückweg über die Rampe getestet, M0.5-Ablauf (Burma) unverändert. Draw-Calls **253 im Ritt / 262 auf
+Podest 4**, 331–359 k Dreiecke, 63 Collider. `node tools/check-all.mjs` 85/85, `npm test` **77**.
+Screenshots: `docs/screenshots/m0-6-{start,ride,brake,land}.png`.
 
 ## Letzter funktionierender Commit
 Noch nicht committet: der M0.5-Stand liegt im Arbeitsverzeichnis (Geometrie + Reinlogik kamen
@@ -103,8 +127,19 @@ den Chunk-Grenzen).
   Rapier-Ball 70 kg an einem Seil-Joint zu einem kinematischen Karabiner auf dem Sicherungsseil,
   sichtbares Bandfalldämpfer-Band, Kamerasacken + Shake, `sfxHarnessCatch`; Hochziehen mit Leertaste,
   Hangeln mit W/S, Retter mit E).
-- **Tests:** `node tools/check-all.mjs` (78 Dateien), `npm test` (**59 Tests**: RNG, Lighting, Belay,
-  Balance, Stamina, Nerves, Chunk-Index, check-all).
+- **Flying Fox (M0.6):** `zipline/physics.js` (Parabel-Durchhang statt echter Kettenlinie – bei 2 %
+  unter 1 cm Unterschied auf 50 m und geschlossene Ableitungen; `dv/dt = g·slope − drag/m·|v−wind|·
+  (v−wind) − rollResist·g`; Masse → Durchhang → steilere erste Hälfte **und** mehr Schwung pro
+  Stirnfläche, deshalb ist schwerer schneller), `zipline/brakes.js` (Netzbremse, Entscheidung wird
+  **an der Markierhülse eingerastet**), `park/zip-plan.js` (Trassensuche = erste Hälfte der
+  M1.1-Validierung: Gefälle, Lichtraum, Baumfreiheit, Landezone, Weg zurück), `elements/zipline.js`
+  (Seil + Startgatter mit Piktogramm + Markierhülse + Netz + Trolley; das Zip-Seil **ist** das
+  Sicherungsseil, deshalb funktionieren Anker und Ritual unverändert), `park/zip-landing.js`
+  (Ankunftspodest, Rampe, Hackschnitzelbett, Erdanker), `player/on-zipline.js` (Zustand `zipline`,
+  Ego-Kamera automatisch, Körper bleibt sichtbar, Kopf ausgeblendet), `ui/hud.js#setSpeed/setNotice`,
+  `audio/sfx.js#sfxTrolley/sfxWindRush/sfxZipArrive` über `synth.voice()` (Dauerton mit Live-Handle).
+- **Tests:** `node tools/check-all.mjs` (85 Dateien), `npm test` (**77 Tests**: RNG, Lighting, Belay,
+  Balance, Stamina, Nerves, Chunk-Index, **Zipline**, check-all).
 - **Dev-Seiten:** `tools/dev/{forest,terrain,sky,player}.html` – je Modul isoliert testbar
   (`?seed=`, Views, Bot); Screenshots `docs/screenshots/dev-*.png`.
 
@@ -119,12 +154,23 @@ den Chunk-Grenzen).
 ## Was kaputt ist
 – nichts Bekanntes. Beobachtungen: siehe „Offen / Provisorisch“.
 
+**Gefunden und behoben in M0.6** (betraf auch M0.4/M0.5, nur weniger sichtbar):
+`player/controller.js#moveBody` hat die Geschwindigkeit aus dem zurückgemeldeten KCC-Weg abgeleitet –
+inklusive der Korrektur, mit der der Character-Controller die Kapsel aus einer Durchdringung
+schiebt. Ein Zustand, der auf ein Podest teleportiert (Zip-Ankunft, Abstieg von einer Übung, Retter),
+konnte die Figur damit mit **25 m/s** wegschleudern. Jetzt gilt: ein Hindernis kann Tempo nur
+wegnehmen, nie hinzufügen (`asked`-Klemme).
+
 ## Dateien, an denen gerade gearbeitet wird
-– keine. Der Performance-Pass (M0.P) liegt uncommitted im Arbeitsverzeichnis: neu
-`js/world/terrain/{chunks,chunk-index}.js` + `tests/unit/chunk-index.test.mjs`; geändert
-`js/world/{terrain,ground-detail,forest}.js`, `js/world/terrain/material.js`,
+– keine. Uncommitted im Arbeitsverzeichnis liegen der Performance-Pass (M0.P) und der Flying Fox
+(M0.6). M0.P: neu `js/world/terrain/{chunks,chunk-index}.js` + `tests/unit/chunk-index.test.mjs`;
+geändert `js/world/{terrain,ground-detail,forest}.js`, `js/world/terrain/material.js`,
 `js/procgen/geometry/ground-props.js`, `js/player/{rig-body,rig-gear}.js`, `js/main.js`,
-`tools/dev/{terrain,forest}.html`.
+`tools/dev/{terrain,forest}.html`. M0.6: neu `js/zipline/{physics,brakes}.js`,
+`js/elements/zipline.js`, `js/park/{zip-plan,zip-landing}.js`, `js/player/on-zipline.js`,
+`tests/unit/zipline.test.mjs`; geändert `js/main.js`, `js/park/{first-course,timber}.js`,
+`js/player/{interaction,controller,rig,rig-poses,tuning,vitals}.js`, `js/ui/hud.js`,
+`js/audio/{synth,sfx}.js`, `docs/architecture.md`, `ROADMAP.md`.
 
 ## Wichtige Architekturentscheidungen
 `docs/architecture.md` (Modulverträge – Park/Belay/HUD/Audio seit M0.4 eingetragen),
@@ -135,25 +181,51 @@ den Chunk-Grenzen).
 – keine reproduzierten. Zu prüfen: Kamera-Kollision mit Kronen im echten Wald (nur in Dev-Seite getestet).
 
 ## Unmittelbar nächste Aufgabe
-**M0.6 Flying Fox** (`ROADMAP.md`): `zipline/{physics,brakes}.js`, `elements/zipline.js`, Ego-Kamera
-mit weiterem Sichtfeld, Trolley-Sirren, Netzbremse mit „Beine hoch“, physische Ankunft. Das
-Element-Interface aus M0.5 trägt bereits: `registerElementKind("zipline", …)` und
-`createElementBase(spec, ctx, impl)` mit eigenem `impl.update` – Podeste, Anker und das
-Umhäng-Ritual funktionieren dann automatisch.
+**M0.7 HUD v1 (Mockup 1:1), Tuning, Nachweis** (`ROADMAP.md`): Routen-Header, Flow-Anzeige,
+Modus-Icons, Sicherheits-Tooltip, Start-Banner + Countdown, `core/i18n.js` +
+`assets/strings/{en,de}.json` (die Prompts stehen noch in `player/interaction.js#PROMPTS` und
+`player/on-zipline.js#ZIP_PROMPTS`), `?autoplay=1`-Bot, Smoke-Checkliste, Tag `m0`.
+Der Tacho (`hud.setSpeed`) und die Kurznachricht (`hud.setNotice`) sind seit M0.6 da.
 
 ## Nächste fünf Aufgaben
-1. M0.6 Flying Fox: `zipline/{physics,brakes}.js`, `elements/zipline.js`, Ego-Kamera, Netzbremse.
-2. M0.7 HUD 1:1 (`ui/hud.js` erweitern, `core/i18n.js`, `assets/strings/en.json|de.json`), Start-Banner +
+1. M0.7 HUD 1:1 (`ui/hud.js` erweitern, `core/i18n.js`, `assets/strings/en.json|de.json`), Start-Banner +
    Countdown, Sicherheits-Tooltip, `?autoplay=1`-Bot, Screenshots, Smoke-Checkliste, Tag `m0`.
-3. Politur M0.5: Hände/Füße per IK auf Halteseil und Planke (die Posen treffen die Seile noch nicht),
+2. Politur M0.5: Hände/Füße per IK auf Halteseil und Planke (die Posen treffen die Seile noch nicht),
    Tuning-Pass mit echten Testern (Balance-Fenster, Kraftkosten, Nervenanstieg), Wind-Böen hörbar.
-4. Politur M0.4: eigener Kamerawinkel auf der Leiter, Hände/Füße auf `ladder.steps` (IK),
+3. Politur M0.4: eigener Kamerawinkel auf der Leiter, Hände/Füße auf `ladder.steps` (IK),
    Bodendetail-Ausschluss unter Deck und Podest.
+4. Eingabe-Kante über den festen Schritt retten (siehe „Offen“ unten) – betrifft die Planken, den
+   Sturz und jede künftige Übung, die `input.pressed` im Physik-Takt liest.
 5. Figur zusammenfassen: `player/rig*.js` baut 64 Einzel-Meshes → 98 Draw-Calls (mit Schatten) und
    damit der grösste Posten im Budget. Ein Mesh pro Material (SkinnedMesh oder Merge pro Pose-Update)
-   würde ~90 Calls sparen; erst nach M0.6, weil es die Posen-Pipeline anfasst.
+   würde ~90 Calls sparen.
 
 ## Offen / Provisorisch
+- **M0.6 (Eingabe, betrifft auch M0.5):** `input.pressed()` wird von den Zuständen im **Physik-Takt**
+  gelesen, `input.endFrame()` läuft aber jeden Frame. Über 60 fps hat ein Frame manchmal **keinen**
+  festen Schritt – die Kante geht dann verloren (Planken-Schritt, Retter-E, Abstoßen). Die Zipline
+  umgeht das mit `input.down("jump")`; ein sauberer Fix wäre ein gepuffertes Kanten-Set in
+  `core/input.js` (wie `jumpBuffer` im Controller). **Nicht** einfach `endFrame` überspringen: dann
+  liest die Interaktion in der Gameplay-Phase dieselbe Kante zweimal (Umhäng-Ritual springt).
+- **M0.6:** Das Gefälle-Fenster 4,5–6 % ist auf diesem Hang nur mit einem **erhöhten Ankunftspodest**
+  (2,42 m) einzuhalten – der Hang selbst fällt mit 7–9 %. Ein 0,4-m-Deck wie am Einstieg würde
+  9–11 % Gefälle bedeuten. Das ist die ehrliche Auflösung, hat aber zur Folge, dass die Ankunft eine
+  Rampe braucht; M1.1 sollte das als regulären Podesttyp „Zip-Ankunft“ führen.
+- **M0.6:** Höchstgeschwindigkeit 21–24 km/h – für eine 56-m-Bahn mit 5,5 % korrekt, aber deutlich
+  unter dem Mockup-Wert (62 km/h, dort eine 310-m-Bahn). Tempo*gefühl* kommt aus Sichtfeld, Ton und
+  den Stämmen, die 2,5 m entfernt vorbeiziehen; nicht an der Zahl schrauben.
+- **M0.6:** Die Bremsentscheidung rastet an der Markierhülse ein (`zoneStart`); wer dort die Beine
+  unten hat, kann sie nicht mehr retten. Beabsichtigt – aber ohne Trainer-Erklärung (M1.3) lernt man
+  es erst beim zweiten Mal. Das Piktogramm am Startgatter ist der einzige Hinweis.
+- **M0.6:** Bei „messy“ bleiben die zwei leichtesten Größenklassen im Netz hängen und müssen sich
+  hangeln – gewollt (RESEARCH-DATA §6), aber die Zugleine vom Ziel (20 s) fehlt noch; wer die Kraft
+  verliert, hangelt nur langsamer weiter, statt geholt zu werden.
+- **M0.6:** Der Trolley der Figur (`rig-gear.js#addTrolley`) bleibt während der Fahrt an der Hüfte,
+  obwohl er auf dem Seil sein müsste; in der Ego-Perspektive unsichtbar, von außen ein Detail. Der
+  Seil-Trolley springt nach der Ankunft sofort zum Startgatter zurück (`setRider(null)`), statt am
+  Ziel zu bleiben, bis ihn jemand holt – bewusst, damit der nächste Fahrgast einhängen kann.
+- **M0.6:** Das Seil bekommt eine mitlaufende Delle unter der Rolle (Deformer), aber kein
+  Nachschwingen der ganzen Bahn nach dem Abstoßen; der Feder-Dämpfer sitzt nur am Trolley.
 - **M0.5:** `main.js#pickHeroTrees` legt jetzt bewusst eine **Kette** aus 4 Kiefern à 8,6 m an
   (`COURSE`-Konstante) plus 4 Deko-Stämme, die 15 m Abstand zur Kette halten – sonst findet die
   Greedy-Suche in `first-course.js` den falschen Baum. Ersetzt M1.1 durch den Layout-Generator.
@@ -207,6 +279,10 @@ Shift Sprint, Leertaste Sprung, **F einhängen/umhängen** (classic zusätzlich 
 **Auf einer Übung:** W/S vor und zurück (auf den Planken **ein Druck = eine Planke**), A/D lehnen,
 **Q** linke Hand, **rechte Maustaste** rechte Hand, **R** atmen (nur im Stehen).
 **Im Gurt:** Leertaste hochziehen, W/S am Seil zum Podest hangeln, E Retter rufen.
+**Am Flying Fox:** F, F einhängen · **E** hinsetzen · **Leertaste** abstoßen und gedrückt halten
+(Beine hoch – gilt auch für die Netzbremse) · A/D Körper drehen · **W** hangeln, wenn man
+stehenbleibt · E lange halten, um vom Startgatter wieder aufzustehen · nach der Ankunft F, F auf den
+Anker `landing` und über die Rampe zurück.
 Der erste Kurs steht auf der Hero-Kiefer-Kette am Spawn – hinlaufen oder
 `WIPFEL.player.teleport(x, y, z)` mit `WIPFEL.course.entryDeck.group.position` benutzen.
 
@@ -225,9 +301,12 @@ Manuelle Smoke-Checkliste: `docs/testing.md`.
 `window.WIPFEL` = {loop, physics, scene, camera, renderer, rng, input, events, terrain, forest, sky,
 wind, player, course, belay, hud, interaction, **vitals, debug**}.
 Skripten/Testen: `WIPFEL.player.teleport(x, y, z)`, `WIPFEL.player.setState("ground")`,
-`WIPFEL.course.{anchors, elements, platforms, graph}`, `WIPFEL.course.elements[i].getEntryAnchor().stand`,
+`WIPFEL.course.{anchors, elements, platforms, graph, zipline, zipLanding, zipPlan}`,
+`WIPFEL.course.elements[i].getEntryAnchor().stand`,
 `WIPFEL.belay.state()`, `WIPFEL.vitals.{balance,stamina,nerves}` + `WIPFEL.vitals.probe()`,
-**`WIPFEL.debug.forceSlip(±1)`** (erzwingt einen Sturz auf der aktuellen Übung).
+**`WIPFEL.debug.forceSlip(±1)`** (erzwingt einen Sturz auf der aktuellen Übung),
+**`WIPFEL.debug.setWindAlong(m/s|null)`** (negativ = Gegenwind auf der Zipline; −7 lässt ein Kind
+stehenbleiben) und **`WIPFEL.debug.setRiderMass(kg)`** (Größenklasse für die nächste Fahrt).
 F1-Zeilen seit M0.5: `element` (id + t), `balance`, `stamina`, `nerves` (Wert + Stufe),
 `heart bpm`, `trust`, `air below`; seit M0.P `terrain lod` (Chunks je LOD, Summe 36).
 **Achtung headless:** In Chromium tickt `requestAnimationFrame` nur, wenn der Compositor Frames

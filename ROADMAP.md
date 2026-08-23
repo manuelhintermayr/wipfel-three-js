@@ -48,9 +48,17 @@ Generierung für dekoratives UI opfern.
       (Terrain, Wald-LOD 1, Kiesel/Zweige/Gurtzeug werfen nicht mehr). 1280 × 720, Seed 1:
       **1,70–1,80 M → 0,26–0,36 M Dreiecke**, **198–292 → 141–262 Draw-Calls**, Terrain 115 k → 14 k
       im Bodenblick. Unit-Test `chunk-index.test.mjs`. fps auf echter Hardware noch offen.
-- [ ] **M0.6 Flying Fox** – analytische Fahrt (Gefälle, Durchhang, Masse, Wind), Ego-Kamera mit
+- [x] **M0.6 Flying Fox** – analytische Fahrt (Gefälle, Durchhang, Masse, Wind), Ego-Kamera mit
       weiterem Sichtfeld, Trolley-Sirren, Vegetation zieht vorbei, Netzbremse mit „Beine hoch“,
       physische Ankunft; Höchstgeschwindigkeit als Nachfahrt-Statistik.
+      Reines Modell `zipline/{physics,brakes}.js` (Parabel-Durchhang, Masse → Durchhang → Tempo,
+      Wind als effektiver Luftwiderstand, Steckenbleiben + Hangeln), Trassensuche `park/zip-plan.js`
+      (Gefälle 4,5–6 %, Lichtraum, Baumfreiheit, Landezone – die erste Hälfte der M1.1-Validierung),
+      Hardware `elements/zipline.js` + Ankunftspodest `park/zip-landing.js`, Zustand
+      `player/on-zipline.js`. Seed 1: **56,0 m Spannweite, 5,50 % Gefälle, 3,08 m Fall, 1,12 m
+      Durchhang**, Ankunftspodest 2,42 m, Bremszone ab 50,1 m; Höchstgeschwindigkeit 21,2 / 22,5 /
+      23,5 / **24,3 km/h** je Größenklasse (Beine unten 1,0–1,5 km/h weniger), Fahrt 11,5–13,4 s.
+      Unit-Tests `tests/unit/zipline.test.mjs` (18).
 - [ ] **M0.7 HUD v1 (Mockup 1:1), Tuning, Nachweis** – Routen-Header (Farbbalken, Kategorie, Name,
       Fortschritt, Zeit, Best), Flow-Anzeige (Platzhalter-Logik bis M2), Modus-Icons, Zipline-Overlay
       mit Tacho, Sicherheits-Tooltip, Start-Banner mit Kennzahlen + Countdown 3-2-1-GO, Karabiner-

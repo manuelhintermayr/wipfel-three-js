@@ -40,7 +40,8 @@ export function createVitals({ player, input, terrain = null, hud = null, events
   let beatTimer = 0;              // seconds until the next heartbeat
   let breathTimer = 0;            // seconds until the next breath swell
 
-  const onRail = () => player.mode === "element" || player.mode === "fall";
+  /** States that step balance/strength/nerves themselves – this module must not do it twice. */
+  const onRail = () => player.mode === "element" || player.mode === "fall" || player.mode === "zipline";
 
   function groundY() {
     if (!terrain || typeof terrain.heightAt !== "function") return 0;
@@ -116,8 +117,9 @@ export function createVitals({ player, input, terrain = null, hud = null, events
     probe() {
       const state = player.states.get(player.mode);
       const t = state && state.element ? (state.progress == null ? state.cableT : state.progress) : null;
+      const kmh = state && state.speedKmh ? ` ${state.speedKmh.toFixed(1)} km/h` : "";
       return {
-        element: t == null ? "–" : `${state.element.id} t=${t.toFixed(2)}`,
+        element: t == null ? "–" : `${state.element.id} t=${t.toFixed(2)}${kmh}`,
         balance: balance.angle.toFixed(3),
         stamina: stamina.value.toFixed(2),
         nerves: `${nerves.value.toFixed(2)} ${nerves.level}${nerves.frozen ? " ❄" : ""}`,

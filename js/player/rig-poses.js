@@ -240,5 +240,52 @@ export function fallPose(out, p = {}) {
   return out;
 }
 
+/**
+ * Sitting in the harness under a zip trolley (M0.6). Both hands are up on the sling bar, the back is
+ * reclined against the leg loops, and the legs are the whole story: out in front while the wood goes
+ * past, folded up to the chest as soon as `tuck` goes to 1 – which is what the braking net wants and
+ * what makes the rider faster on the way there.
+ *
+ * @param {Float32Array} out
+ * @param {{ tuck?, twist?, speed?, haul?, phase?, brace? }} [p] `twist` −1..1 = A/D, `brace` = arrival
+ */
+export function ziplinePose(out, p = {}) {
+  const tuck = clamp(p.tuck || 0, 0, 1);
+  const twist = clamp(p.twist || 0, -1, 1);
+  const speed = clamp(p.speed || 0, 0, 1);
+  const haul = clamp(p.haul || 0, 0, 1);
+  const brace = clamp(p.brace || 0, 0, 1);
+  const s = Math.sin(p.phase || 0);
+  out.fill(0);
+
+  out[1] = -0.02 - 0.04 * tuck;                      // the tuck pulls the hips up under the sling
+  out[2] = -0.05 + 0.03 * tuck;
+  // Reclined on purpose, and by a measured amount: the head has to end up far enough behind the
+  // trolley that the sling straps run past the face instead of through it.
+  rot(out, "pelvis", -0.52 - 0.16 * tuck, twist * 0.22, twist * 0.10);
+  rot(out, "spine", -0.16 + 0.12 * brace, twist * 0.16, twist * 0.14);
+  rot(out, "chest", -0.10 + 0.16 * speed + 0.26 * brace, twist * 0.12 - 0.10 * s * haul, twist * 0.12);
+  rot(out, "neck", 0.12);
+  rot(out, "head", 0.28 - 0.10 * speed + 0.16 * brace, twist * 0.20, twist * 0.08);
+
+  // Legs: thighs out in front, shins hanging – and folded up under the seat as the tuck comes in.
+  // The hip angle stops short of the chest on purpose: any higher and the knees fill the first-person
+  // view exactly when the rider has to be able to see the braking net.
+  const hip = lerp(1.10, 1.72, tuck);
+  const knee = lerp(0.50, 1.75, tuck) + 0.35 * brace;
+  for (const [side, sign] of [["L", 1], ["R", -1]]) {
+    setLeg(out, side, hip + sign * twist * 0.10, knee, lerp(-0.15, 0.34, tuck));
+  }
+
+  // Arms out onto the sling bar. The shoulder angle is relative to a chest that is already reclined
+  // by ~0.8 rad, so these numbers are small: the two add up to an arm reaching forward and down.
+  // Hauling folds them up and *behind* the trolley – RESEARCH-DATA §6: never in front of the roller.
+  for (const [side, sign] of [["L", 1], ["R", -1]]) {
+    const reach = lerp(0.28, 0.38, tuck) + 1.65 * haul + 0.50 * s * sign * haul - 0.16 * brace;
+    setArm(out, side, reach, 0.22 + 0.16 * haul, lerp(0.58, 0.46, tuck) + 0.40 * Math.max(0, -s * sign) * haul, twist * 0.12);
+  }
+  return out;
+}
+
 /** Stride length (metres per gait cycle) blended between walk and run. */
 export function strideLength(run, walkStride, runStride) { return lerp(walkStride, runStride, clamp(run, 0, 1)); }

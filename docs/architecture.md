@@ -143,7 +143,7 @@ weathered boards. Grain runs along U in every set.
 ### `js/park/timber.js`
 ```js
 createTimberBuilder({ textures, signMap? }) → {
-  materials,                                        // plank, log, weathered, dark, steel, rubber, rope, sign
+  materials,                                        // plank, log, weathered, dark, steel, rubber, rope, cord, sign, signal, chalk
   box({ length, width, thickness, position, rotation?|quaternion?, material }),   // length = X = grain
   cylinderBetween({ from, to, radius, segments?, material }),
   tube({ points, radius, segments?, radialSegments?, material }),                 // cables, ropes, rods
@@ -197,9 +197,10 @@ the foot.
 ```js
 createFirstCourse({ scene, physics, terrain, forest, rng, wind?, textures?, seed? }) → {
   tree, trees, facing, platform, platforms, ladder, entryDeck, elements,
-  anchors: [{ id, position, points, kind, label, range }],   // "deck", "platform-N-ring", "elem-<id>"
+  zipline, zipLanding, zipPlan,                     // null when a seed leaves no valid zip line
+  anchors: [{ id, position, points, kind, label, range }],   // "deck", "landing", "platform-N-ring", "elem-<id>", "zip-1"
   graph: { nodes, edges },                          // what the M1.1 layout generator will emit
-  ladderAnchorId, topAnchorId, anchorById(id), nearestAnchor(position, range),
+  ladderAnchorId, topAnchorId, anchorById(id), nearestAnchor(position, range, excludeId?),
   elementFor(anchorId), entryFor(anchorId, position), nearestEntry(position, range),
   update(dt, elapsed), dispose()
 }
@@ -210,7 +211,10 @@ search here cannot pick up the wrong tree). Entry deck at the foot of the first 
 same side, then platform 1 → Burma bridge → 2 → hanging planks → 3 → cargo net → 4. Decks are
 levelled in **world** height (`firstDeckHeight` + `deckRise[i]`, clamped to 3.4–8.0 m above each
 trunk foot), because four trunks on a hillside have their feet metres apart. Middle decks are
-`kind: "transition"` with a smaller radius.
+`kind: "transition"` with a smaller radius. From platform 4 `zip-plan.js` searches a line for the
+Flying Fox, `zip-landing.js` builds the arrival deck where it comes down, and the cable is hung
+between the two (M0.6). A seed that leaves no valid line ends the course at platform 4 with a
+`log.warn` – never silently.
 
 ## Rail elements (M0.5 – contracts)
 
@@ -253,6 +257,87 @@ one plank) and a weight, and rewrites the rest positions from `offsets` each fra
 | `js/elements/burma-bridge.js` | `burma-bridge` | 12 mm foot cable, two hand cables 1.32 m up fanning out, hemp stirrups every 1.15 m, 2 % sag | walk, 0.60 m/s, strong lateral wobble | 2·3·3·1 |
 | `js/elements/hanging-planks.js` | `hanging-planks` | 6–12 boards 60 × 22 × 5 cm on rope pairs from two carrier cables, pitch fitted to the span | **one press of W per plank**, 0.35 s swing wait, each plank its own pendulum | 1·4·4·1 |
 | `js/elements/net-bridge.js` | `net-bridge` | 1.2 m wide cargo net, 15 cm mesh, side cables + hand ropes, dent that follows the climber | crawl, 0.50 m/s, no balance loss, drains strength | 4·1·1·1 |
+| `js/elements/zipline.js` | `zipline` | 12 mm cable with 2 % sag, trolley, braking net + marker sleeve, start gate | **not a rail** – see the Flying Fox section below | 1·2·2·3 |
+
+## Flying Fox (M0.6 – contracts)
+
+The ride is split three ways: **pure model** (`js/zipline/*.js`), **hardware** (`js/elements/zipline.js`
++ `js/park/zip-landing.js`) and **player state** (`js/player/on-zipline.js`). The element owns one
+`createZipPhysics` instance; the geometry and the ride read the same curve from it, so the trolley is
+always exactly where the model says it is.
+
+### `js/zipline/physics.js` + `js/zipline/brakes.js` (pure logic, unit-tested)
+```js
+createZipPhysics({ start, end, sagRatio?, massKg?, dragCoeff?, rollResist?, windAlong?, samples? }) → {
+  length, chord, run, drop, gradient, sag, massKg, windAlong,
+  s, v, speedKmh, maxSpeed, maxSpeedKmh, progress, stalled, done,
+  update(dt, { tuck }) → { s, v, done, stalled },
+  pointAt(s, out), tangentAt(s, out), slopeAt(s), fractionAt(s), accelAt(s, v, tuck),
+  push(speed?), haul(dt, speed?), setSpeed(v), setWindAlong(v), setMass(kg), reset(options?)
+}
+createNetBrake({ length, zoneLength?, arriveSpeed?, maxDecel?, messyDecel?, messyJolt? }) → {
+  zoneStart, netAt, outcome: "clean"|"messy"|null, inZone(s), apply(dt, s, v, legsUp) → v', reset()
+}
+```
+The cable is a **parabola** hung under the chord, not a true catenary: at 2 % sag the two differ by
+under a centimetre over 50 m, and the parabola has closed-form derivatives. `dv/dt = g·slope(s) −
+(drag/m)·|v−wind|·(v−wind) − rollResist·g`, semi-implicit at the fixed step. Sag scales with mass
+(`sagMassGain`), so a heavier rider gets a steeper first half *and* more momentum per square metre of
+drag – heavier is faster, exactly as RESEARCH-DATA §6 says. The sag also makes the last metres flatter
+than the chord (often slightly uphill), which is why a loose line is "fast in the middle, slow at the
+end" and why a light rider in a head wind can stall short (`stalled` → haul in by hand).
+The brake **latches its outcome at `zoneStart`** – the red-and-white sleeve on the cable – because
+once the net has your ankles, changing your mind is not a thing.
+
+### `js/park/zip-plan.js`
+```js
+planZipline({ tree, platformTop, cableHeight, seatDrop, startOffset?, home, terrain, forest, config? })
+  → { dir, start, length, gradient, drop, deckTop, deckHeight, landing, clearance, margin, relaxed } | null
+```
+The first piece of the layout **validation** M1.1 will own for the whole park: gradient 4.5–6 % of the
+chord, arrival deck 1.6–2.8 m over the ground, ≥ 2.2 m of air under the rider's feet across the middle
+of the span, no trunk inside 2.6 m, no crown the cable would pass *through*, landing clear of a path.
+Deterministic grid search over 120 directions × lengths × gradients, scored towards ~5.5 %, a long
+span and a short walk home; a second, relaxed pass runs only if the seed leaves nothing (`relaxed`).
+Nothing here touches THREE.
+
+### `js/elements/zipline.js` (kind `zipline`)
+```js
+createZipline(spec, ctx) → element      // element + { zip, brake, playerState: "zipline", oneWay: true,
+                                        //   seatDrop, slingLength, landing, anchorRange,
+                                        //   setRider(s|null, dip), trolleyAt(s, out) }
+createZipPictogram(size?) → THREE.Texture   // "sit down, legs up" – the timber kit's sign map
+```
+Built on `createElementBase` with `lifelineHeight = cableHeight` (2.05 m), so **the zip cable is the
+lifeline**: the belay anchors, the two-click ritual and the platform prompts all work unchanged. Four
+groups: the fixed hardware (terminations, start gate, marker sleeve), the cable on its own (so the
+deformer can pull it down under the trolley, the dent trick from `net-bridge.js`), the braking net and
+the trolley – the last two slide along the cable from `setRider`. `element.playerState` is what sends
+the interaction to the zipline state instead of the walk-a-rail one; `oneWay` stops you clipping in at
+the landing and riding back up. Difficulty metrics 1·2·2·3 (GDD §3.4).
+
+### `js/park/zip-landing.js`
+```js
+createZipLanding({ scene, physics, position, facing, deckHeight, cableHeight, groundAt?, rng, textures })
+  → { group, top, stand, clipAnchor, anchorTop, colliders, dispose() }
+```
+The "Zip-Ankunft" deck: on this hillside the ground falls away faster than a 3–6 % cable may, so the
+arrival is a small platform on posts with a plank ramp down to a bed of wood chips, a rail on the far
+edge, a cable stub to clip into while the trolley comes off, and the dead-end anchor (log post, steel
+tube, turnbuckle, raked earth rod). Colliders: deck slab, ramp and the anchor post. The chip bed is a
+displaced disc that samples the terrain per vertex, so it beds into the slope.
+
+### `js/player/on-zipline.js`
+```js
+createZiplineState({ input, events?, camera?, hud?, stamina, nerves, wind? }) → state   // "zipline"
+```
+`ownsMovement` **and** `showBody`: first person for the whole ride (restoring the shoulder camera
+afterwards), but the rig stays visible with the head hidden, because the knees coming up *are* the
+readout. Space is the whole ride: hold it to tuck (less drag) and to have the legs up when the net
+takes hold – one input, two meanings. A/D twist the body (cosmetic). FOV widens with speed, the HUD
+speedometer is on only here, `sfxTrolley`/`sfxWindRush` follow the speed and `sfxZipArrive(clean)`
+ends it. Debug: `setWindAlong(m/s|null)`, `setRiderMass(kg)`. Events: `zip:seated`, `zip:push`,
+`zip:finished { maxKmh, outcome }`.
 
 ## Belay, interaction, HUD and audio (M0.4)
 
@@ -286,6 +371,12 @@ Since M0.5 the same module also runs the way onto an exercise: standing within `
 an element's stand point that element's **lifeline wins over the platform ring** as the F target
 (otherwise the ring, which circles the trunk, swallows every clip on a small deck), and E only steps
 onto it once both carabiners are on that cable – otherwise the prompt says "Clip to the cable first".
+Since M0.6 three rules keep that working for a one-way element: the anchor the belay is **already
+established on is never an F target** (so you can clip out of the zip cable into the landing stub),
+`element.oneWay` means only the entry end may be started from, and E hands over to
+`element.playerState` (`"element"` by default, `"zipline"` for the Flying Fox). An element may also
+supply its own wording via `enterPrompt` / `clipPrompt`, and any state that exposes a `prompt` getter
+speaks for itself while it is active.
 
 ## Balance, strength, nerves and the fall (M0.5)
 
@@ -332,8 +423,13 @@ lanyard, drops and shakes the camera, and offers three ways out: pull up (Space)
 ### `js/ui/hud.js`
 ```js
 createHud(root) → { setBelay(stateA, stateB), setPrompt(text|null),
+  setSpeed(kmh|null), setNotice(text|null, seconds?),
   setVitals({ stamina, heartRate, level, frozen }), show(), hide(), dispose() }
 ```
+`setSpeed` drives the mockup speedometer (`.hud-speed`, bottom right) and is only ever on during a
+zip ride; `setNotice` lets a message ("Top speed 25 km/h") take the prompt line over for a few
+seconds. There is no timer: `setPrompt` runs every frame anyway, so the notice's expiry is checked
+where it is needed.
 The heartbeat dot pulses at `--beat` (60 / bpm seconds) and takes its colour from the nerve level;
 `prefers-reduced-motion` stops the animation.
 Uses the existing classes in `css/hud.css`. Prompt markup: keys in square brackets become `<kbd>`
@@ -347,7 +443,13 @@ sfxCarabinerOpen(delay?)  sfxCarabinerLock(delay?)
 sfxHarnessCatch(force?, delay?)        // thump + lanyard jolt + webbing creak
 sfxHeartbeat(intensity?, delay?)       // lub-dub, only above VITALS.heartbeatFrom
 sfxBreath(seconds?, delay?)            // filtered-noise swell in and out, while R is held
+sfxTrolley(v01?) → { set(v01), stop() }    // continuous whirr: sawtooth + roller grain, both rising
+sfxWindRush(v01?) → { set(v01), stop() }   // band-passed noise, gain with v²
+sfxZipArrive(clean?, delay?)               // feet on the deck vs the whole rig hitting it
 ```
+The two continuous voices come from `synth.voice({...})`, which returns a live handle whose `set()`
+follows the game every frame through `setTargetAtTime` ramps. Before the first gesture they hand back
+a silent no-op handle, so callers never have to check.
 Nothing is allocated and no sound is scheduled before a real user gesture – that also keeps the
 console clean, because Chrome warns about an AudioContext started without one.
 

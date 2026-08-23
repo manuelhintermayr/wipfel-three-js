@@ -128,9 +128,19 @@ export function createPlayer({ physics, scene, camera, input, terrain = null, rn
     const t = body.translation();
     position.set(t.x + moved.x, t.y + moved.y - PLAYER.feetOffset, t.z + moved.z);
     body.setNextKinematicTranslation({ x: position.x, y: position.y + PLAYER.feetOffset, z: position.z });
-    // keep `velocity` truthful: walls/steps/slopes change what actually happened
+    // Keep `velocity` truthful: walls, steps and slopes change what actually happened. But the KCC
+    // also reports the push it needed to get the capsule out of a penetration, and reading a
+    // velocity back from *that* launches the character – a rail state that teleports onto a deck
+    // (zip arrival, step-off, rescue) can leave the capsule a few centimetres inside the planks and
+    // come out doing 25 m/s. An obstacle can only ever take speed away, never add it.
+    const asked = Math.hypot(velocity.x, velocity.z);
     velocity.x = moved.x / dt;
     velocity.z = moved.z / dt;
+    const got = Math.hypot(velocity.x, velocity.z);
+    if (got > asked + 1e-4) {
+      velocity.x *= asked / got;
+      velocity.z *= asked / got;
+    }
     if (velocity.y > 0 && moved.y < desired.y - 1e-4) velocity.y = 0;   // head bump
   }
 
@@ -221,7 +231,11 @@ export function createPlayer({ physics, scene, camera, input, terrain = null, rn
       updatePoseWeights(dt);
       rig.update(dt);
       const firstPerson = cameraCtl.isFirstPerson;
-      rig.setVisible(!firstPerson);
+      // A state may declare that its body stays in view in first person (`showBody`): sitting in a
+      // zip harness, the legs coming up are the readout, so hiding the rig would hide the mechanic.
+      const active = fsm.get();
+      const showBody = !!(active && active.showBody);
+      rig.setVisible(!firstPerson || showBody, firstPerson);
       const eyePos = firstPerson ? rig.attach.head.getWorldPosition(eye) : null;
       cameraCtl.update(dt, renderPosition, velocity, eyePos);
     },

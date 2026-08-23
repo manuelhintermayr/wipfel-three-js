@@ -5,7 +5,7 @@
 // part's long axis. No physics, no scene graph beyond the returned group.
 import * as THREE from "three";
 
-const MATERIAL_KEYS = Object.freeze(["plank", "log", "weathered", "dark", "steel", "rubber", "rope", "cord", "sign"]);
+const MATERIAL_KEYS = Object.freeze(["plank", "log", "weathered", "dark", "steel", "rubber", "rope", "cord", "sign", "signal", "chalk"]);
 
 /** Steel look for cables, brackets and threaded rods: slightly grey-blue, near-mirror but scuffed. */
 const STEEL = Object.freeze({ color: 0x9aa6b2, metalness: 0.9, roughness: 0.35 });
@@ -163,6 +163,9 @@ function createTimberMaterials(textures, signMap) {
     rope: new THREE.MeshStandardMaterial({ color: 0x2d5fae, roughness: 0.85, metalness: 0 }),
     cord: new THREE.MeshStandardMaterial({ color: 0x9c8a68, roughness: 0.95, metalness: 0 }),   // hemp-coloured element rope
     sign: new THREE.MeshStandardMaterial({ color: 0xffffff, map: signMap, roughness: 0.55, metalness: 0, side: THREE.DoubleSide }),
+    // warning livery: the red/white banding a park uses wherever a guest has to do something
+    signal: new THREE.MeshStandardMaterial({ color: 0xd8342c, roughness: 0.62, metalness: 0 }),
+    chalk: new THREE.MeshStandardMaterial({ color: 0xf2efe6, roughness: 0.66, metalness: 0 }),
   };
   for (const key of MATERIAL_KEYS) out[key].name = `timber-${key}`;
   return out;

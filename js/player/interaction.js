@@ -43,21 +43,27 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
   const atLadderBase = () => player.position.distanceTo(course.ladder.rail.start) <= INTERACTION.ladderRange;
   const clippedToLadderCable = () => belay.currentAnchor() === course.ladderAnchorId;
   const established = (id) => belay.currentAnchor() === id && belay.bothOnSameAnchor();
-  const readyToStepOn = () => entry != null && established(entry.element.lifeline.anchorId);
+  /** The end of an exercise you may set off from – a one-way element (a zip line) only has one. */
+  const startable = () => (entry && !(entry.element.oneWay && entry.end === "exit") ? entry : null);
+  const readyToStepOn = () => { const e = startable(); return !!e && established(e.element.lifeline.anchorId); };
   /** True on the very frame a state was entered – E must not be consumed twice. */
   const justSwitched = () => player.states.time <= 0;
 
   /**
    * The anchor F would work on. Standing at the deck edge in front of an exercise that exercise's
    * lifeline wins, even though the platform ring may be nearer – the ring circles the trunk and
-   * would otherwise swallow every clip on a small deck.
+   * would otherwise swallow every clip on a small deck. The anchor the belay is *already*
+   * established on is never a target: what anyone wants there is the way onwards (the platform
+   * ring, or the stub on the zip line's landing deck).
    */
   function reachableAnchor() {
-    if (entry) {
-      const lifeline = course.anchorById(entry.element.lifeline.anchorId);
+    const settled = belay.bothOnSameAnchor() ? belay.currentAnchor() : null;
+    const next = startable();
+    if (next && next.element.lifeline.anchorId !== settled) {
+      const lifeline = course.anchorById(next.element.lifeline.anchorId);
       if (lifeline) return lifeline;
     }
-    return course.nearestAnchor(chest, INTERACTION.clipRange);
+    return course.nearestAnchor(chest, INTERACTION.clipRange, settled);
   }
 
   /** Hanging in the harness: what the climber can still do about it. */
@@ -69,25 +75,33 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
   /** What the player could do right now, in the order the park would tell them to do it. */
   function resolvePrompt() {
     if (player.mode === "fall") return fallPrompt();
+    const state = player.states.get();
+    if (state && state.prompt) return state.prompt;          // a state that speaks for itself (zipline)
     if (vitals && vitals.nerves.frozen) return PROMPTS.frozen;
     if (player.mode === "element") return PROMPTS.onElement;
     if (player.mode === "ladder") return PROMPTS.onLadder;
+    const next = startable();
+    if (readyToStepOn()) return next.element.enterPrompt || PROMPTS.stepOn(next.element.label);
     if (anchor && !established(anchor.id)) return belay.pendingAnchor() === anchor.id ? PROMPTS.clipSecond : PROMPTS.clipIn;
-    if (readyToStepOn()) return PROMPTS.stepOn(entry.element.label);
-    if (entry) return PROMPTS.clipFirst;
+    if (next) return next.element.clipPrompt || PROMPTS.clipFirst;
     if (clippedToLadderCable() && atLadderBase() && player.mode === "ground") return PROMPTS.climb;
     return null;
   }
 
-  /** Onto the exercise – but only clipped in, exactly like the trainer teaches it. */
+  /**
+   * Onto the exercise – but only clipped in, exactly like the trainer teaches it. An element names
+   * the state that takes over (`playerState`), so the Flying Fox lands in "zipline" and everything
+   * on rails in "element" without this module knowing what either of them is.
+   */
   function stepOntoElement() {
-    const { element, end } = entry;
-    player.setState("element", { element, fromEnd: end, t: end === "exit" ? 1 : 0 });
-    if (events) events.emit("player:interact", { what: "element", element: element.id, end });
+    const { element, end } = startable();
+    player.setState(element.playerState || "element", { element, fromEnd: end, t: end === "exit" ? 1 : 0 });
+    if (events) events.emit("player:interact", { what: element.kind, element: element.id, end });
   }
 
   function handleInput() {
-    if (player.mode === "element" || player.mode === "fall") return;   // those states read input themselves
+    // element, fall and zipline read the keys themselves and must not have them eaten here
+    if (player.mode === "element" || player.mode === "fall" || player.mode === "zipline") return;
     if (anchor && (input.pressed("clip") || (classic && input.pressed("clip2")))) {
       belay.clipTo(anchor.id, classic && input.pressed("clip2") ? "B" : "A");
       return;

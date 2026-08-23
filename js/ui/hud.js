@@ -10,6 +10,7 @@ const KEY_PATTERN = /\[([^\]]{1,12})\]/g;
 /**
  * @param {HTMLElement} root the `#hud` container
  * @returns {{ setBelay(stateA: string, stateB: string): void, setPrompt(text: string|null): void,
+ *   setSpeed(kmh: number|null): void, setNotice(text: string|null, seconds?: number): void,
  *   setVitals(v: { stamina?: number, heartRate?: number, level?: string, frozen?: boolean }): void,
  *   show(): void, hide(): void, dispose(): void }}
  */
@@ -36,7 +37,13 @@ export function createHud(root) {
   const prompt = element("div", "hud-prompt");
   prompt.hidden = true;
 
-  layer.append(vitals, prompt);
+  // Speedometer (mockup: SPEED / 38 / KM/H, bottom right) – only ever visible on a zip line.
+  const speed = element("div", "hud-speed");
+  const speedValue = element("div", "value", "0");
+  speed.append(element("div", "label", "Speed"), speedValue, element("div", "unit", "km/h"));
+  speed.hidden = true;
+
+  layer.append(vitals, prompt, speed);
   root.appendChild(layer);
 
   let shownPrompt = null;
@@ -44,6 +51,26 @@ export function createHud(root) {
   let shownBeat = 0;
   let shownLevel = "";
   let shownRing = "";
+  let shownSpeed = null;
+  let pendingPrompt = null;
+  let notice = null;
+  let noticeUntil = 0;
+
+  /**
+   * The prompt line shows the notice while one is live and the context prompt otherwise. There is no
+   * timer: `setPrompt` runs every frame anyway, so the expiry is checked where it is needed.
+   */
+  function renderPrompt() {
+    const live = notice != null && now() < noticeUntil;
+    const text = live ? notice : pendingPrompt;
+    if (!live && notice != null) notice = null;
+    if (text === shownPrompt) return;
+    shownPrompt = text;
+    prompt.replaceChildren();
+    if (!text) { prompt.hidden = true; return; }
+    for (const node of renderText(text)) prompt.appendChild(node);
+    prompt.hidden = false;
+  }
 
   return {
     /** Carabiner states: "clipped" (green), "open" (amber, gate up), "locked" (grey). */
@@ -57,12 +84,31 @@ export function createHud(root) {
 
     /** `null` hides the prompt. Square brackets mark keys: "Climb [E]". */
     setPrompt(text) {
-      if (text === shownPrompt) return;
-      shownPrompt = text;
-      prompt.replaceChildren();
-      if (!text) { prompt.hidden = true; return; }
-      for (const node of renderPrompt(text)) prompt.appendChild(node);
-      prompt.hidden = false;
+      pendingPrompt = text;
+      renderPrompt();
+    },
+
+    /**
+     * A message that takes the prompt line over for a few seconds – "Top speed 24 km/h" after a
+     * Flying Fox. Pass `null` to drop it again.
+     */
+    setNotice(text, seconds = 4) {
+      notice = text;
+      noticeUntil = text == null ? 0 : now() + seconds * 1000;
+      renderPrompt();
+    },
+
+    /**
+     * The speedometer, in km/h. `null` hides it – it belongs to the zip line and nothing else
+     * (GDD §HUD: `SPEED 62 KM/H` bottom right).
+     */
+    setSpeed(kmh) {
+      const value = kmh == null ? null : Math.round(kmh);
+      if (value === shownSpeed) return;
+      shownSpeed = value;
+      if (value == null) { speed.hidden = true; return; }
+      speedValue.textContent = String(value);
+      speed.hidden = false;
     },
 
     /**
@@ -93,8 +139,11 @@ export function createHud(root) {
   };
 }
 
+/** Wall clock – the notice is presentation, not simulation, so it does not use the fixed step. */
+const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+
 /** Splits "Clip in [F]" into text nodes and <kbd> elements. */
-function renderPrompt(text) {
+function renderText(text) {
   const nodes = [];
   let last = 0;
   KEY_PATTERN.lastIndex = 0;

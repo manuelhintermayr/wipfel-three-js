@@ -24,6 +24,7 @@ import { createInteraction } from "./player/interaction.js";
 import { createVitals } from "./player/vitals.js";
 import { createElementState } from "./player/on-element.js";
 import { createFallState } from "./player/fall.js";
+import { createZiplineState } from "./player/on-zipline.js";
 import { createHud } from "./ui/hud.js";
 import { armAudio } from "./audio/synth.js";
 import { sfxCarabinerOpen, sfxCarabinerLock, sfxHarnessCatch } from "./audio/sfx.js";
@@ -76,11 +77,13 @@ async function boot() {
   const { balance, stamina, nerves } = vitals;
   player.addState("element", createElementState({ input, events, balance, stamina, nerves, rng: rng.fork("element"), camera: player.camera }));
   player.addState("fall", createFallState({ physics, input, scene, events, balance, stamina, nerves, camera: player.camera }));
+  player.addState("zipline", createZiplineState({ input, events, camera: player.camera, hud, stamina, nerves, wind }));
   const interaction = createInteraction({ player, input, belay, course, hud, events, vitals });
   armAudio(window);
   events.on("belay:open", () => sfxCarabinerOpen());
   events.on("belay:click", () => sfxCarabinerLock(0.14));
   events.on("player:fell", (e) => sfxHarnessCatch(e && e.first ? 1 : 0.7));
+  events.on("zip:finished", (e) => log.info(`flying fox: ${e.outcome} arrival, top speed ${e.maxKmh.toFixed(1)} km/h`));
 
   // --- debug panel -----------------------------------------------------------------------------------
   const debug = new DebugPanel(document.getElementById("debug"), () => ({
@@ -153,6 +156,10 @@ async function boot() {
         balance.nudge(Math.sign(angle) * 6);
         return true;
       },
+      /** Pin the wind along the zip cable (m/s, negative = head wind, null = back to the weather). */
+      setWindAlong(v) { return player.states.get("zipline").setWindAlong(v); },
+      /** Rider mass for the next Flying Fox – RULES.sizeClasses until the ticket desk exists (M1.3). */
+      setRiderMass(kg) { return player.states.get("zipline").setRiderMass(kg); },
       panel: debug,
     },
     ready: true,

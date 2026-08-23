@@ -7,13 +7,17 @@
 // lifeline ("elem-<id>") which you can clip into from either of its two platforms. The two-click
 // ritual at each platform is therefore ring → next lifeline, ring → next lifeline.
 import * as THREE from "three";
+import { log } from "../core/errors.js";
 import { getWoodTextures } from "../procgen/textures/wood.js";
 import { trunkRadiusAt } from "../procgen/geometry/tree-species.js";
 import { createTimberBuilder } from "./timber.js";
 import { createPlatform } from "./platform.js";
 import { createEntryDeck } from "./entry-deck.js";
+import { createZipLanding, ZIP_LANDING } from "./zip-landing.js";
+import { planZipline } from "./zip-plan.js";
 import { createBlockLadder } from "../elements/ladder.js";
 import { createElement } from "../elements/element.js";
+import { ZIPLINE, createZipPictogram } from "../elements/zipline.js";
 import "../elements/burma-bridge.js";        // side effect: registers the element kind
 import "../elements/hanging-planks.js";
 import "../elements/net-bridge.js";
@@ -45,6 +49,8 @@ export const FIRST_COURSE = Object.freeze({
     Object.freeze({ id: "planks-1", kind: "hanging-planks", label: "Hanging planks" }),
     Object.freeze({ id: "net-1", kind: "net-bridge", label: "Cargo net" }),
   ]),
+  /** The Flying Fox that ends the course (M0.6); the line itself is searched by zip-plan.js. */
+  zip: Object.freeze({ id: "zip-1", label: "Flying Fox", landingId: "zip-landing", anchorId: "landing" }),
 });
 
 /**
@@ -87,14 +93,23 @@ export function createFirstCourse({ scene, physics, terrain, forest, rng, wind =
   });
 
   // --- M0.5: the exercises ---------------------------------------------------------------------------
-  const timber = createTimberBuilder({ textures: wood });
+  const signMap = createZipPictogram();
+  const timber = createTimberBuilder({ textures: wood, signMap });
   const ctx = { scene, physics, rng: rng.fork("elements"), timber, wind };
   const elements = [];
   for (let i = 0; i + 1 < trees.length && i < FIRST_COURSE.layout.length; i++) {
     elements.push(buildElement(FIRST_COURSE.layout[i], trees[i], trees[i + 1], platforms[i], platforms[i + 1], terrain, ctx));
   }
 
-  const anchors = buildAnchors(entryDeck, platforms, elements);
+  // --- M0.6: the Flying Fox off the last platform ------------------------------------------------------
+  const zip = buildZipline({
+    scene, physics, terrain, forest, ctx, textures: wood,
+    tree: trees[trees.length - 1], platform: platforms[platforms.length - 1],
+    home: entryDeck.group.position, rng: rng.fork("zipline"),
+  });
+  if (zip) elements.push(zip.element);
+
+  const anchors = buildAnchors(entryDeck, platforms, elements, zip);
   const byId = new Map(anchors.map((a) => [a.id, a]));
   const elementByAnchor = new Map(elements.map((e) => [e.lifeline.anchorId, e]));
 
@@ -107,15 +122,23 @@ export function createFirstCourse({ scene, physics, terrain, forest, rng, wind =
     entryDeck,
     elements,
     anchors,
+    /** The Flying Fox and where it lands, or null when this seed left no room for one. */
+    zipline: zip ? zip.element : null,
+    zipLanding: zip ? zip.landing : null,
+    zipPlan: zip ? zip.plan : null,
     ladderAnchorId: "deck",
     topAnchorId: "platform-1-ring",
 
     anchorById(id) { return byId.get(id) || null; },
 
-    /** Closest anchor to a world position, respecting each anchor's own reach. */
-    nearestAnchor(position, range = FIRST_COURSE.interactRange) {
+    /**
+     * Closest anchor to a world position, respecting each anchor's own reach. `excludeId` skips one
+     * anchor – the belay uses it to ignore the cable it is already established on.
+     */
+    nearestAnchor(position, range = FIRST_COURSE.interactRange, excludeId = null) {
       let best = null, bestScore = Infinity;
       for (const anchor of anchors) {
+        if (anchor.id === excludeId) continue;
         const reach = Math.max(range, anchor.range);
         for (const point of anchor.points) {
           const d = point.distanceTo(position);
@@ -126,7 +149,7 @@ export function createFirstCourse({ scene, physics, terrain, forest, rng, wind =
     },
 
     /** Nodes (platforms) and edges (ladder, exercises) – what the layout generator will emit in M1.1. */
-    graph: buildGraph(platforms, elements),
+    graph: buildGraph(platforms, elements, zip),
 
     /** The exercise that hangs on this lifeline anchor, or null. */
     elementFor(anchorId) { return elementByAnchor.get(anchorId) || null; },
@@ -166,12 +189,56 @@ export function createFirstCourse({ scene, physics, terrain, forest, rng, wind =
 
     dispose() {
       for (const element of elements) element.dispose();
+      if (zip) zip.landing.dispose();
       timber.dispose();
+      signMap.dispose();
       ladder.dispose();
       entryDeck.dispose();
       for (const platform of platforms) platform.dispose();
     },
   };
+}
+
+/**
+ * The Flying Fox: search for a line that a park would actually sign off (js/park/zip-plan.js), build
+ * the arrival deck where it comes down, then hang the cable between the two. A seed that leaves no
+ * valid line simply ends the course at the last platform – with a diagnosis, never silently.
+ */
+function buildZipline({ scene, physics, terrain, forest, ctx, textures, tree, platform, home, rng }) {
+  const plan = planZipline({
+    tree, platformTop: platform.top, cableHeight: ZIPLINE.cableHeight, seatDrop: ZIPLINE.seatDrop,
+    startOffset: FIRST_COURSE.edgeOffset, home, terrain, forest,
+  });
+  if (!plan) {
+    log.warn("first course: no Flying Fox line clears the trees on this seed – the course ends at the last platform");
+    return null;
+  }
+  if (plan.relaxed) log.warn(`first course: Flying Fox uses relaxed clearances (${(plan.gradient * 100).toFixed(1)} %)`);
+
+  const inset = ZIP_LANDING.depth / 2 - 0.20;                  // the end anchor stands on the back edge
+  const centre = { x: plan.landing.x + plan.dir.x * inset, z: plan.landing.z + plan.dir.z * inset };
+  centre.y = terrain.heightAt(centre.x, centre.z);
+  const landing = createZipLanding({
+    scene, physics, position: centre, facing: Math.atan2(-plan.dir.x, -plan.dir.z),
+    deckHeight: plan.deckTop - centre.y, cableHeight: ZIPLINE.cableHeight,
+    groundAt: (x, z) => terrain.heightAt(x, z), rng, textures,
+  });
+
+  const element = createElement({
+    id: FIRST_COURSE.zip.id,
+    kind: "zipline",
+    label: FIRST_COURSE.zip.label,
+    lifelineAnchorId: FIRST_COURSE.zip.id,
+    groundY: terrain.heightAt((plan.start.x + plan.landing.x) / 2, (plan.start.z + plan.landing.z) / 2),
+    entry: { platformId: platform.id, position: new THREE.Vector3(plan.start.x, platform.top, plan.start.z) },
+    exit: { platformId: FIRST_COURSE.zip.landingId, position: new THREE.Vector3(plan.landing.x, landing.top, plan.landing.z) },
+    landing: { stand: landing.stand, anchorId: FIRST_COURSE.zip.anchorId },
+  }, ctx);
+  element.build();
+  element.createPhysics();
+  log.info(`flying fox: ${plan.length.toFixed(1)} m · ${(plan.gradient * 100).toFixed(1)} % · drop ${plan.drop.toFixed(2)} m`
+    + ` · deck ${plan.deckHeight.toFixed(2)} m · clearance ${plan.clearance.toFixed(2)} m`);
+  return { element, landing, plan };
 }
 
 /** Deck height above *this* trunk foot so that every deck ends up at the designed world height. */
@@ -194,11 +261,15 @@ function platformRadius(index, count) {
  * The course as nodes and edges. M1.1 generates this from the park definition; until then it is
  * derived from what was just built, so the map overlay and the NPC agents have one shape to read.
  */
-function buildGraph(platforms, elements) {
+function buildGraph(platforms, elements, zip = null) {
   const nodes = platforms.map((platform, i) => ({
     id: platform.id, kind: platform.kind, index: i,
     position: platform.anchorPoints.deck.clone(), capacity: platform.capacity,
   }));
+  if (zip) {
+    nodes.push({ id: FIRST_COURSE.zip.landingId, kind: "zip-arrival", index: nodes.length,
+      position: zip.landing.stand.clone(), capacity: 1 });
+  }
   const edges = [{ id: "ladder", kind: "ladder", from: "deck", to: platforms[0].id, anchorId: "deck", length: 0 }];
   for (const element of elements) {
     edges.push({
@@ -237,10 +308,16 @@ function buildElement(layout, treeA, treeB, platformA, platformB, terrain, ctx) 
  * so you can clip in from anywhere on the deck); an exercise lifeline can be reached from both of
  * its platforms, so it carries two points.
  */
-function buildAnchors(entryDeck, platforms, elements) {
+function buildAnchors(entryDeck, platforms, elements, zip = null) {
   const anchors = [
     { id: "deck", position: entryDeck.clipAnchor, points: [entryDeck.clipAnchor], kind: "cable-stub", label: "entry cable", range: FIRST_COURSE.interactRange },
   ];
+  if (zip) {
+    anchors.push({
+      id: FIRST_COURSE.zip.anchorId, position: zip.landing.clipAnchor, points: [zip.landing.clipAnchor],
+      kind: "cable-stub", label: "landing cable", range: FIRST_COURSE.interactRange,
+    });
+  }
   platforms.forEach((platform, i) => {
     anchors.push({
       id: `${platform.id}-ring`,
@@ -260,7 +337,8 @@ function buildAnchors(entryDeck, platforms, elements) {
       kind: "lifeline",
       label: element.label,
       elementId: element.id,
-      range: FIRST_COURSE.elementRange,
+      // a zip cable dead-ends on a post you can reach from the whole arrival deck
+      range: element.anchorRange || FIRST_COURSE.elementRange,
     });
   }
   return anchors;

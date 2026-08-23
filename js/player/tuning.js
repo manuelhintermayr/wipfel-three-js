@@ -163,6 +163,36 @@ export const ELEMENT_MOVE = Object.freeze({
   missStepKick: 2.9,        // rad/s² into the balance when the plank was not where the foot went
 });
 
+/**
+ * Riding the Flying Fox (js/player/on-zipline.js). The physics itself lives in js/zipline/*.js;
+ * these are the numbers that turn it into a ride: what the camera does, what the body does, and
+ * what it costs.
+ */
+export const ZIP_RIDE = Object.freeze({
+  massKg: 78,               // until the ticket desk (M1.3) picks a size class, everyone is an adult
+  windScale: 3.2,           // m/s of real wind per unit of world/wind.js strength
+  referenceSpeed: 7.5,      // m/s that counts as "flat out" for FOV, audio and the pose
+  fovGain: 15,              // extra degrees of field of view at reference speed
+  fovEase: 0.55,            // …applied to sqrt-ish speed, so the first metres already feel like something
+  pushDelay: 0.25,          // seconds between sitting down and being allowed to push off
+  stepBackDelay: 0.70,      // …and how long E has to be held to stand up again instead
+  lookPitch: -0.10,         // radians the view starts at – the net and the landing sit slightly low
+  twist: 0.20,              // radians of cosmetic body twist at full A/D
+  twistRate: 5,
+  tuckRate: 6,              // 1/s the legs come up and go down again
+  bounce: Object.freeze({ verticalHz: 0.80, verticalDamping: 0.20, maxVertical: 0.30, lateralHz: 0.30, maxLateral: 0.14 }),
+  pushBounce: 0.85,         // m/s of vertical cable bounce the push-off puts in
+  brakeBounce: 1.10,        // …and the moment the net takes hold
+  rumble: 0.05,             // continuous bounce excitation per m/s of speed
+  exposure: 0.55,           // nerve exposure while hanging under a wire over nothing
+  arriveShake: 0.26,
+  messyShake: 0.90,
+  messyNerves: 0.22,
+  haulDrain: 0.050,         // stamina per second of hand-over-hand hauling
+  haulTired: 0.45,          // fraction of the haul speed left when the reserve is empty
+  noticeSeconds: 4.5,       // how long the top-speed readout stays up after the ride
+});
+
 /** Hanging in the harness after a slip (js/player/fall.js). */
 export const FALL = Object.freeze({
   lanyard: 0.85,            // Smart Belay lanyard (RESEARCH-DATA §5)
