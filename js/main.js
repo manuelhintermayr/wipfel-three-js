@@ -18,7 +18,8 @@ import { createGroundDetail } from "./world/ground-detail.js";
 import { createForest } from "./world/forest.js";
 import { createPlayer } from "./player/controller.js";
 import { getWoodTextures } from "./procgen/textures/wood.js";
-import { createFirstCourse } from "./park/first-course.js";
+import { generateParkLayout } from "./park/layout.js";
+import { loadPark } from "./park/loader.js";
 import { createBelay } from "./player/belay.js";
 import { createInteraction } from "./player/interaction.js";
 import { createVitals } from "./player/vitals.js";
@@ -67,14 +68,14 @@ async function boot() {
   const skyline = createSkyline({ scene, rng: rng.fork("skyline") });
   const terrain = createTerrain({ rng, physics, scene });
   const groundDetail = createGroundDetail({ rng: rng.fork("ground-detail"), scene, terrain, wind });
-  const heroTrees = pickHeroTrees(terrain, rng.fork("hero-trees"));
-  const forest = createForest({ rng: rng.fork("forest"), scene, physics, terrain, wind, heroTrees });
+  const parkDef = generateParkLayout({ seed: params.seed, terrain });
+  const forest = createForest({ rng: rng.fork("forest"), scene, physics, terrain, wind, heroTrees: parkDef.heroTrees });
 
-  // --- park (M0.4: entry deck → block ladder → first platform) -----------------------------------------
+  // --- park (M1.1: generated layout → six built routes) -------------------------------------------------
   const wood = getWoodTextures(params.seed);
-  const course = createFirstCourse({ scene, physics, terrain, forest, rng: rng.fork("course"), textures: wood });
+  const course = loadPark(parkDef, { scene, physics, terrain, forest, rng: rng.fork("course"), textures: wood });
   const buildMs = Math.round(performance.now() - t0);
-  log.info(`world built in ${buildMs} ms · trees ${forest.trees.length} · hubs ${terrain.hubs.length} · course on tree #${course.tree.id}`);
+  log.info(`world built in ${buildMs} ms · trees ${forest.trees.length} · hubs ${terrain.hubs.length} · routes ${course.routes.length} · course on tree #${course.tree.id}`);
 
   // --- player + belay + HUD ----------------------------------------------------------------------------
   const player = createPlayer({ physics, scene, camera, input, terrain, rng: rng.fork("player"), events });
@@ -87,7 +88,7 @@ async function boot() {
   player.addState("zipline", createZiplineState({ input, events, camera: player.camera, hud, stamina, nerves, wind }));
   player.addState("tarzan", createTarzanState({ input, events, nerves, stamina }));
   const interaction = createInteraction({ player, input, belay, course, hud, events, vitals });
-  const session = createSession({ player, course, events, hud, save, root: document.getElementById("hud") });
+  const session = createSession({ player, course, parkDef, events, hud, save, root: document.getElementById("hud") });
   const autoplay = params.autoplay ? createAutoplay({ player, course, interaction, events, belay, session }) : null;
   armAudio(window);
   events.on("belay:open", () => sfxCarabinerOpen());
@@ -159,7 +160,7 @@ async function boot() {
 
   window.WIPFEL = {
     version: GAME.version, params, loop, physics, scene, camera, renderer, rng, input, events,
-    terrain, forest, sky, wind, player, course, belay, hud, interaction, vitals, session, save, autoplay,
+    terrain, forest, sky, wind, player, parkDef, course, belay, hud, interaction, vitals, session, save, autoplay,
     debug: {
       /** Force the slip a play-test needs on demand (screenshots, smoke runs). */
       forceSlip(angle = 1) {
@@ -179,41 +180,6 @@ async function boot() {
   loop.start();
   events.emit("boot:ready", { params });
   log.info("boot complete");
-}
-
-/** Course chain layout – `span` must sit inside FIRST_COURSE.min/maxSpan (6–13.5 m). */
-const COURSE = Object.freeze({ trees: 4, span: 8.6, turn: 0.42, extras: 4, clear: 15 });
-
-/**
- * Hero trees = trees the course will hang from. Until the park layout generator (M1.1) exists this
- * lays out a deterministic *chain* of pines walking away from the spawn hub, `COURSE.span` metres
- * apart – the distance first-course.js needs to hang an exercise between two of them. A few extra
- * trunks ring the hub for collision and silhouette; they stay `COURSE.clear` metres away from the
- * chain so the greedy chain search in first-course.js cannot pick one of them up by mistake.
- */
-function pickHeroTrees(terrain, rng) {
-  const hub = terrain.hubs[0];
-  const pine = (x, z) => ({ x, z, species: "pine", height: rng.float(21, 26) });
-  const chain = [];
-  let heading = rng.float(0, Math.PI * 2);
-  let x = hub.x + Math.cos(heading) * hub.radius * 0.55;
-  let z = hub.z + Math.sin(heading) * hub.radius * 0.55;
-  for (let i = 0; i < COURSE.trees; i++) {                     // the chain the exercises span
-    chain.push(pine(x, z));
-    heading += rng.float(-COURSE.turn, COURSE.turn);
-    x += Math.cos(heading) * COURSE.span;
-    z += Math.sin(heading) * COURSE.span;
-  }
-  const trees = chain.slice();
-  for (let i = 0; i < COURSE.extras; i++) {                    // trunks for the clearing, well clear
-    const angle = heading + Math.PI + (i / COURSE.extras) * Math.PI * 1.4 + rng.float(-0.2, 0.2);
-    const ex = hub.x + Math.cos(angle) * (hub.radius + rng.float(1, 5));
-    const ez = hub.z + Math.sin(angle) * (hub.radius + rng.float(1, 5));
-    if (terrain.isPath(ex, ez)) continue;
-    if (chain.some((t) => Math.hypot(t.x - ex, t.z - ez) < COURSE.clear)) continue;
-    trees.push(pine(ex, ez));
-  }
-  return trees;
 }
 
 boot().catch((err) => showFatal("Unexpected error during start", err));

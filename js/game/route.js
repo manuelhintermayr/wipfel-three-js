@@ -68,7 +68,8 @@ export function createRouteRun(def) {
   };
 }
 
-/** The first course as a route definition (M0: hand-made; M1.1 generates these). */
+/** The first course as a route definition (M0: hand-made). Kept for tests/unit/route.test.mjs and as
+ *  a worked example of the shape `routesFromPark` below produces; the real game reads that instead. */
 export const BLUE_I = Object.freeze({
   id: "blue-1",
   category: "blue",
@@ -78,3 +79,33 @@ export const BLUE_I = Object.freeze({
   heightM: 5,
   lengthM: 90,
 });
+
+/**
+ * Route-run definitions for every route in a generated park (js/park/layout.js#generateParkLayout),
+ * shaped exactly like `BLUE_I`: what js/game/session.js arms/counts down/times, and what
+ * js/ui/hud-route.js shows on the header and the start banner. Pure – no THREE, no scene access –
+ * every number comes straight out of `parkDef`, so this can run in a unit test the same way the
+ * generator itself does (tests/unit/layout.test.mjs).
+ *
+ * The zip obstacle id (`${route.id}-zip`) must match what js/park/loader.js builds the zip element's
+ * id as – kept in sync by hand, documented at both ends.
+ * @param {object} parkDef see generateParkLayout's return shape
+ * @returns {Array<object>} one def per route, in parkDef.routes order
+ */
+export function routesFromPark(parkDef) {
+  return parkDef.routes.map((route) => {
+    const obstacles = ["ladder", ...route.edges.map((e) => e.id)];
+    if (route.zip) obstacles.push(`${route.id}-zip`);
+    const deckHeights = route.platforms.map((p) => p.deckHeight);
+    let lengthM = route.zip ? route.zip.length : 0;
+    for (let i = 1; i < route.platforms.length; i++) {
+      const a = parkDef.heroTrees[route.platforms[i - 1].treeIndex];
+      const b = parkDef.heroTrees[route.platforms[i].treeIndex];
+      lengthM += Math.hypot(b.x - a.x, b.z - a.z);
+    }
+    return {
+      id: route.id, category: route.category, numeral: route.numeral, nameKey: route.nameKey,
+      obstacles, heightM: Math.round(Math.max(...deckHeights)), lengthM: Math.round(lengthM),
+    };
+  });
+}

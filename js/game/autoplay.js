@@ -87,7 +87,10 @@ export function createAutoplay({ player, course, interaction, events, belay = nu
       }
       const step = nextStep();
       const offered = interaction.anchor ? interaction.anchor.id : null;
-      const wantedClip = belayAnchor() == null ? "deck" : step.anchorId;
+      // nextStep() already returns the ladder's own anchor id (course.ladderAnchorId) until the
+      // ladder is done, so the wanted clip target is always just step.anchorId – no route-specific
+      // literal here, unlike the old single-route "deck" id.
+      const wantedClip = step.anchorId;
       // F only towards the anchor the route needs next – never back onto a finished element's cable
       if (prompt.includes("[F]") && offered && (offered === wantedClip || belay.pendingAnchor() === offered)) {
         press("KeyF"); cooldown = 0.45; return;

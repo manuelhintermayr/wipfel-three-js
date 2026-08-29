@@ -2,17 +2,17 @@
 // an anchor (F / gamepad X, plus X for the second carabiner in classic mode), stepping onto the
 // block ladder (E) and – since M0.5 – stepping onto an exercise (E), which the park only allows once
 // both carabiners are on that exercise's lifeline. Owns the context prompt text; the belay logic is
-// in js/player/belay.js, the geometry in js/park/first-course.js, and the states themselves in
+// in js/player/belay.js, the geometry in js/park/loader.js, and the states themselves in
 // js/player/{climb-ladder,on-element,fall}.js.
 import * as THREE from "three";
-import { FIRST_COURSE } from "../park/first-course.js";
+import { LOADER } from "../park/loader.js";
 import { t } from "../core/i18n.js";
 
 export const INTERACTION = Object.freeze({
   chestHeight: 1.25,                 // anchors are judged from the harness, not from the feet
-  clipRange: FIRST_COURSE.interactRange,
-  ladderRange: FIRST_COURSE.ladderRange,
-  stepRange: FIRST_COURSE.stepRange,
+  clipRange: LOADER.interactRange,
+  ladderRange: LOADER.ladderRange,
+  stepRange: LOADER.stepRange,
 });
 
 /** Prompt text comes from i18n (assets/strings/*.json); labels resolve per element kind. */
@@ -55,8 +55,10 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
   let anchor = null;
   let entry = null;
 
-  const atLadderBase = () => player.position.distanceTo(course.ladder.rail.start) <= INTERACTION.ladderRange;
-  const clippedToLadderCable = () => belay.currentAnchor() === course.ladderAnchorId;
+  /** The ladder the belay is currently clipped to, whichever of the six routes that is – or null. */
+  const clippedLadder = () => course.ladderFor(belay.currentAnchor());
+  const atLadderBase = () => { const l = clippedLadder(); return !!l && player.position.distanceTo(l.rail.start) <= INTERACTION.ladderRange; };
+  const clippedToLadderCable = () => !!clippedLadder();
   const established = (id) => belay.currentAnchor() === id && belay.bothOnSameAnchor();
   /** The end of an exercise you may set off from – a one-way element (a zip line) only has one. */
   const startable = () => (entry && !(entry.element.oneWay && entry.end === "exit") ? entry : null);
@@ -123,9 +125,10 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
     }
     if (!input.pressed("interact") || player.mode !== "ground" || justSwitched()) return;
     if (readyToStepOn()) { stepOntoElement(); return; }
-    if (clippedToLadderCable() && atLadderBase()) {
-      player.climbLadder(course.ladder);
-      if (events) events.emit("player:interact", { what: "ladder" });
+    const ladder = clippedLadder();
+    if (ladder && atLadderBase()) {
+      player.climbLadder(ladder);
+      if (events) events.emit("player:interact", { what: "ladder", anchorId: belay.currentAnchor() });
     }
   }
 

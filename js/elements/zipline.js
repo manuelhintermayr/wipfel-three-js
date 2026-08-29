@@ -310,7 +310,7 @@ function buildNet(builder, id, rng) {
 /**
  * The gate sign: a rider seated in the harness under a trolley with the knees pulled up, and a red
  * arc under the feet for the net. Two strokes of information – sit down, legs up – which is exactly
- * what the brake zone asks for. Canvas only; `js/park/first-course.js` hands it to the timber kit.
+ * what the brake zone asks for. Canvas only; `js/park/loader.js` hands it to the timber kit.
  * @param {number} [size] texture edge in pixels
  */
 export function createZipPictogram(size = 256) {

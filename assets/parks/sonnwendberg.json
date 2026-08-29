@@ -1,0 +1,647 @@
+{
+  "id": "sonnwendberg",
+  "seed": 1,
+  "generated": true,
+  "heroTrees": [
+    {
+      "x": 34.57793451739523,
+      "z": -164.0923766569045,
+      "species": "pine",
+      "height": 22.730183692416176
+    },
+    {
+      "x": 46.70082538607458,
+      "z": -159.5272837755568,
+      "species": "pine",
+      "height": 26.579393286490813
+    },
+    {
+      "x": 56.088551184822975,
+      "z": -157.29868010957898,
+      "species": "pine",
+      "height": 22.961312749655917
+    },
+    {
+      "x": 65.06064834125726,
+      "z": -153.66994705685605,
+      "species": "pine",
+      "height": 23.90955551015213
+    },
+    {
+      "x": 24.62436471382788,
+      "z": -141.57593300322472,
+      "species": "pine",
+      "height": 20.735108877997845
+    },
+    {
+      "x": 28.53078304032567,
+      "z": -132.35648380046055,
+      "species": "pine",
+      "height": 26.05461280164309
+    },
+    {
+      "x": 27.917952204945056,
+      "z": -123.82229425802201,
+      "species": "pine",
+      "height": 23.574810459511355
+    },
+    {
+      "x": 30.40914582518739,
+      "z": -111.88082391767522,
+      "species": "pine",
+      "height": 24.239877806510776
+    },
+    {
+      "x": 0.2059706652109483,
+      "z": -142.92468848947536,
+      "species": "pine",
+      "height": 22.53640988585539
+    },
+    {
+      "x": -6.6308886474737,
+      "z": -135.33045485799693,
+      "species": "pine",
+      "height": 23.58137442334555
+    },
+    {
+      "x": -12.085906697163463,
+      "z": -123.60742302028743,
+      "species": "pine",
+      "height": 22.535795303992927
+    },
+    {
+      "x": -18.067484621089484,
+      "z": -115.63301915472722,
+      "species": "pine",
+      "height": 22.527694506570697
+    },
+    {
+      "x": -14.606121437271465,
+      "z": -162.46393593592674,
+      "species": "pine",
+      "height": 25.830906786723062
+    },
+    {
+      "x": -26.684753087405333,
+      "z": -157.67073324433937,
+      "species": "pine",
+      "height": 25.126163334818557
+    },
+    {
+      "x": -32.90526886097368,
+      "z": -151.3116618251796,
+      "species": "pine",
+      "height": 25.536088299471885
+    },
+    {
+      "x": -37.62108565630894,
+      "z": -146.8636263124442,
+      "species": "pine",
+      "height": 22.47953212214634
+    },
+    {
+      "x": -1.9098147090520268,
+      "z": -184.21097852479585,
+      "species": "pine",
+      "height": 21.489080298459157
+    },
+    {
+      "x": -8.7191100213781,
+      "z": -190.62612453442043,
+      "species": "pine",
+      "height": 20.87235727533698
+    },
+    {
+      "x": -12.050636568544684,
+      "z": -197.5426485325582,
+      "species": "pine",
+      "height": 26.2038872318808
+    },
+    {
+      "x": -14.510677286762963,
+      "z": -206.60392865272252,
+      "species": "pine",
+      "height": 20.975820590974763
+    },
+    {
+      "x": -19.739108810107354,
+      "z": -214.92153025427152,
+      "species": "pine",
+      "height": 23.81617810111493
+    },
+    {
+      "x": 23.11332406670269,
+      "z": -185.8197180315509,
+      "species": "pine",
+      "height": 23.123996363021433
+    },
+    {
+      "x": 30.320560549219728,
+      "z": -191.75249873816776,
+      "species": "pine",
+      "height": 24.864606473594904
+    },
+    {
+      "x": 34.89455044883569,
+      "z": -201.05282200493954,
+      "species": "pine",
+      "height": 21.007948275189847
+    },
+    {
+      "x": 42.54940091381196,
+      "z": -209.79281895786886,
+      "species": "pine",
+      "height": 26.43314074911177
+    },
+    {
+      "x": 46.91245903388642,
+      "z": -220.35907886575495,
+      "species": "pine",
+      "height": 24.972768624313176
+    }
+  ],
+  "routes": [
+    {
+      "id": "blue-1",
+      "category": "blue",
+      "numeral": "I",
+      "nameKey": "route.blue-1.name",
+      "entry": {
+        "x": 32.82889291650258,
+        "z": -164.0344674318458,
+        "facing": -1.537699298890836
+      },
+      "platforms": [
+        {
+          "id": "blue-1-p1",
+          "treeIndex": 0,
+          "deckHeight": 3.823038677335717,
+          "kind": "standard",
+          "radius": 1.25
+        },
+        {
+          "id": "blue-1-p2",
+          "treeIndex": 1,
+          "deckHeight": 4.460502060712315,
+          "kind": "transition",
+          "radius": 1.1
+        },
+        {
+          "id": "blue-1-p3",
+          "treeIndex": 2,
+          "deckHeight": 5.224848760315217,
+          "kind": "transition",
+          "radius": 1.1
+        },
+        {
+          "id": "blue-1-p4",
+          "treeIndex": 3,
+          "deckHeight": 5.622641757898964,
+          "kind": "standard",
+          "radius": 1.25
+        }
+      ],
+      "edges": [
+        {
+          "id": "burma-1",
+          "kind": "burma-bridge",
+          "from": "blue-1-p1",
+          "to": "blue-1-p2"
+        },
+        {
+          "id": "planks-1",
+          "kind": "hanging-planks",
+          "from": "blue-1-p2",
+          "to": "blue-1-p3"
+        },
+        {
+          "id": "net-1",
+          "kind": "net-bridge",
+          "from": "blue-1-p3",
+          "to": "blue-1-p4"
+        }
+      ],
+      "zip": {
+        "fromPlatformId": "blue-1-p4",
+        "landing": {
+          "x": 14.910648341257264,
+          "z": -153.66994705685605
+        },
+        "dir": {
+          "x": -1,
+          "z": 1.2246467991473532e-16
+        },
+        "length": 49,
+        "gradient": 0.045,
+        "deckTop": 8.760864244003974,
+        "drop": 2.205
+      }
+    },
+    {
+      "id": "blue-2",
+      "category": "blue",
+      "numeral": "II",
+      "nameKey": "route.blue-2.name",
+      "entry": {
+        "x": 23.699693053367266,
+        "z": -143.0616928493442,
+        "facing": -2.584896850087433
+      },
+      "platforms": [
+        {
+          "id": "blue-2-p1",
+          "treeIndex": 4,
+          "deckHeight": 6.043105422169901,
+          "kind": "standard",
+          "radius": 1.25
+        },
+        {
+          "id": "blue-2-p2",
+          "treeIndex": 5,
+          "deckHeight": 6.046958028175868,
+          "kind": "transition",
+          "radius": 1.1
+        },
+        {
+          "id": "blue-2-p3",
+          "treeIndex": 6,
+          "deckHeight": 6.963229619548656,
+          "kind": "transition",
+          "radius": 1.1
+        },
+        {
+          "id": "blue-2-p4",
+          "treeIndex": 7,
+          "deckHeight": 7,
+          "kind": "standard",
+          "radius": 1.25
+        }
+      ],
+      "edges": [
+        {
+          "id": "blue-2-e1",
+          "kind": "net-bridge",
+          "from": "blue-2-p1",
+          "to": "blue-2-p2"
+        },
+        {
+          "id": "blue-2-e2",
+          "kind": "beam-fixed",
+          "from": "blue-2-p2",
+          "to": "blue-2-p3"
+        },
+        {
+          "id": "blue-2-e3",
+          "kind": "net-bridge",
+          "from": "blue-2-p3",
+          "to": "blue-2-p4"
+        }
+      ],
+      "zip": {
+        "fromPlatformId": "blue-2-p4",
+        "landing": {
+          "x": -26.662532086036503,
+          "z": -114.87182381695943
+        },
+        "dir": {
+          "x": -0.9986295347545738,
+          "z": -0.052335956242943564
+        },
+        "length": 56,
+        "gradient": 0.045,
+        "deckTop": 12.897833209431692,
+        "drop": 2.5199999999999996
+      }
+    },
+    {
+      "id": "red-1",
+      "category": "red",
+      "numeral": "I",
+      "nameKey": "route.red-1.name",
+      "entry": {
+        "x": 1.0303406056429787,
+        "z": -144.46835756065354,
+        "facing": 2.651090905895556
+      },
+      "platforms": [
+        {
+          "id": "red-1-p1",
+          "treeIndex": 8,
+          "deckHeight": 9.386505285277963,
+          "kind": "standard",
+          "radius": 1.25
+        },
+        {
+          "id": "red-1-p2",
+          "treeIndex": 9,
+          "deckHeight": 8.503893864713609,
+          "kind": "transition",
+          "radius": 1.1
+        },
+        {
+          "id": "red-1-p3",
+          "treeIndex": 10,
+          "deckHeight": 9.285449945367873,
+          "kind": "transition",
+          "radius": 1.1
+        },
+        {
+          "id": "red-1-p4",
+          "treeIndex": 11,
+          "deckHeight": 8.461078386940063,
+          "kind": "standard",
+          "radius": 1.25
+        }
+      ],
+      "edges": [
+        {
+          "id": "red-1-e1",
+          "kind": "stirrups",
+          "from": "red-1-p1",
+          "to": "red-1-p2"
+        },
+        {
+          "id": "red-1-e2",
+          "kind": "net-bridge",
+          "from": "red-1-p2",
+          "to": "red-1-p3"
+        },
+        {
+          "id": "red-1-e3",
+          "kind": "hanging-planks",
+          "from": "red-1-p3",
+          "to": "red-1-p4"
+        }
+      ],
+      "zip": {
+        "fromPlatformId": "red-1-p4",
+        "landing": {
+          "x": 34.14163828318516,
+          "z": -138.8780183065092
+        },
+        "dir": {
+          "x": 0.913545457642601,
+          "z": -0.40673664307580015
+        },
+        "length": 56,
+        "gradient": 0.045,
+        "deckTop": 16.11709880675495,
+        "drop": 2.5199999999999996
+      }
+    },
+    {
+      "id": "red-2",
+      "category": "red",
+      "numeral": "II",
+      "nameKey": "route.red-2.name",
+      "entry": {
+        "x": -12.857079836378821,
+        "z": -162.52184516098544,
+        "facing": 1.6038933546989578
+      },
+      "platforms": [
+        {
+          "id": "red-2-p1",
+          "treeIndex": 12,
+          "deckHeight": 6.5214321203529835,
+          "kind": "standard",
+          "radius": 1.25
+        },
+        {
+          "id": "red-2-p2",
+          "treeIndex": 13,
+          "deckHeight": 6.375197443924844,
+          "kind": "transition",
+          "radius": 1.1
+        },
+        {
+          "id": "red-2-p3",
+          "treeIndex": 14,
+          "deckHeight": 6.519652170687914,
+          "kind": "transition",
+          "radius": 1.1
+        },
+        {
+          "id": "red-2-p4",
+          "treeIndex": 15,
+          "deckHeight": 6.660523954033852,
+          "kind": "standard",
+          "radius": 1.25
+        }
+      ],
+      "edges": [
+        {
+          "id": "red-2-e1",
+          "kind": "burma-bridge",
+          "from": "red-2-p1",
+          "to": "red-2-p2"
+        },
+        {
+          "id": "red-2-e2",
+          "kind": "wire-loops",
+          "from": "red-2-p2",
+          "to": "red-2-p3"
+        },
+        {
+          "id": "red-2-e3",
+          "kind": "barrels",
+          "from": "red-2-p3",
+          "to": "red-2-p4"
+        }
+      ],
+      "zip": {
+        "fromPlatformId": "red-2-p4",
+        "landing": {
+          "x": 16.73179424995908,
+          "z": -164.52394754097247
+        },
+        "dir": {
+          "x": 0.9510565162951535,
+          "z": -0.3090169943749476
+        },
+        "length": 56,
+        "gradient": 0.045,
+        "deckTop": 10.359988750470226,
+        "drop": 2.5199999999999996
+      }
+    },
+    {
+      "id": "black-1",
+      "category": "black",
+      "numeral": "I",
+      "nameKey": "route.black-1.name",
+      "entry": {
+        "x": -0.9851430485914142,
+        "z": -182.72521867867636,
+        "facing": 0.5566958035023597
+      },
+      "platforms": [
+        {
+          "id": "black-1-p1",
+          "treeIndex": 16,
+          "deckHeight": 18.889687191694975,
+          "kind": "standard",
+          "radius": 1.25
+        },
+        {
+          "id": "black-1-p2",
+          "treeIndex": 17,
+          "deckHeight": 19.909387772204354,
+          "kind": "transition",
+          "radius": 1.1
+        },
+        {
+          "id": "black-1-p3",
+          "treeIndex": 18,
+          "deckHeight": 17.41099159582518,
+          "kind": "transition",
+          "radius": 1.1
+        },
+        {
+          "id": "black-1-p4",
+          "treeIndex": 19,
+          "deckHeight": 18.83979751728475,
+          "kind": "transition",
+          "radius": 1.1
+        },
+        {
+          "id": "black-1-p5",
+          "treeIndex": 20,
+          "deckHeight": 17.654544902034104,
+          "kind": "standard",
+          "radius": 1.25
+        }
+      ],
+      "edges": [
+        {
+          "id": "black-1-e1",
+          "kind": "beam-swing",
+          "from": "black-1-p1",
+          "to": "black-1-p2"
+        },
+        {
+          "id": "black-1-e2",
+          "kind": "beam-fixed",
+          "from": "black-1-p2",
+          "to": "black-1-p3"
+        },
+        {
+          "id": "black-1-e3",
+          "kind": "tarzan",
+          "from": "black-1-p3",
+          "to": "black-1-p4"
+        },
+        {
+          "id": "black-1-e4",
+          "kind": "rings",
+          "from": "black-1-p4",
+          "to": "black-1-p5"
+        }
+      ],
+      "zip": {
+        "fromPlatformId": "black-1-p5",
+        "landing": {
+          "x": -19.73910881010735,
+          "z": -157.7715302542715
+        },
+        "dir": {
+          "x": 6.123233995736766e-17,
+          "z": 1
+        },
+        "length": 56,
+        "gradient": 0.045,
+        "deckTop": 18.152614954284253,
+        "drop": 2.5199999999999996
+      }
+    },
+    {
+      "id": "black-2",
+      "category": "black",
+      "numeral": "II",
+      "nameKey": "route.black-2.name",
+      "entry": {
+        "x": 22.28895412627066,
+        "z": -184.27604896037272,
+        "facing": -0.490501747694237
+      },
+      "platforms": [
+        {
+          "id": "black-2-p1",
+          "treeIndex": 21,
+          "deckHeight": 15.295033829752356,
+          "kind": "standard",
+          "radius": 1.25
+        },
+        {
+          "id": "black-2-p2",
+          "treeIndex": 22,
+          "deckHeight": 13.832521063741297,
+          "kind": "transition",
+          "radius": 1.1
+        },
+        {
+          "id": "black-2-p3",
+          "treeIndex": 23,
+          "deckHeight": 16.130450376076624,
+          "kind": "transition",
+          "radius": 1.1
+        },
+        {
+          "id": "black-2-p4",
+          "treeIndex": 24,
+          "deckHeight": 18.404717040248215,
+          "kind": "transition",
+          "radius": 1.1
+        },
+        {
+          "id": "black-2-p5",
+          "treeIndex": 25,
+          "deckHeight": 19.362168688094243,
+          "kind": "standard",
+          "radius": 1.25
+        }
+      ],
+      "edges": [
+        {
+          "id": "black-2-e1",
+          "kind": "wire-loops",
+          "from": "black-2-p1",
+          "to": "black-2-p2"
+        },
+        {
+          "id": "black-2-e2",
+          "kind": "tarzan",
+          "from": "black-2-p2",
+          "to": "black-2-p3"
+        },
+        {
+          "id": "black-2-e3",
+          "kind": "wire-loops",
+          "from": "black-2-p3",
+          "to": "black-2-p4"
+        },
+        {
+          "id": "black-2-e4",
+          "kind": "hanging-planks",
+          "from": "black-2-p4",
+          "to": "black-2-p5"
+        }
+      ],
+      "zip": {
+        "fromPlatformId": "black-2-p5",
+        "landing": {
+          "x": 4.441732257853332,
+          "z": -182.11826471234622
+        },
+        "dir": {
+          "x": -0.7431448254773944,
+          "z": 0.669130606358858
+        },
+        "length": 56,
+        "gradient": 0.045,
+        "deckTop": 18.068361888426843,
+        "drop": 2.5199999999999996
+      }
+    }
+  ]
+}

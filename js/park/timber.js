@@ -204,8 +204,13 @@ function cylinderGeometry(radius, length, segments, tile) {
   return geometry;
 }
 
-/** Concatenate indexed position/normal/uv geometries under their transforms into one geometry. */
-function mergeParts(list) {
+/**
+ * Concatenate indexed position/normal/uv geometries under their transforms into one geometry.
+ * Exported so js/park/loader.js can run the same "one mesh per material" trick a *second* time –
+ * across a whole route's already-built, already-world-positioned structures (platforms, entry deck,
+ * ladder, zip landing), not just within one of them.
+ */
+export function mergeParts(list) {
   let vertices = 0, indices = 0;
   for (const { geometry } of list) {
     vertices += geometry.attributes.position.count;

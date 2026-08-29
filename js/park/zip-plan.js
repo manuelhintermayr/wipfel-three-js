@@ -9,7 +9,9 @@
 //   3. the rider's feet keep `minClearance` metres of air over the middle of the span
 //   4. the corridor is free: no trunk inside `trunkClear`, no crown the cable would run *through*
 //   5. the landing is not on a walked path
-// Nothing here touches THREE or the scene – it hands back numbers, and js/park/first-course.js builds.
+// Nothing here touches THREE or the scene – it hands back numbers. js/park/layout-route.js is the
+// production caller now (searches once per route at generation time); js/park/loader.js turns the
+// already-searched result into a scene, never calling planZipline itself.
 
 import { TREE_SPECIES } from "../procgen/geometry/tree-species.js";
 

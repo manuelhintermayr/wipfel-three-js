@@ -127,7 +127,7 @@ that frame and the state calls `player.moveTo(x, y, z)` / `player.setHeading(yaw
 ## Park (M0.4 – contracts)
 
 Structures are described part by part in a local frame and merged into **one mesh per material**
-(`js/park/timber.js`), so the whole first course costs 14 draw calls instead of ~70. All parts get
+(`js/park/timber.js`), so one platform costs 3–5 draw calls instead of ~20. All parts get
 world-scaled UVs, so the wood grain keeps its real size and runs along each part's long axis.
 
 ### `js/procgen/textures/wood.js`
@@ -193,28 +193,77 @@ thin slab on the spine. `rail` is the line the feet travel along.
 flare of the mesh. Anything clamped to a trunk must use it, or it floats at the top and sinks in at
 the foot.
 
-### `js/park/first-course.js`
+## Park layout + loader (M1.1 – contracts)
+
+Two halves, split the way the M0.5 catalogue already split *what* an element is (`catalogue-data.js`,
+no THREE) from *how it is built* (`element.js` + twelve concrete modules): the **generator** decides
+where every tree, platform, exercise and zip line goes and is pure JSON-serialisable data, importable
+under plain `node`; the **loader** turns one generator output into a scene. Supersedes M0.4's
+`js/park/first-course.js` (deleted): that module heuristically picked a hero-pine chain and hand-built
+one four-platform blue course; the generator now decides every route, so the loader only builds what
+it is told.
+
+### `js/park/layout.js` + `layout-route.js` + `layout-validate.js`
 ```js
-createFirstCourse({ scene, physics, terrain, forest, rng, wind?, textures?, seed? }) → {
-  tree, trees, facing, platform, platforms, ladder, entryDeck, elements,
-  zipline, zipLanding, zipPlan,                     // null when a seed leaves no valid zip line
-  anchors: [{ id, position, points, kind, label, range }],   // "deck", "landing", "platform-N-ring", "elem-<id>", "zip-1"
-  graph: { nodes, edges },                          // what the M1.1 layout generator will emit
-  ladderAnchorId, topAnchorId, anchorById(id), nearestAnchor(position, range, excludeId?),
-  elementFor(anchorId), entryFor(anchorId, position), nearestEntry(position, range),
-  update(dt, elapsed), dispose()
+generateParkLayout({ seed, terrain: { heightAt, isPath, slopeAt, hubs }, config? }) → {
+  id, seed, generated: true,
+  heroTrees: [{ x, z, species, height }],
+  routes: [{ id, category, numeral, nameKey, entry: {x,z,facing},
+    platforms: [{ id, treeIndex, deckHeight, kind, radius }],   // treeIndex → heroTrees
+    edges: [{ id, kind, from, to }],                            // kind = a catalogue.js element kind
+    zip: { fromPlatformId, landing: {x,z}, dir: {x,z}, length, gradient, deckTop, drop } }]
 }
 ```
-Walks the hero-pine chain from `terrain.spawn` (`main.js#pickHeroTrees` lays four pines out
-`COURSE.span` = 8.6 m apart, plus decorative trunks kept 15 m clear of the chain, so the greedy
-search here cannot pick up the wrong tree). Entry deck at the foot of the first trunk, ladder up the
-same side, then platform 1 → Burma bridge → 2 → hanging planks → 3 → cargo net → 4. Decks are
-levelled in **world** height (`firstDeckHeight` + `deckRise[i]`, clamped to 3.4–8.0 m above each
-trunk foot), because four trunks on a hillside have their feet metres apart. Middle decks are
-`kind: "transition"` with a smaller radius. From platform 4 `zip-plan.js` searches a line for the
-Flying Fox, `zip-landing.js` builds the arrival deck where it comes down, and the cable is hung
-between the two (M0.6). A seed that leaves no valid line ends the course at platform 4 with a
-`log.warn` – never silently.
+`PARK_CONFIG` (in `layout.js`): 2 blue / 2 red / 2 black routes, chain lengths 4/4/5 platforms
+(§ the file's own header comment explains why red/black are one platform short of the GDD's 5/6 –
+the ≤ 26 total-platform hard cap). Routes are placed one at a time, fanned out from the spawn hub at
+even bearings with retried jitter on failure ("relax tree-angle first"); `layout-validate.js` is the
+predicate library every candidate is checked against (span 6–13.5 m, category deck-height window and
+rise limit, hub/path/cross-route clearance, zip gradient/landing rules) and is reused verbatim by
+`tests/unit/layout.test.mjs` and `tools/bake-park.mjs`/`tools/dev/smoke-layout.mjs`
+(headless via `tools/headless-terrain.mjs`, which duplicates `terrain.js`'s sampler for the documented
+reason at the top of that file – no THREE, no browser). Route "blue-1" keeps the M0 course's exact
+element kinds/ids (`layout-route.js#LEGACY_BLUE_1`) so the hand-tuned course stays reachable by name.
+
+### `js/park/loader.js`
+```js
+loadPark(parkDef, { scene, physics, terrain, forest, rng, textures?, wind? }) → course {
+  routes: [{ id, category, numeral, nameKey, tree, trees, facing, platform, platforms, ladder,
+    entryDeck, elements, zipline, zipLanding, ladderAnchorId, topAnchorId }],
+  anchors, graph: { nodes, edges },
+  anchorById(id), nearestAnchor(pos, range?, excludeId?), nearestEntry(pos, range?),
+  entryFor(anchorId, pos, range?), elementFor(anchorId), ladderFor(anchorId), routeFor(id),
+  update(dt, elapsed), dispose(),
+  // + route "blue-1" spread onto the top level (tree, platforms, ladder, entryDeck, …) so the M0
+  // consumers that only know one route (js/player/interaction.js, js/game/autoplay.js) keep working
+}
+```
+Builds all six routes: platforms via `platform.js` on `forest.trees[platform.treeIndex]` (hero trees
+land in `forest.trees` in `parkDef.heroTrees` order – `forest-placement.js` inserts them first, before
+the dart-throwing pass), entry deck + ladder via `entry-deck.js`/`elements/ladder.js`, exercises via
+`elements/catalogue.js#createElement` (`edge.kind` looked up directly – no per-kind switch), the zip
++ arrival deck via `zip-landing.js` using the generator's already-searched `route.zip` (never calls
+`zip-plan.js#planZipline` again). Anchor ids are route-scoped so six routes never collide:
+`${routeId}-deck` (entry cable), `${platform.id}-ring`, `elem-${edge.id}` (exercise lifeline),
+`${routeId}-zip` (== the zip element's id), `${routeId}-zip-out` (landing clip-out).
+
+**Draw-call SCALE CHECK:** `createPlatform`/`createEntryDeck`/`createBlockLadder`/`createZipLanding`
+each build with their own `timber.js` builder, so a route's platforms alone start life as 16–20 tiny
+meshes. None of that geometry moves again once built (unlike the zip's cable/net/trolley, which are
+repositioned every frame, or a rail element's wobble-deformed mesh), so `loader.js#mergeRouteStatics`
+bakes every structure's already world-positioned mesh – plus the zip's own static "fixed" hardware
+(gate, terminations, marker) – back down to one mesh per material *per route* (`timber.mergeParts`,
+exported for exactly this reuse), using the park's one shared `timber.materials` so the merged meshes
+need no material lifetime of their own. Per-route (not park-wide) so a route out of frame still culls
+as a whole. Cuts the six-route park from ~590 to ~430 draw calls at the default spawn view (target
+≤ 420; the remainder is per-instance dynamic geometry – zip rides, element wobble meshes, the player
+rig – that cannot be merged without breaking their own animation).
+
+### `tools/bake-park.mjs`
+`node tools/bake-park.mjs [seed]` writes a pretty-printed `generateParkLayout()` snapshot to
+`assets/parks/<parkDef.id>.json` off the headless terrain sampler. The live game never reads this
+file (`js/main.js#boot` calls `generateParkLayout` itself against the real terrain) – it is the
+reproducibility record ROADMAP M1.1 asks for.
 
 ## Rail elements (M0.5 – contracts)
 
@@ -481,8 +530,8 @@ console clean, because Chrome warns about an AudioContext started without one.
 |---|---|
 | `js/core/i18n.js` | `initI18n({locale, dicts?})` (fetches `assets/strings/<locale>.json`, en fallback), `t(key, vars?)`, `formatTime(s)`; missing keys render as the key |
 | `js/core/save.js` | `createSave(storage?) → {data, routeBest(id), recordRun(id,{seconds,falls})→isBest, setLocale, flush}`; schema-versioned, corrupt data collapses to defaults |
-| `js/game/route.js` | `createRouteRun(def)`: idle→armed→countdown(3-2-1-GO)→running→done; `completeObstacle(id)` dedupes; `BLUE_I` definition |
-| `js/game/session.js` | binds events (`player:ladder-exit`, `player:element-exit`, `player:fell`, `zip:finished`) to the run, drives the route HUD (header, start banner near the entry deck, countdown, one-time safety tip), stores best times, emits `route:completed` |
+| `js/game/route.js` | `createRouteRun(def)`: idle→armed→countdown(3-2-1-GO)→running→done; `completeObstacle(id)` dedupes; `BLUE_I` (worked example, M0 fixture); `routesFromPark(parkDef)` (M1.1) – pure, one run-def per generated route |
+| `js/game/session.js` | one `createRouteRun` per route (`routesFromPark`), all `update`d every frame; events (`player:ladder-exit`, `player:element-exit`, `player:fell`, `zip:finished`) broadcast to every run – each run's own `completeObstacle` already ignores ids/states it does not own, so at most one ever advances; the HUD follows whichever run is counting down/riding, else the nearest entry deck (`course.routes[i].entryDeck`); stores best times per route id, emits `route:completed` |
 | `js/ui/hud-route.js` | mockup-1:1 route header (`--cat-color` bar, category, ● numeral · name, progress/time/best), FLOW placeholder, start banner with key figures, countdown discs, safety tooltip |
 | `js/game/autoplay.js` | `?autoplay=1`: prompt-driven smoke bot in the **input phase** (synthetic key events must precede edge consumers); starts on the entry deck, goal-directed clipping (only the route's next anchor), plank tapping, holds Space on the zip; platform-hop self-help after repeated stalls (logged as "shortcut") |
 

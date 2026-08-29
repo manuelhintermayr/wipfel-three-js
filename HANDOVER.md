@@ -5,16 +5,24 @@
 > `ROADMAP.md`. Eine neue Session muss allein mit dieser Datei + `ROADMAP.md` weiterarbeiten können.
 
 ## Aktueller Meilenstein
-**M0 „Ein Brett“ ABGESCHLOSSEN** (Tag `m0`, Session 2, 2026-08-25): M0.1–M0.7 plus Performance-Pass.
-First Playable: Kassa fehlt noch (M1.3) – der Einstieg ist direkt im Spiel; Route „Blue I · Fox Trail“
-ist Start bis Ziel spielbar. Nächster Schritt: **M1.1 Park-Definition + Layout-Generator**.
+**M1.1 Park-Definition + Layout-Generator ABGESCHLOSSEN** (uncommitted, Session 3, 2026-08-25):
+seeded Generator (`js/park/layout.js` + `layout-route.js` + `layout-validate.js`) liefert sechs
+validierte Routen (2 blau/2 rot/2 schwarz) für die Seeds 1–8; `js/park/loader.js` baut alle sechs
+Routen als Szene (Podeste, Übungen, Flying Fox) und ersetzt `first-course.js` (gelöscht) vollständig.
+Route „Blue I · Fox Trail" bleibt Start-bis-Ziel spielbar (`?autoplay=1` bestanden, siehe unten).
+Nächster Schritt: **M1.2 Sechs Parcours** – Schilder, Kategorie-Freigaben, Start-Banner je Route,
+Podest-Typen. Noch **kein Commit** – siehe „Dateien, an denen gerade gearbeitet wird".
 
 ## Letzter funktionierender Commit
-Tag `m0` (siehe `git log --oneline -3`). Geprüft (2026-08-25, headless Chromium, 1280×720, Seed 1):
-`?autoplay=1` spielt die komplette Route durch – Einhängen (F,F), Blockleiter, Burma-Brücke, hängende
-Planken (Schritt-für-Schritt), Netz, Flying Fox mit Netzbremse, Landung – **„route completed in
-95.20 s · falls 0“**, Bestzeit im Save; **0 Konsolenfehler, 0 externe Requests**; 225–284 Draw-Calls,
-0,29–0,37 M Dreiecke. `check-all` 94/94, `npm test` 88/88. Screenshots `docs/screenshots/m0-7-*.png`.
+`43993bb` „feat(elements): twelve traversable kinds with catalogue, discrete-step generalisation and
+dev showcase" (M1.8, HEAD; Tag `m0` = `d20789e`, zwei Commits zurück – siehe `git log --oneline -8`).
+M1.1 (Generator + Loader, diese Session) liegt komplett **uncommitted** obendrauf.
+Geprüft (2026-08-25, headless Chromium via Playwright MCP, Seed 1, sechs Routen):
+`?autoplay=1` spielt Blue I komplett durch – Einhängen (F,F), Blockleiter, Burma-Brücke, hängende
+Planken, Netz, Flying Fox mit Netzbremse, Landung – **„route completed in 111.37 s · falls 0“**,
+Bestzeit im Save; **0 Konsolenfehler, 0 externe Requests**; `WIPFEL.course.routes.length === 6`;
+~428 Draw-Calls / ~0,93 M Dreiecke am Spawn (Ziel ≤ 420/≤ 1,0 M – s. „Offen"), 26 Bäume/Podeste.
+`check-all` 114/114, `node --test` 104/104. Screenshot `docs/screenshots/m1-park.png`.
 
 ## Was funktioniert
 - **Kern:** `js/main.js` (Boot + Loop-Verdrahtung), `core/{loop,input,rng,params,errors,events,renderer,physics}.js`,
@@ -36,14 +44,31 @@ Planken (Schritt-für-Schritt), Netz, Flying Fox mit Netzbremse, Landung – **�
   `player/rig*.js` (prozedurale Kletterin: Tanktop, Capri, Komplettgurt orange, Handschuhe, Haarknoten;
   Posen idle/walk/run/jump/land/ladder; Attach-Punkte).
 - **Park (M0.4):** `procgen/textures/wood.js` (Planke/Rundholz/verwittert, je Albedo+Normal+Rauheit,
-  gecacht), `park/timber.js` (Bauteil-Kit; alles wird pro Material zu **einem** Mesh verschmolzen →
-  14 Draw-Calls für den ganzen Kurs), `park/platform.js` (Rundholz-Rahmen, Planken mit Fugen und
+  gecacht), `park/timber.js` (Bauteil-Kit; alles wird pro Material zu **einem** Mesh verschmolzen;
+  `mergeParts` seit M1.1 exportiert, s. u.), `park/platform.js` (Rundholz-Rahmen, Planken mit Fugen und
   Stamm-Ausschnitt, Gummimanschette, 8 Klemmklötze mit Stahlbändern, Schrägstützen, 12-mm-Sicherungs-
   seilring 1,9 m über dem Podest), `park/entry-deck.js` (40 cm, Bank, Einhängeseil, Piktogramm-Schild),
-  `elements/ladder.js` (dunkler Rücken, versetzte Klötze alle 28 cm, Stahlseil, blaues Hilfsseil),
-  `park/first-course.js` (Deck → Leiter → Podest auf der Hero-Kiefer am Spawn-Hub).
+  `elements/ladder.js` (dunkler Rücken, versetzte Klötze alle 28 cm, Stahlseil, blaues Hilfsseil).
   `procgen/geometry/tree-species.js#trunkRadiusAt` liefert den echten Stammradius (Verjüngung +
   Wurzelanlauf) – ohne das schwebt alles oben und steckt unten im Stamm.
+- **Park-Layout-Generator + Loader (M1.1):** `park/layout.js` (`generateParkLayout({seed,terrain})`,
+  `PARK_CONFIG` 2 blau/2 rot/2 schwarz, fächert Routen vom Spawn-Hub auf, "relax tree-angle first" bei
+  Kollision) + `layout-route.js` (eine Routen-Kandidatin: Baumkette, Deckhöhen, Übungsart je Kante,
+  Flying Fox über `zip-plan.js`; `LEGACY_BLUE_1` hält Blue-I's M0-Kanten-Kinds) + `layout-validate.js`
+  (alle Prädikate: Spannweite 6–13,5 m, Kategorie-Deckfenster + Steigungslimit, Hub-/Weg-/Routen-
+  abstand, Zip-Gefälle/Landezone – wiederverwendet von `tests/unit/layout.test.mjs` und
+  `tools/bake-park.mjs`/`tools/dev/smoke-layout.mjs` über `tools/headless-terrain.mjs`, node-fähig, kein
+  THREE). `park/loader.js` (`loadPark(parkDef,{...}) → course`) baut alle sechs Routen (Podeste,
+  Einstiegsdeck, Leiter, Übungen über `elements/catalogue.js`, Flying Fox + Landepodest), ein
+  gemeinsames Anker-/Graph-/Update-/Dispose-Interface über alle Routen, Route "blue-1" zusätzlich am
+  Objekt-Wurzelniveau gespiegelt (M0-Konsumenten `interaction.js`/`autoplay.js` unverändert lauffähig).
+  Anker-IDs routen-skopiert: `${routeId}-deck`, `${platform.id}-ring`, `elem-${edge.id}`,
+  `${routeId}-zip`, `${routeId}-zip-out`. **Draw-Call-Optimierung:** Podeste/Deck/Leiter/Landepodest
+  (+ die statische Flying-Fox-Hardware Gate/Klemmen/Markierhülse) werden pro Route ein zweites Mal zu
+  einem Mesh pro Material verschmolzen (`loader.js#mergeRouteStatics`, nutzt `timber.js#mergeParts`) –
+  senkt den Sechs-Routen-Park von ~590 auf ~428 Draw-Calls am Spawn (Ziel ≤ 420, s. „Offen").
+  `tools/bake-park.mjs` schreibt `assets/parks/sonnwendberg.json` (Seed 1, node-only, vom Spiel nicht
+  gelesen – Reproduzierbarkeits-Beleg). Ersetzt `park/first-course.js` (gelöscht).
 - **Umhängen (M0.4):** `player/belay.js` (reine Logik, 11 Unit-Tests; smart = Zwei-Klick-Ritual,
   beide Karabiner können nie offen sein; continuous = ein Druck; classic = Fehler möglich),
   `player/interaction.js` (Anker in 1,6 m → F, Leiter in 1,5 m → E, Kontext-Prompt),
@@ -88,33 +113,38 @@ Planken (Schritt-für-Schritt), Netz, Flying Fox mit Netzbremse, Landung – **�
   unter 1 cm Unterschied auf 50 m und geschlossene Ableitungen; `dv/dt = g·slope − drag/m·|v−wind|·
   (v−wind) − rollResist·g`; Masse → Durchhang → steilere erste Hälfte **und** mehr Schwung pro
   Stirnfläche, deshalb ist schwerer schneller), `zipline/brakes.js` (Netzbremse, Entscheidung wird
-  **an der Markierhülse eingerastet**), `park/zip-plan.js` (Trassensuche = erste Hälfte der
-  M1.1-Validierung: Gefälle, Lichtraum, Baumfreiheit, Landezone, Weg zurück), `elements/zipline.js`
+  **an der Markierhülse eingerastet**), `park/zip-plan.js` (Trassensuche: Gefälle, Lichtraum,
+  Baumfreiheit, Landezone, Weg zurück – seit M1.1 der produktive Aufrufer ist `layout-route.js`,
+  einmal je Route zur Generierzeit; der Loader sucht nie neu), `elements/zipline.js`
   (Seil + Startgatter mit Piktogramm + Markierhülse + Netz + Trolley; das Zip-Seil **ist** das
   Sicherungsseil, deshalb funktionieren Anker und Ritual unverändert), `park/zip-landing.js`
   (Ankunftspodest, Rampe, Hackschnitzelbett, Erdanker), `player/on-zipline.js` (Zustand `zipline`,
   Ego-Kamera automatisch, Körper bleibt sichtbar, Kopf ausgeblendet), `ui/hud.js#setSpeed/setNotice`,
   `audio/sfx.js#sfxTrolley/sfxWindRush/sfxZipArrive` über `synth.voice()` (Dauerton mit Live-Handle).
-- **Tests:** `node tools/check-all.mjs` (85 Dateien), `npm test` (**77 Tests**: RNG, Lighting, Belay,
-  Balance, Stamina, Nerves, Chunk-Index, **Zipline**, check-all).
+- **Tests:** `node tools/check-all.mjs` (114 Dateien), `node --test` (**104 Tests**: RNG, Lighting,
+  Belay, Balance, Stamina, Nerves, Chunk-Index, Zipline, Route, Catalogue, i18n, Save, **Layout
+  (M1.1, 11 Tests)**, check-all).
 - **Dev-Seiten:** `tools/dev/{forest,terrain,sky,player}.html` – je Modul isoliert testbar
   (`?seed=`, Views, Bot); Screenshots `docs/screenshots/dev-*.png`.
 
-- **Route/HUD (M0.7):** `core/i18n.js` + `assets/strings/en.json|de.json` (EN Standard, DE komplett;
-  Prompts, HUD, Routen), `core/save.js` (Schema v1, Bestzeiten, validiert), `game/route.js` (Run-
-  Lebenszyklus idle→armed→countdown→running→done, unit-getestet), `game/session.js` (Events → Route,
-  Start-Banner am Deck, Countdown 3-2-1-GO, Safety-Tooltip beim ersten Klick, Bestzeit-Notice),
+- **Route/HUD (M0.7, generalisiert M1.1):** `core/i18n.js` + `assets/strings/en.json|de.json` (EN
+  Standard, DE komplett; Prompts, HUD, alle sechs Routennamen), `core/save.js` (Schema v1, Bestzeiten
+  je Routen-ID, validiert), `game/route.js` (`createRouteRun(def)`: idle→armed→countdown→running→done,
+  unit-getestet; `BLUE_I` bleibt als Fixture; **`routesFromPark(parkDef)`** – neu M1.1, rein, ein
+  Run-Def je generierter Route), `game/session.js` (seit M1.1 **ein Run pro Route**, alle laufen mit;
+  Events werden an alle gebroadcastet – jeder Run ignoriert Ids/Zustände, die ihm nicht gehören, also
+  kommt höchstens einer voran; HUD folgt dem Run, der zählt/fährt, sonst dem nächsten Einstiegsdeck),
   `ui/hud-route.js` (Routen-Header mit Farbbalken 1:1 nach Mockup, FLOW-Platzhalter, Banner mit
   Kennzahlen, Countdown-Scheiben), `game/autoplay.js` (?autoplay=1: prompt-getriebener Bot, spielt
-  die ganze Route; Podest-Hops als dokumentierte Selbsthilfe).
+  Blue I komplett durch; Podest-Hops als dokumentierte Selbsthilfe; liest `course.ladderAnchorId`/
+  `course.entryDeck` – beides zeigt dank Loader weiterhin auf Blue I).
 
 ## Was halb fertig ist
-- Hero-Bäume: `main.js#pickHeroTrees` legt eine Kette aus 4 Parcours-Kiefern + 4 Deko-Stämmen an
-  (Provisorium bis der Layout-Generator M1.1 die Parcours-Bäume liefert).
-- HUD: Karabiner-Widget, Kraft-Ring und Herzschlag-Punkt stehen (`ui/hud.js`); Routen-Header,
-  Flow-Anzeige und Course-Map sind weiterhin nur CSS-Gerüst.
-- i18n: `assets/strings/en.json|de.json` existieren noch nicht (`core/i18n.js` fehlt); UI-Texte stehen
-  in `player/interaction.js#PROMPTS`.
+- Route-Header/Banner/Countdown zeigen nur die Route, die der Spieler gerade angeht (nächstes
+  Einstiegsdeck oder laufender Run) – Schilder/Wegweiser im Wald selbst, Kategorie-Freigaben und ein
+  Podest-Typ „Kreuzung" für Routen, die sich Bäume teilen könnten, kommen erst mit M1.2.
+- Draw-Calls liegen bei ~428 (Ziel ≤ 420, s. „Offen"); die Übungen/der Flying Fox je Route bleiben
+  bewusst unverschmolzen (Wobble-Deformer/Trolley-Bewegung brauchen ein eigenes Mesh je Instanz).
 
 ## Was kaputt ist
 – nichts Bekanntes. Beobachtungen: siehe „Offen / Provisorisch“.
@@ -127,13 +157,20 @@ konnte die Figur damit mit **25 m/s** wegschleudern. Jetzt gilt: ein Hindernis k
 wegnehmen, nie hinzufügen (`asked`-Klemme).
 
 ## Dateien, an denen gerade gearbeitet wird
-– keine. Uncommitted im Arbeitsverzeichnis liegen der Performance-Pass (M0.P) und der Flying Fox
-(M0.6). M0.P: neu `js/world/terrain/{chunks,chunk-index}.js` + `tests/unit/chunk-index.test.mjs`;
+– keine offene Baustelle, aber **alles seit Tag `m0` (`d20789e`) ist uncommitted**, inklusive M1.8
+(bereits HEAD `43993bb`, s. u.) und M1.1 (diese Session). M1.1 laut `git status`: neu
+`js/park/{layout,layout-route,layout-validate,loader}.js`, `tools/{headless-terrain,bake-park}.mjs`,
+`tools/dev/smoke-layout.mjs`, `tests/unit/layout.test.mjs`, `assets/parks/sonnwendberg.json`,
+`docs/screenshots/m1-park.png`; geändert `js/main.js`, `js/game/{route,session,autoplay}.js`,
+`js/player/interaction.js`, `js/park/{timber,zip-plan}.js`, `js/elements/zipline.js` (Kommentar),
+`assets/strings/{en,de}.json`, `docs/architecture.md`, `HANDOVER.md`; gelöscht `js/park/first-course.js`.
+Davor bereits uncommitted (M0.P, M0.6 – Details in älteren `docs/sessions/`-Logs, hier nicht erneut
+aufgeführt): neu `js/world/terrain/{chunks,chunk-index}.js` + `tests/unit/chunk-index.test.mjs`;
 geändert `js/world/{terrain,ground-detail,forest}.js`, `js/world/terrain/material.js`,
-`js/procgen/geometry/ground-props.js`, `js/player/{rig-body,rig-gear}.js`, `js/main.js`,
+`js/procgen/geometry/ground-props.js`, `js/player/{rig-body,rig-gear}.js`,
 `tools/dev/{terrain,forest}.html`. M0.6: neu `js/zipline/{physics,brakes}.js`,
 `js/elements/zipline.js`, `js/park/{zip-plan,zip-landing}.js`, `js/player/on-zipline.js`,
-`tests/unit/zipline.test.mjs`; geändert `js/main.js`, `js/park/{first-course,timber}.js`,
+`tests/unit/zipline.test.mjs`; geändert
 `js/player/{interaction,controller,rig,rig-poses,tuning,vitals}.js`, `js/ui/hud.js`,
 `js/audio/{synth,sfx}.js`, `docs/architecture.md`, `ROADMAP.md`.
 
@@ -146,18 +183,20 @@ geändert `js/world/{terrain,ground-detail,forest}.js`, `js/world/terrain/materi
 – keine reproduzierten. Zu prüfen: Kamera-Kollision mit Kronen im echten Wald (nur in Dev-Seite getestet).
 
 ## Unmittelbar nächste Aufgabe
-**M1.1 Park-Definition + Layout-Generator** (`ROADMAP.md`): `assets/parks/sonnwendberg.json`, seeded
-Generator auf dem Graphen mit Validierung (Anker, Seilwinkel, Lichtraum, Baumdurchdringung,
-Kontinuität, Landezonen, Zip-Gefälle 3–6 %, Podest-Zugang); `first-course.js` wird zum Konsumenten
-der generierten Definition. Unit-Tests: Graph-Konnektivität, Generator-Validität für N Seeds.
+**M1.2 Sechs Parcours** (`ROADMAP.md`): Namen zusätzlich zu Farbe + römischer Ziffer (Strings stehen
+schon in `en.json`/`de.json`), Podest-Typen (Übergang, Standard, Kreuzung, Start, Zip-Ankunft, Rast,
+Hub), Start-Banner je Route (Session/HUD folgen schon der Route, an der der Spieler gerade ist –
+s. „Was funktioniert“ → Route/HUD), Wegweiser wie im echten Park (pfeilförmige Tafeln, Farbrand,
+Ziffern in Kreisen). Kategorie-Freigaben kommen erst mit M1.3 (Kassa/Größenklasse) – noch nicht bauen.
 
 ## Nächste fünf Aufgaben
-1. M0.7 HUD 1:1 (`ui/hud.js` erweitern, `core/i18n.js`, `assets/strings/en.json|de.json`), Start-Banner +
-   Countdown, Sicherheits-Tooltip, `?autoplay=1`-Bot, Screenshots, Smoke-Checkliste, Tag `m0`.
-2. Politur M0.5: Hände/Füße per IK auf Halteseil und Planke (die Posen treffen die Seile noch nicht),
+1. M1.2 Sechs Parcours (s. o.).
+2. Draw-Calls auf ≤ 420 drücken (aktuell ~428, s. „Offen"): die Podest-Merge-Optimierung ist am
+   Deckungsgrad der statischen Geometrie ausgereizt; als Nächstes käme nur noch dynamische Geometrie
+   in Frage (Zip-Netz/Trolley, Element-Wobble-Meshes) – dafür müsste `element.js`/`zipline.js` eigene
+   LOD- oder Batch-Strategien bekommen, kein reiner Loader-Fix mehr.
+3. Politur M0.5: Hände/Füße per IK auf Halteseil und Planke (die Posen treffen die Seile noch nicht),
    Tuning-Pass mit echten Testern (Balance-Fenster, Kraftkosten, Nervenanstieg), Wind-Böen hörbar.
-3. Politur M0.4: eigener Kamerawinkel auf der Leiter, Hände/Füße auf `ladder.steps` (IK),
-   Bodendetail-Ausschluss unter Deck und Podest.
 4. Eingabe-Kante über den festen Schritt retten (siehe „Offen“ unten) – betrifft die Planken, den
    Sturz und jede künftige Übung, die `input.pressed` im Physik-Takt liest.
 5. Figur zusammenfassen: `player/rig*.js` baut 64 Einzel-Meshes → 98 Draw-Calls (mit Schatten) und
@@ -165,6 +204,14 @@ der generierten Definition. Unit-Tests: Graph-Konnektivität, Generator-Validit�
    würde ~90 Calls sparen.
 
 ## Offen / Provisorisch
+- **M1.1:** ~428 Draw-Calls am Spawn, Ziel ≤ 420 (s. „Nächste fünf Aufgaben" 2) – nicht erreicht, aber
+  aus ~590 vor der Podest-Merge-Optimierung; ehrlich als „nahe dran, nicht erfüllt" markiert. Der
+  Übersichts-Screenshot `m1-park.png` ist eine freigestellte Kamera weit über dem Park (`loop.stop()`
+  + `renderer.render` von Hand) und zeigt **keinen** realen Spielwert – dort reichen Dreiecke bis
+  ~1,2 M (Nebel/Wald in einer Aufsicht, die kein Spieler je einnimmt); der reale Spawn-Wert (~0,93 M)
+  bleibt unter dem 1,0-M-Ziel. `assets/parks/sonnwendberg.json` wird vom Spiel nicht gelesen (nur
+  `tools/bake-park.mjs`-Beleg) – falls M1.2 einen echten Cache/Fixture-Konsum will, ist das ein
+  eigener Schritt.
 - **M0.6 (Eingabe, betrifft auch M0.5):** `input.pressed()` wird von den Zuständen im **Physik-Takt**
   gelesen, `input.endFrame()` läuft aber jeden Frame. Über 60 fps hat ein Frame manchmal **keinen**
   festen Schritt – die Kante geht dann verloren (Planken-Schritt, Retter-E, Abstoßen). Die Zipline
