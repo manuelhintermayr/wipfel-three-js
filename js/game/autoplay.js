@@ -109,9 +109,9 @@ export function createAutoplay({ player, course, interaction, events, belay = nu
     if (mode === "element") {
       hold("KeyQ");
       const state = player.states.get("element");
-      const kind = state && state.element ? state.element.kind : "";
-      if (kind === "hanging-planks") {
-        // one press = one plank (plus its swing pause) – holding W does nothing there
+      const stepwise = !!(state && state.element && state.element.discrete === true);
+      if (stepwise) {
+        // one press = one step (plank, stirrup, ring, …) plus its swing pause – holding W does nothing
         if (cooldown <= 0) { press("KeyW"); cooldown = 0.75; }
       } else {
         hold("KeyW");
@@ -120,6 +120,12 @@ export function createAutoplay({ player, course, interaction, events, belay = nu
     }
     if (mode === "zipline") {
       hold("Space");   // held Space is the whole ride: push off (down after the sit delay), tuck, legs up
+      return;
+    }
+    if (mode === "tarzan") {
+      // waiting for the rope: press when the prompt is asking for it, then climb once caught
+      if (prompt.includes("[Space]")) { press("Space"); cooldown = 0.2; return; }
+      hold("KeyW");
       return;
     }
     if (mode === "fall") { hold("Space"); return; }     // pull back up

@@ -42,5 +42,16 @@
   "prompt.zipPush": "Abstoßen [Space]",
   "prompt.zipRiding": "Beine hoch [Space]  ·  Drehen [A][D]",
   "prompt.zipZone": "Beine hoch! [Space] halten",
-  "prompt.zipStalled": "Heranhangeln [W]"
+  "prompt.zipStalled": "Heranhangeln [W]",
+  "element.beamFixed": "der Balancierbalken",
+  "element.beamSwing": "die Wackelbalken",
+  "element.stirrups": "die Steigbügel",
+  "element.wireLoops": "die Seilschlaufen",
+  "element.barrels": "die Fässer",
+  "element.rings": "die Ringe",
+  "element.tarzan": "der Tarzansprung",
+  "element.skate": "das Skateboard",
+  "prompt.tarzanReady": "Bereit machen [E]",
+  "prompt.tarzanJump": "Springen [Space]",
+  "prompt.tarzanClimb": "Hochklettern [W]"
 }

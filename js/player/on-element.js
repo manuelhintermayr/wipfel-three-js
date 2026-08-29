@@ -59,46 +59,54 @@ export function createElementState({ input, events = null, balance, stamina, ner
     return (1 - clamp01(hold.ready)) * (0.8 + hurry) * foot;
   }
 
-  /** Continuous rails (wire bridge, cargo net): the stick drives a speed along the rail. */
+  /**
+   * Continuous rails (wire bridge, cargo net): the stick drives a speed along the rail. A element may
+   * publish its own `railAccel` (skate: a shove takes a moment to build up and coasts afterwards)
+   * instead of the shared rate – every element that does not is unaffected.
+   */
   function walk(dt, drive, hands) {
     const wanted = drive * element.walkSpeed
       * (1 - ELEMENT_MOVE.nervePenalty * nerves.value)
       * (1 - ELEMENT_MOVE.handSlow * hands);
-    railSpeed += (wanted - railSpeed) * Math.min(1, ELEMENT_MOVE.accel * dt);
+    const accel = element.railAccel || ELEMENT_MOVE.accel;
+    railSpeed += (wanted - railSpeed) * Math.min(1, accel * dt);
     t = clamp01(t + railSpeed * dt / element.length);
     return stepImpulse(dt, drive);
   }
 
-  /** Where the body wants to be: over plank `stepIndex`, wherever that plank has swung to. */
+  /** The step row a discrete element crosses – `element.steps` (stirrups, rings, …) or the older `element.planks`. */
+  function stepRow() { return element.steps || element.planks || []; }
+
+  /** Where the body wants to be: over step `stepIndex`, wherever that step has swung to. */
   function plankTarget() {
-    const planks = element.planks || [];
+    const steps = stepRow();
     if (stepIndex < 0) return 0;
-    if (stepIndex >= planks.length) return 1;
-    const plank = planks[stepIndex];
-    return clamp01((plank.x + plank.offset) / element.length);
+    if (stepIndex >= steps.length) return 1;
+    const step = steps[stepIndex];
+    return clamp01((step.x + step.offset) / element.length);
   }
 
   /**
-   * One press of W = one plank. Stepping past either end walks off onto the platform, and a plank
+   * One press of W = one step. Stepping past either end walks off onto the platform, and a step
    * that has swung out from under the foot goes straight into the balance pendulum.
    */
   function stride(direction) {
-    const planks = element.planks || [];
+    const steps = stepRow();
     stepTimer = ELEMENT_MOVE.stepWait;
     stepIndex += direction;
     stepPhase += 1;
-    if (stepIndex < 0 || stepIndex >= planks.length) return 0;
-    const plank = planks[stepIndex];
-    const hold = element.footholdAt((plank.x + plank.offset) / element.length);
+    if (stepIndex < 0 || stepIndex >= steps.length) return 0;
+    const step = steps[stepIndex];
+    const hold = element.footholdAt((step.x + step.offset) / element.length);
     element.stepOn(stepIndex, 1, direction);
     element.wobble.excite(direction * ELEMENT_MOVE.stepExcite * 0.5);
     return (1 - clamp01(hold.ready)) * ELEMENT_MOVE.missStepKick * (stepIndex % 2 === 0 ? 1 : -1);
   }
 
-  /** +1 / −1 once a discrete step went past the last / first plank, 0 while still on the element. */
+  /** +1 / −1 once a discrete step went past the last / first one, 0 while still on the element. */
   function pastEnd() {
-    const planks = element.planks || [];
-    return stepIndex < 0 ? -1 : stepIndex >= planks.length ? 1 : 0;
+    const steps = stepRow();
+    return stepIndex < 0 ? -1 : stepIndex >= steps.length ? 1 : 0;
   }
 
   /** Discrete elements (hanging planks): step, wait for the swing, step again. */
@@ -133,7 +141,7 @@ export function createElementState({ input, events = null, balance, stamina, ner
       railSpeed = 0;
       stepPhase = 0;
       handL = handR = 0;
-      stepIndex = element.discreteSteps ? element.footholdAt(t).index : 0;
+      stepIndex = element.discrete ? element.footholdAt(t).index : 0;
       stepTimer = 0;
       balance.reset(0);
       element.occupancy.active = true;
@@ -161,7 +169,7 @@ export function createElementState({ input, events = null, balance, stamina, ner
       const blocked = frozen || breathing;
       const drive = blocked ? 0 : clampSigned(input.move.y);
       const previous = railSpeed;
-      const misStep = element.discreteSteps ? stepAcross(dt, blocked) : walk(dt, drive, hands);
+      const misStep = element.discrete ? stepAcross(dt, blocked) : walk(dt, drive, hands);
       element.occupancy.t = t;
 
       // --- what the element does about it -------------------------------------------------------
@@ -201,7 +209,7 @@ export function createElementState({ input, events = null, balance, stamina, ner
         if (events) events.emit("player:slip", { element: element.id, t, angle: result.angle });
         return { state: "fall", data: { element, t, angle: result.angle } };
       }
-      const leaving = element.discreteSteps ? pastEnd() : drive;
+      const leaving = element.discrete ? pastEnd() : drive;
       if (t >= 1 - ELEMENT_MOVE.exitMargin && leaving > 0) return stepOff(player, "exit");
       if (t <= ELEMENT_MOVE.exitMargin && leaving < 0) return stepOff(player, "entry");
       return undefined;

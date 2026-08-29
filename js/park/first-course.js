@@ -18,9 +18,7 @@ import { planZipline } from "./zip-plan.js";
 import { createBlockLadder } from "../elements/ladder.js";
 import { createElement } from "../elements/element.js";
 import { ZIPLINE, createZipPictogram } from "../elements/zipline.js";
-import "../elements/burma-bridge.js";        // side effect: registers the element kind
-import "../elements/hanging-planks.js";
-import "../elements/net-bridge.js";
+import "../elements/catalogue.js";           // side effect: registers all twelve element kinds (M1.8)
 
 export const FIRST_COURSE = Object.freeze({
   /**

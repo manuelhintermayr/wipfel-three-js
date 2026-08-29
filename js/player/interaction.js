@@ -21,6 +21,14 @@ const ELEMENT_LABEL_KEYS = Object.freeze({
   "hanging-planks": "element.planks",
   "net-bridge": "element.net",
   "zipline": "element.zipline",
+  "beam-fixed": "element.beamFixed",
+  "beam-swing": "element.beamSwing",
+  "stirrups": "element.stirrups",
+  "wire-loops": "element.wireLoops",
+  "barrels": "element.barrels",
+  "rings": "element.rings",
+  "tarzan": "element.tarzan",
+  "skate": "element.skate",
 });
 export const PROMPTS = Object.freeze({
   get clipIn() { return t("prompt.clipIn"); },

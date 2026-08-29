@@ -2,9 +2,9 @@
 // `enter(ctx, data)`, `exit(ctx)` and any number of custom hooks (e.g. `update`, `postMove`).
 // A hook that returns a state name requests a transition; the machine performs it.
 // Locomotion states today: "ground", "air". Hooks for later sessions: "ladder", "element",
-// "fall", "zipline" – register them with `machine.add(name, state)`.
+// "fall", "zipline", "tarzan" – register them with `machine.add(name, state)`.
 
-export const PLAYER_STATES = Object.freeze(["ground", "air", "ladder", "element", "fall", "zipline"]);
+export const PLAYER_STATES = Object.freeze(["ground", "air", "ladder", "element", "fall", "zipline", "tarzan"]);
 
 /**
  * @param {{ states: Record<string, object>, initial: string }} options

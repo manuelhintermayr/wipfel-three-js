@@ -50,15 +50,29 @@ Planken (Schritt-für-Schritt), Netz, Flying Fox mit Netzbremse, Landung – **�
   `player/climb-ladder.js` (Schienen-Fortbewegung, KCC aus, 0,9 m/s, Leiter-Pose), `ui/hud.js`
   (Karabiner-Widget + Prompt mit `<kbd>`), `audio/synth.js` + `audio/sfx.js` (WebAudio-Klicks,
   erst nach echter Nutzergeste). Ablauf: F → F (einhängen) → E (klettern) → oben F → F (Podestring).
-- **Übungen (M0.5):** `elements/element.js` (gemeinsames Interface: Rail-Spline `pointAt/tangentAt`,
-  Feder-Dämpfer-Wackelmodell, 12-mm-Sicherungsseil 2,05 m über der Trittlinie, `getDifficultyMetrics`),
-  `elements/element-parts.js` (Seile mit Durchhang, gepresste Klemmhülsen, Schäkel, geschlagene Seile
-  mit sichtbarem Schlag, Netzknoten), `elements/element-deform.js` (CPU-Deformer: der Timber-Builder
-  verschweißt alles zu einem Mesh pro Material, der Deformer bewegt es wieder – ein Vertex-Klassifikat
-  pro Bauteil, `offsets` pro Gruppe). Drei Übungen: `burma-bridge.js` (Trittseil + zwei Halteseile
-  1,32 m, Hanfsteigbügel, 2 % Durchhang, 0,60 m/s), `hanging-planks.js` (6–12 Bretter 60 × 22 × 5 cm
-  an Seilpaaren, **ein W-Druck = eine Planke**, 0,35 s Ausschwingpause, jede Planke ein eigenes
-  Pendel), `net-bridge.js` (Netz 1,2 m breit, 15 cm Masche, Delle folgt dem Kletterer, 0,50 m/s).
+- **Übungen (M0.5 + M1.8 – 12 Übungsarten):** `elements/element.js` (gemeinsames Interface: Rail-Spline
+  `pointAt/tangentAt`, Feder-Dämpfer-Wackelmodell, 12-mm-Sicherungsseil 2,05 m über der Trittlinie,
+  `getDifficultyMetrics`), `elements/element-parts.js` (Seile mit Durchhang, gepresste Klemmhülsen,
+  Schäkel, geschlagene Seile mit sichtbarem Schlag, Netzknoten), `elements/element-deform.js`
+  (CPU-Deformer: der Timber-Builder verschweißt alles zu einem Mesh pro Material, der Deformer bewegt
+  es wieder – ein Vertex-Klassifikat pro Bauteil, `offsets` pro Gruppe), `elements/hanging-steps.js`
+  (geteiltes Pendel-Modell für Steigbügel/Seilschlaufen/Ringe: ein Schritt je Element, Nachbar-Kopplung
+  über das Trägerseil), `elements/catalogue.js` + `catalogue-data.js` (alle 12 Arten registriert +
+  Metadaten für den künftigen Generator; `catalogue-data.js` ist THREE-frei, damit sie in
+  `tests/unit/catalogue.test.mjs` unter reinem Node prüfbar bleibt). `element.discrete === true`
+  ersetzt seit M1.8 den harten `kind === "hanging-planks"`-Vergleich (`on-element.js`, `autoplay.js`).
+  Zwölf Übungen: `burma-bridge.js` (Trittseil + zwei Halteseile 1,32 m, Hanfsteigbügel, 2 % Durchhang,
+  0,60 m/s), `hanging-planks.js` (6–12 Bretter, **ein W-Druck = eine Planke**, eigenes Pendel je
+  Planke), `net-bridge.js` (Netz 1,2 m breit, 15 cm Masche, Delle folgt dem Kletterer, 0,50 m/s),
+  `beam-fixed.js` (starrer Ø-20-cm-Balken, keine Haltemöglichkeit), `beam-swing.js` (3–4 hängende
+  Balkensegmente, durchgehend begangen, jedes schwingt für sich), `stirrups.js` (Steigbügel alle
+  45 cm), `wire-loops.js` (dünne Variante: reine Seilschlaufe statt starrem Tritt), `barrels.js`
+  (4–6 Fässer auf Achsseil, rollen unterm Fuß – eigenes rotierbares Mesh, der Deformer kann nicht
+  drehen), `rings.js` (Ringe alle 50 cm, hängend, Füße frei, hohe Kraftkosten), `tarzan.js` +
+  `player/on-tarzan.js` (eigener Zustand `"tarzan"`: Sprung [Space] in ein ±0,25-s-Fangfenster, sonst
+  `fall` am Sicherungsseil; deterministisches Sinus-Pendel treibt Geometrie und Zustand aus derselben
+  `elapsed`-Uhr), `skate.js` (Board an zwei Hängern auf zwei Seilen, Stoß + Trägheit über
+  `element.railAccel`).
 - **Ressourcen (M0.5):** `player/balance.js` (instabiles inverses Pendel – aufrecht ist ein
   Gleichgewicht, von dem man wegfällt; eine Hand am Seil macht es stabil und kostet Kraft),
   `player/stamina.js`, `player/nerves.js` (Höhe logarithmisch, Exposition, Wackeln, Böen, Runterschauen,
@@ -182,6 +196,17 @@ der generierten Definition. Unit-Tests: Graph-Konnektivität, Generator-Validit�
 - **M0.5:** Die Posen treffen die Seile nicht: beim Greifen stehen die Arme seitlich ab statt auf dem
   Halteseil zu liegen, auf den Planken fassen die Hände die Aufhängeseile nicht an. Braucht IK
   (M0.7-Politur). Auf dem Netz fehlt die Vierfüßler-Hocke – es wird die normale Balance-Pose benutzt.
+- **M1.8:** `tarzan.js`/`on-tarzan.js` ist absichtlich **kinematisch/analytisch**, nicht Rigid-Body wie
+  GDD §7 es für den Tarzansprung vorsieht (dort explizit als Ausnahme von „Übungen sind Schienen“
+  genannt) – ein Rapier-Seilpendel wie in `fall.js` wäre der nächste Schritt, aber ohne Live-Testlauf
+  zu riskant für diese Session; das deterministische Sinus-Pendel ist dafür beliebig reproduzierbar.
+  `skate.js` nutzt für „Stoß + Trägheit“ nicht echte Impulse, sondern einen **pro Element
+  überschreibbaren Beschleunigungswert** (`element.railAccel`, neu in `on-element.js#walk`) – fühlt
+  sich träger an als die anderen Übungen, ist aber kein echtes Press-Impuls-Modell. Elf der zwölf
+  Übungen liegen komplett im verschmolzenen Timber-Mesh; `barrels.js` braucht für das echte Rollen
+  unterm Fuß **eigene Meshes** (der CPU-Deformer kann nur verschieben, nicht drehen) – 4–6 Draw-Calls
+  mehr, wenn diese Übung tatsächlich im Kurs verbaut wird. 12. Art `wire-loops` ergänzt (dünne
+  Steigbügel-Variante), damit die Zwölf ohne Fußnote stimmt – s. `docs/architecture.md`.
 - **M0.5:** Die Übungen haben **keine Collider** (`impl.createPhysics` ist nirgends implementiert) –
   man kann nicht auf ein Seil fallen, nur an ihm entlanglaufen. Für M0 in Ordnung, weil der Zustand
   `element` die Figur ohnehin kinematisch führt.

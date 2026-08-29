@@ -68,7 +68,7 @@ export function createHangingPlanks(spec, ctx) {
 
   element.planks = planks;
   /** Crossed one plank per press of W, not walked (js/player/on-element.js). */
-  element.discreteSteps = true;
+  element.discrete = true;
   /** A foot landed on plank `index`: kick it, and let the carrier cable tell its neighbours. */
   element.stepOn = function stepOn(index, strength = 1, direction = 1) {
     const plank = planks[index];

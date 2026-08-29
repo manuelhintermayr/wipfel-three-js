@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wipfel · dev · elements</title>
+  <link rel="stylesheet" href="../../css/base.css">
+  <style>
+    #info { position: fixed; left: 12px; top: 12px; max-width: 40rem; padding: 10px 12px; background: var(--hud-bg, rgba(20,24,20,.75));
+      border: 1px solid var(--hud-line, rgba(255,255,255,.15)); border-radius: var(--radius, 6px); color: #eee;
+      font: 12px/1.45 var(--font-mono, monospace); white-space: pre; pointer-events: none; }
+    #help { position: fixed; right: 12px; bottom: 12px; padding: 8px 10px; background: var(--hud-bg, rgba(20,24,20,.75)); border-radius: var(--radius, 6px);
+      font: 11px/1.4 var(--font-ui, sans-serif); color: var(--hud-muted, #bbb); pointer-events: none; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "../../vendor/three/three.module.js",
+      "rapier": "../../vendor/rapier/rapier.mjs"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="info">loading…</div>
+  <div id="help">click: mouse look · WASD/QE: fly · shift: fast · ?seed=N ?cam=x,y,z&amp;look=x,y,z</div>
+  <div id="fatal" hidden role="alert"></div>
+  <script type="module">
+    import * as THREE from "three";
+    import { createRenderer } from "../../js/core/renderer.js";
+    import { Rng } from "../../js/core/rng.js";
+    import { getWoodTextures } from "../../js/procgen/textures/wood.js";
+    import { createTimberBuilder } from "../../js/park/timber.js";
+    import { CATALOGUE, createElement } from "../../js/elements/catalogue.js";
+
+    const q = new URLSearchParams(location.search);
+    const seedRaw = q.get("seed");
+    const seed = seedRaw == null || seedRaw === "" ? 1 : (Number.isFinite(Number(seedRaw)) ? Number(seedRaw) : seedRaw);
+    const info = document.getElementById("info");
+    const vec = (s, d) => { const p = (s || "").split(",").map(Number); return p.length === 3 && p.every(Number.isFinite) ? new THREE.Vector3(...p) : d; };
+
+    /** Grid layout: 4 columns × 3 rows, one element per cell, all at the same flat height. */
+    const GRID = Object.freeze({ columns: 4, dx: 11, dz: 13, span: 7.5, tarzanSpan: 3.0, deckSize: 1.7, deckThick: 0.3 });
+    const cellOf = (i) => ({ col: i % GRID.columns, row: Math.floor(i / GRID.columns) });
+    const spanOf = (kind) => (kind === "tarzan" ? GRID.tarzanSpan : GRID.span);
+
+    /** Kinds whose look depends on `element.occupancy` while nobody drives it through on-element.js. */
+    const NEEDS_OCCUPANCY = new Set(["net-bridge", "zipline", "barrels", "skate"]);
+
+    function makeLabel(text) {
+      const c = document.createElement("canvas");
+      c.width = 512; c.height = 96;
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = "rgba(20,22,18,0.72)";
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.fillStyle = "#f2efe6";
+      ctx.font = "bold 46px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, c.width / 2, c.height / 2);
+      const texture = new THREE.CanvasTexture(c);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthWrite: false }));
+      sprite.scale.set(3.2, 0.6, 1);
+      return sprite;
+    }
+
+    async function main() {
+      const { renderer, scene, camera } = createRenderer(document.getElementById("app"));
+      const rng = new Rng(seed);
+
+      scene.background = new THREE.Color(0xaecfe0);
+      scene.fog = new THREE.Fog(0xaecfe0, 40, 260);
+      scene.add(new THREE.HemisphereLight(0xd8ecfb, 0x4a5a3a, 0.70));
+      const sun = new THREE.DirectionalLight(0xffe4bd, 2.4);
+      sun.position.set(-40, 70, -30);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(2048, 2048);
+      sun.shadow.camera.near = 1; sun.shadow.camera.far = 160;
+      sun.shadow.camera.left = -55; sun.shadow.camera.right = 55; sun.shadow.camera.top = 40; sun.shadow.camera.bottom = -40;
+      sun.shadow.bias = -0.0006;
+      sun.target.position.set(20, 0, 13);
+      scene.add(sun, sun.target);
+
+      const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(160, 120),
+        new THREE.MeshStandardMaterial({ color: 0x5c6b45, roughness: 1, metalness: 0 }),
+      );
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.set(20, -GRID.deckThick - 0.35, 13);
+      ground.receiveShadow = true;
+      scene.add(ground);
+
+      const wood = getWoodTextures(seed);
+      const timber = createTimberBuilder({ textures: wood });
+      const ctx = { scene, physics: null, rng: rng.fork("elements"), timber, wind: null };
+      const deckBuilder = createTimberBuilder({ textures: wood });
+
+      const built = [];
+      for (let i = 0; i < CATALOGUE.length; i++) {
+        const entry = CATALOGUE[i];
+        const { col, row } = cellOf(i);
+        const span = spanOf(entry.kind);
+        const x0 = col * GRID.dx, z0 = row * GRID.dz;
+        const entryPos = new THREE.Vector3(x0, 0, z0);
+        const exitPos = new THREE.Vector3(x0 + span, 0, z0);
+        // real platforms extend AWAY from the gap (entry.position/exit.position are the walking
+        // surface's edge, not the deck centre) – offset the stub decks the same way, or a short
+        // element (tarzan's 3 m gap) ends up with its own deck overlapping the far-side hardware
+        deck(deckBuilder, { x: entryPos.x - GRID.deckSize / 2, y: 0, z: entryPos.z });
+        deck(deckBuilder, { x: exitPos.x + GRID.deckSize / 2, y: 0, z: exitPos.z });
+
+        let element;
+        try {
+          element = createElement({
+            id: `dev-${entry.kind}`, kind: entry.kind, label: entry.kind,
+            lifelineAnchorId: `dev-${entry.kind}-lifeline`,
+            entry: { platformId: `${entry.kind}-a`, position: entryPos },
+            exit: { platformId: `${entry.kind}-b`, position: exitPos },
+          }, ctx);
+          element.build();
+        } catch (err) {
+          console.error(`elements dev: '${entry.kind}' failed to build`, err);
+          note(`ERROR building ${entry.kind}: ${err.message}`);
+          continue;
+        }
+        wakeUp(element, rng);
+        const label = makeLabel(entry.kind);
+        label.position.set(x0 + span / 2, 3.6, z0 - 1.1);
+        scene.add(label);
+        built.push({ element, kind: entry.kind, phase: rng.float(0, Math.PI * 2) });
+      }
+      scene.add(deckBuilder.build("stub-decks"));
+
+      const rows = Math.ceil(CATALOGUE.length / GRID.columns) - 1;
+      const cols = GRID.columns - 1;
+      const boundsMax = new THREE.Vector3(cols * GRID.dx + GRID.span, 0, rows * GRID.dz);
+      const centre = new THREE.Vector3(boundsMax.x / 2, 1.4, boundsMax.z / 2);
+      camera.position.copy(vec(q.get("cam"), new THREE.Vector3(centre.x, 30, -24)));
+      camera.lookAt(vec(q.get("look"), centre));
+      const euler = new THREE.Euler(0, 0, 0, "YXZ");
+      euler.setFromQuaternion(camera.quaternion);
+      const keys = new Set();
+      window.addEventListener("keydown", (e) => keys.add(e.code));
+      window.addEventListener("keyup", (e) => keys.delete(e.code));
+      const canvas = renderer.domElement;
+      canvas.addEventListener("click", () => canvas.requestPointerLock());
+      window.addEventListener("mousemove", (e) => {
+        if (document.pointerLockElement !== canvas) return;
+        euler.y -= e.movementX * 0.0022; euler.x = THREE.MathUtils.clamp(euler.x - e.movementY * 0.0022, -1.5, 1.5);
+        camera.quaternion.setFromEuler(euler);
+      });
+
+      const fwd = new THREE.Vector3(), right = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+      let last = performance.now(), elapsed = 0, infoTimer = 0;
+      function frame(now) {
+        const dt = Math.min(0.1, (now - last) / 1000); last = now; elapsed += dt;
+        const speed = (keys.has("ShiftLeft") ? 22 : 6) * dt;
+        camera.getWorldDirection(fwd); right.crossVectors(fwd, up).normalize();
+        if (keys.has("KeyW")) camera.position.addScaledVector(fwd, speed);
+        if (keys.has("KeyS")) camera.position.addScaledVector(fwd, -speed);
+        if (keys.has("KeyD")) camera.position.addScaledVector(right, speed);
+        if (keys.has("KeyA")) camera.position.addScaledVector(right, -speed);
+        if (keys.has("KeyE")) camera.position.y += speed;
+        if (keys.has("KeyQ")) camera.position.y -= speed;
+
+        for (const b of built) {
+          if (NEEDS_OCCUPANCY.has(b.kind)) {
+            b.element.occupancy.active = true;
+            b.element.occupancy.t = 0.5 + 0.47 * Math.sin(elapsed * 0.3 + b.phase);
+          }
+          b.element.update(dt, elapsed);
+        }
+        renderer.render(scene, camera);
+
+        infoTimer += dt;
+        if (infoTimer > 0.25) {
+          infoTimer = 0;
+          const r = renderer.info.render;
+          const kinds = built.map((b) => b.kind).join(", ");
+          info.textContent = [
+            `elements dev · seed ${seed} · ${built.length}/${CATALOGUE.length} kinds built`,
+            `draw calls ${r.calls} · triangles ${r.triangles.toLocaleString()}`,
+            `cam ${camera.position.x.toFixed(1)},${camera.position.y.toFixed(1)},${camera.position.z.toFixed(1)}`,
+            kinds,
+            log.join("\n"),
+          ].join("\n");
+        }
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+      window.WIPFEL = { scene, camera, renderer, elements: built };
+    }
+
+    /** A stub deck (no physics, no clamps – just a flat wooden top to hang an element off). */
+    function deck(builder, at) {
+      builder.box({
+        length: GRID.deckSize, width: GRID.deckSize, thickness: GRID.deckThick,
+        position: { x: at.x, y: at.y - GRID.deckThick / 2, z: at.z }, material: "plank",
+      });
+    }
+
+    /** A small deterministic kick so the swinging/rolling systems show motion, not a dead rest pose. */
+    function wakeUp(element, rng) {
+      if (element.wobble) element.wobble.excite(rng.float(0.15, 0.45) * (rng.bool() ? 1 : -1));
+      const steps = element.discrete ? (element.steps || element.planks || []) : null;
+      if (steps) for (let i = 0; i < steps.length; i++) element.stepOn(i, rng.float(0.35, 0.85), rng.bool() ? 1 : -1);
+    }
+
+    const log = [];
+    function note(text) { log.push(text); if (log.length > 6) log.shift(); }
+
+    main().catch((err) => {
+      console.error(err);
+      info.textContent = `ERROR: ${err && err.stack ? err.stack : err}`;
+    });
+  </script>
+</body>
+</html>

@@ -25,6 +25,7 @@ import { createVitals } from "./player/vitals.js";
 import { createElementState } from "./player/on-element.js";
 import { createFallState } from "./player/fall.js";
 import { createZiplineState } from "./player/on-zipline.js";
+import { createTarzanState } from "./player/on-tarzan.js";
 import { createHud } from "./ui/hud.js";
 import { armAudio } from "./audio/synth.js";
 import { initI18n } from "./core/i18n.js";
@@ -84,6 +85,7 @@ async function boot() {
   player.addState("element", createElementState({ input, events, balance, stamina, nerves, rng: rng.fork("element"), camera: player.camera }));
   player.addState("fall", createFallState({ physics, input, scene, events, balance, stamina, nerves, camera: player.camera }));
   player.addState("zipline", createZiplineState({ input, events, camera: player.camera, hud, stamina, nerves, wind }));
+  player.addState("tarzan", createTarzanState({ input, events, nerves, stamina }));
   const interaction = createInteraction({ player, input, belay, course, hud, events, vitals });
   const session = createSession({ player, course, events, hud, save, root: document.getElementById("hud") });
   const autoplay = params.autoplay ? createAutoplay({ player, course, interaction, events, belay, session }) : null;

@@ -251,13 +251,28 @@ The timber builder welds a whole element into one mesh per material, which is wh
 calls down – so the deformer classifies every vertex once into a station `u`, a group (whole span, or
 one plank) and a weight, and rewrites the rest positions from `offsets` each frame.
 
-### The three exercises
+### The element library (M0.5 + M1.8 – 12 traversable kinds)
+`js/elements/catalogue.js` imports all twelve concrete modules for their `registerElementKind` side
+effect and re-exports their static metadata (`labelKey`, `discrete`, `metrics`) from the THREE-free
+`catalogue-data.js`, so a layout generator (M1.1) can enumerate what is buildable without importing
+each module, and `tools/dev/elements.html` can build every kind side by side for inspection.
+`element.discrete === true` marks the kinds crossed one step at a time (`js/player/on-element.js`
+reads it instead of a hardcoded kind check; `js/game/autoplay.js` does the same for the smoke bot).
+
 | Module | kind | Hardware | Movement | Metrics (p/c/ψ/t) |
 |---|---|---|---|---|
 | `js/elements/burma-bridge.js` | `burma-bridge` | 12 mm foot cable, two hand cables 1.32 m up fanning out, hemp stirrups every 1.15 m, 2 % sag | walk, 0.60 m/s, strong lateral wobble | 2·3·3·1 |
 | `js/elements/hanging-planks.js` | `hanging-planks` | 6–12 boards 60 × 22 × 5 cm on rope pairs from two carrier cables, pitch fitted to the span | **one press of W per plank**, 0.35 s swing wait, each plank its own pendulum | 1·4·4·1 |
 | `js/elements/net-bridge.js` | `net-bridge` | 1.2 m wide cargo net, 15 cm mesh, side cables + hand ropes, dent that follows the climber | crawl, 0.50 m/s, no balance loss, drains strength | 4·1·1·1 |
 | `js/elements/zipline.js` | `zipline` | 12 mm cable with 2 % sag, trolley, braking net + marker sleeve, start gate | **not a rail** – see the Flying Fox section below | 1·2·2·3 |
+| `js/elements/beam-fixed.js` | `beam-fixed` | one bolted Ø 20 cm log, slight upward camber, no hand hold at all | walk, 0.55 m/s, nothing to correct with but the body | 1·3·4·1 |
+| `js/elements/beam-swing.js` | `beam-swing` | 3–4 Ø 19 cm log segments on chain hangers from two carrier cables, butted end to end | walk continuously; whichever log is underfoot sways sideways on its own | 2·4·4·1 |
+| `js/elements/stirrups.js` | `stirrups` | hemp stirrups (wooden tread) every 45 cm from two hand ropes | **one press of W per stirrup**, both hands always occupied | 2·4·3·1 |
+| `js/elements/wire-loops.js` | `wire-loops` | plain rope eyes every 45 cm, same two-hand-rope rig as the stirrups | **one press of W per loop** – no rigid tread, the foot can twist in it | 2·5·3·1 |
+| `js/elements/barrels.js` | `barrels` | 4–6 Ø 60 cm barrels strung on a hung axle cable, no hand cable | walk continuously, 0.55 m/s; the barrel underfoot rolls (own mesh, true rotation – the deformer only offsets, so it cannot spin one) | 2·5·3·2 |
+| `js/elements/rings.js` | `rings` | wooden rings Ø 22 cm every 50 cm on an overhead cable | **one press of W per ring**; hangs the whole way, feet free, heavy stamina drain | 5·3·4·2 |
+| `js/elements/tarzan.js` | `tarzan` | rope from an overhead pivot at mid-span (deterministic sine swing), catch net on the far side | its own player state (`js/player/on-tarzan.js`, `element.playerState = "tarzan"`): Space at the edge, ±0.25 s catch window or hand-off to `fall` on the safety cable, then W climbs from the net | 3·3·5·2 |
+| `js/elements/skate.js` | `skate` | 80 × 25 cm board on two hangers riding two overhead cables (repositioned every frame, like the zip line's trolley) | W shoves, glides with momentum + damping (`element.railAccel` overrides the shared rate), max 1.6 m/s | 2·5·3·2 |
 
 ## Flying Fox (M0.6 – contracts)
 

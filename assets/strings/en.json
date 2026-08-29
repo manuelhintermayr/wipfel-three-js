@@ -42,5 +42,16 @@
   "prompt.zipPush": "Push off [Space]",
   "prompt.zipRiding": "Legs up [Space]  ·  Twist [A][D]",
   "prompt.zipZone": "Legs up! hold [Space]",
-  "prompt.zipStalled": "Haul yourself in [W]"
+  "prompt.zipStalled": "Haul yourself in [W]",
+  "element.beamFixed": "fixed beam",
+  "element.beamSwing": "swinging beams",
+  "element.stirrups": "stirrups",
+  "element.wireLoops": "wire loops",
+  "element.barrels": "barrels",
+  "element.rings": "rings",
+  "element.tarzan": "tarzan swing",
+  "element.skate": "skate board",
+  "prompt.tarzanReady": "Get ready [E]",
+  "prompt.tarzanJump": "Jump [Space]",
+  "prompt.tarzanClimb": "Climb up [W]"
 }
