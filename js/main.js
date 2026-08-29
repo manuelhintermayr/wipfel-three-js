@@ -20,6 +20,7 @@ import { createPlayer } from "./player/controller.js";
 import { getWoodTextures } from "./procgen/textures/wood.js";
 import { generateParkLayout } from "./park/layout.js";
 import { loadPark } from "./park/loader.js";
+import { createSigns } from "./park/signs.js";
 import { createBelay } from "./player/belay.js";
 import { createInteraction } from "./player/interaction.js";
 import { createVitals } from "./player/vitals.js";
@@ -71,9 +72,10 @@ async function boot() {
   const parkDef = generateParkLayout({ seed: params.seed, terrain });
   const forest = createForest({ rng: rng.fork("forest"), scene, physics, terrain, wind, heroTrees: parkDef.heroTrees });
 
-  // --- park (M1.1: generated layout → six built routes) -------------------------------------------------
+  // --- park (M1.1: generated layout → six built routes; M1.2: signage) ------------------------------------
   const wood = getWoodTextures(params.seed);
   const course = loadPark(parkDef, { scene, physics, terrain, forest, rng: rng.fork("course"), textures: wood });
+  const signs = createSigns({ parkDef, scene, terrain, textures: wood, rng: rng.fork("signs") });
   const buildMs = Math.round(performance.now() - t0);
   log.info(`world built in ${buildMs} ms · trees ${forest.trees.length} · hubs ${terrain.hubs.length} · routes ${course.routes.length} · course on tree #${course.tree.id}`);
 
@@ -87,7 +89,7 @@ async function boot() {
   player.addState("fall", createFallState({ physics, input, scene, events, balance, stamina, nerves, camera: player.camera }));
   player.addState("zipline", createZiplineState({ input, events, camera: player.camera, hud, stamina, nerves, wind }));
   player.addState("tarzan", createTarzanState({ input, events, nerves, stamina }));
-  const interaction = createInteraction({ player, input, belay, course, hud, events, vitals });
+  const interaction = createInteraction({ player, input, belay, course, hud, events, vitals, save });
   const session = createSession({ player, course, parkDef, events, hud, save, root: document.getElementById("hud") });
   const autoplay = params.autoplay ? createAutoplay({ player, course, interaction, events, belay, session }) : null;
   armAudio(window);
@@ -160,7 +162,7 @@ async function boot() {
 
   window.WIPFEL = {
     version: GAME.version, params, loop, physics, scene, camera, renderer, rng, input, events,
-    terrain, forest, sky, wind, player, parkDef, course, belay, hud, interaction, vitals, session, save, autoplay,
+    terrain, forest, sky, wind, player, parkDef, course, signs, belay, hud, interaction, vitals, session, save, autoplay,
     debug: {
       /** Force the slip a play-test needs on demand (screenshots, smoke runs). */
       forceSlip(angle = 1) {

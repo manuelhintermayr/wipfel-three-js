@@ -7,13 +7,16 @@
 // run's own `completeObstacle` already ignores ids it does not own and states it is not running in,
 // so at most one run ever actually advances.
 import { t, formatTime } from "../core/i18n.js";
+import { nextGateCategory } from "../core/save.js";
 import { createRouteRun, routesFromPark } from "./route.js";
 import { createRouteHud } from "../ui/hud-route.js";
 
 const SESSION = Object.freeze({
-  bannerRange: 5,            // metres from an entry deck within which the start banner shows
+  bannerRange: 6,            // metres from an entry deck within which the start banner shows
   tipSeconds: 6,
 });
+
+const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /**
  * @param {{ player, course, parkDef, events, hud, save, root: HTMLElement }} o
@@ -46,7 +49,11 @@ export function createSession({ player, course, parkDef, events, hud, save, root
   on("player:interact", ({ what, anchorId }) => {
     if (what !== "ladder") return;
     const route = course.routes.find((r) => r.ladderAnchorId === anchorId);
-    const run = route && runs.get(route.id);
+    // Defence in depth: js/player/interaction.js already refuses to clip a locked route's entry
+    // anchor, so belay.currentAnchor() can never legitimately be here – but a run must never start
+    // for a category the save says is still locked.
+    if (!route || !save.isUnlocked(route.category)) return;
+    const run = runs.get(route.id);
     if (run && (run.state === "idle" || run.state === "armed")) run.beginCountdown();
   });
   on("belay:click", () => {
@@ -67,9 +74,14 @@ export function createSession({ player, course, parkDef, events, hud, save, root
       const summary = run.finish();
       const isBest = save.recordRun(summary.routeId, summary);
       const name = t(run.def.nameKey);
-      const line = t("notice.routeDone", { name, time: formatTime(summary.seconds), falls: summary.falls });
-      hud.setNotice(isBest ? `${line} · ${t("notice.newBest", { time: formatTime(summary.seconds) })}` : line, 8);
-      events.emit("route:completed", { ...summary, isBest, maxKmh });
+      let line = t("notice.routeDone", { name, time: formatTime(summary.seconds), falls: summary.falls });
+      if (isBest) line += ` · ${t("notice.newBest", { time: formatTime(summary.seconds) })}`;
+      // Category gate (GDD §3.12): completing any route of one colour opens the next – one combined
+      // notice, never two competing ones on the same frame (setNotice replaces, it does not queue).
+      const unlocked = nextGateCategory(run.def.category);
+      if (unlocked && save.unlockCategory(unlocked)) line += ` · ${t(`notice.unlocked${capitalize(unlocked)}`)}`;
+      hud.setNotice(line, 8);
+      events.emit("route:completed", { ...summary, category: run.def.category, isBest, maxKmh });
     }
   });
 
@@ -87,9 +99,10 @@ export function createSession({ player, course, parkDef, events, hud, save, root
       const nearDeck = route && player.position.distanceTo(route.entryDeck.clipAnchor) <= SESSION.bannerRange;
       const wantBanner = nearDeck && (shown.state === "idle" || shown.state === "armed");
       if (wantBanner && !bannerShown) {
-        routeHud.showBanner(shown.def, save.routeBest(shown.def.id));
+        const locked = !save.isUnlocked(shown.def.category);
+        routeHud.showBanner(shown.def, save.routeBest(shown.def.id), locked);
         bannerShown = true;
-        shown.arm();
+        if (!locked) shown.arm();   // a locked route stays idle – there is nothing to arm towards
       } else if (!wantBanner && bannerShown) {
         routeHud.hideBanner();
         bannerShown = false;

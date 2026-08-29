@@ -1,14 +1,23 @@
-// Versioned save (schema 1): route best times and completion counters. Stored data is never
-// trusted – anything malformed collapses to defaults; new fields must be additive with defaults.
+// Versioned save (schema 1): route best times, completion counters and category gates. Stored data is
+// never trusted – anything malformed collapses to defaults; new fields must be additive with defaults.
 import { GAME } from "../config.js";
 
 const DEFAULTS = Object.freeze({
   schema: GAME.saveSchema,
   routes: {},               // routeId → { bestSeconds, completions, cleanRuns }
+  // Category gates (GDD §3.12: "Farben sind Tore" – Blue → Red → Black). Blue is always open; a
+  // category unlocks once any route of the *previous* colour has been completed (js/game/session.js).
+  unlocks: Object.freeze({ blue: true, red: false, black: false }),
   locale: null,             // null = use DEFAULTS.locale / ?locale=
 });
 
-/** @returns {{ data, routeBest(id), recordRun(id, {seconds, falls}), setLocale(l), flush() }} */
+/** What completing a route in `category` unlocks next, or null (GDD §3.12: Blue → Red → Black). */
+export function nextGateCategory(category) {
+  return category === "blue" ? "red" : category === "red" ? "black" : null;
+}
+
+/** @returns {{ data, routeBest(id), recordRun(id, {seconds, falls}), isUnlocked(category),
+ *   unlockCategory(category), setLocale(l), flush() }} */
 export function createSave(storage = defaultStorage()) {
   const data = load(storage);
 
@@ -33,6 +42,15 @@ export function createSave(storage = defaultStorage()) {
       flush();
       return isBest;
     },
+    /** Categories not tracked in `unlocks` (green, legendary – no gate yet) default to open. */
+    isUnlocked(category) { return data.unlocks[category] !== false; },
+    /** @returns {boolean} true the first time this category is unlocked, false if it already was */
+    unlockCategory(category) {
+      if (data.unlocks[category] === true) return false;
+      data.unlocks[category] = true;
+      flush();
+      return true;
+    },
     setLocale(locale) { data.locale = locale; flush(); },
     flush,
   };
@@ -56,6 +74,12 @@ function load(storage) {
       };
     }
   }
+  if (parsed.unlocks && typeof parsed.unlocks === "object") {
+    for (const category of Object.keys(data.unlocks)) {
+      if (typeof parsed.unlocks[category] === "boolean") data.unlocks[category] = parsed.unlocks[category];
+    }
+  }
+  data.unlocks.blue = true;   // always open, regardless of what an older/corrupt save says
   if (typeof parsed.locale === "string") data.locale = parsed.locale;
   return data;
 }

@@ -41,19 +41,30 @@ export const PROMPTS = Object.freeze({
   get hanging() { return t("prompt.hanging"); },
   get rescue() { return t("prompt.rescue"); },
   stepOn: (element) => t("prompt.stepOn", { label: t(ELEMENT_LABEL_KEYS[element.kind] || "element.burma") }),
+  /** Category gate (GDD §3.12): shown instead of the clip prompt at a locked route's entry anchor. */
+  locked: (category) => t(category === "black" ? "notice.lockedBlack" : "notice.lockedRed"),
 });
 
 /**
- * @param {{ player, input, belay, course, hud?, events?, vitals? }} options
+ * @param {{ player, input, belay, course, hud?, events?, vitals?, save? }} options
+ *   `save` gates category entry anchors (GDD §3.12) – omit it (dev harnesses, older tests) and nothing
+ *   is ever locked.
  * @returns {{ update(dt: number): void, prompt: string|null, anchor: object|null,
  *   entry: {element: object, end: string}|null, dispose(): void }}
  */
-export function createInteraction({ player, input, belay, course, hud = null, events = null, vitals = null }) {
+export function createInteraction({ player, input, belay, course, hud = null, events = null, vitals = null, save = null }) {
   const chest = new THREE.Vector3();
   const classic = belay.mode === "classic";
   let prompt = null;
   let anchor = null;
   let entry = null;
+
+  /** The category this anchor's route is gated behind, or null if it is an entry anchor and unlocked/not an entry at all. */
+  const lockedCategoryOf = (anchorId) => {
+    if (!save) return null;
+    const route = course.routes.find((r) => r.ladderAnchorId === anchorId);
+    return route && !save.isUnlocked(route.category) ? route.category : null;
+  };
 
   /** The ladder the belay is currently clipped to, whichever of the six routes that is – or null. */
   const clippedLadder = () => course.ladderFor(belay.currentAnchor());
@@ -99,7 +110,11 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
     if (player.mode === "ladder") return PROMPTS.onLadder;
     const next = startable();
     if (readyToStepOn()) return next.element.enterPrompt || PROMPTS.stepOn(next.element);
-    if (anchor && !established(anchor.id)) return belay.pendingAnchor() === anchor.id ? PROMPTS.clipSecond : PROMPTS.clipIn;
+    if (anchor) {
+      const locked = lockedCategoryOf(anchor.id);
+      if (locked) return PROMPTS.locked(locked);
+      if (!established(anchor.id)) return belay.pendingAnchor() === anchor.id ? PROMPTS.clipSecond : PROMPTS.clipIn;
+    }
     if (next) return next.element.clipPrompt || PROMPTS.clipFirst;
     if (clippedToLadderCable() && atLadderBase() && player.mode === "ground") return PROMPTS.climb;
     return null;
@@ -120,6 +135,7 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
     // element, fall and zipline read the keys themselves and must not have them eaten here
     if (player.mode === "element" || player.mode === "fall" || player.mode === "zipline") return;
     if (anchor && (input.pressed("clip") || (classic && input.pressed("clip2")))) {
+      if (lockedCategoryOf(anchor.id)) return;   // refused: the route's category is not unlocked yet
       belay.clipTo(anchor.id, classic && input.pressed("clip2") ? "B" : "A");
       return;
     }

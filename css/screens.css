@@ -19,6 +19,7 @@
 .start-banner .best { margin-top: 0.7rem; font: 600 0.75rem/1.4 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.9; }
 .start-banner .best b { display: block; font: 700 1.5rem/1.1 var(--font-display); }
 .start-banner .go { margin-top: 0.7rem; padding-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.35); font: 700 1.5rem/1 var(--font-display); letter-spacing: 0.2em; text-transform: uppercase; }
+.start-banner .locked { margin-top: 0.7rem; padding-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.35); font: 600 1rem/1.4 var(--font-display); letter-spacing: 0.05em; }
 
 .countdown { position: absolute; right: var(--hud-pad); bottom: var(--hud-pad); display: flex; gap: 0.7rem; }
 .countdown .disc { width: 3rem; height: 3rem; border-radius: 50%; border: 2px solid var(--hud-line); background: var(--hud-bg-strong); display: grid; place-items: center; font: 700 1.3rem/1 var(--font-display); color: var(--hud-muted); }

@@ -4,9 +4,12 @@
 import { t, formatTime } from "../core/i18n.js";
 import { CATEGORY_BY_ID } from "../config.js";
 
+/** Which lock notice a gated category shows on the start banner (GDD §3.12: Blue → Red → Black). */
+const LOCK_NOTICE_KEY = Object.freeze({ red: "notice.lockedRed", black: "notice.lockedBlack" });
+
 /**
  * @param {HTMLElement} root the `#hud` container (shared with createHud's layer)
- * @returns {{ setRoute(run|null): void, refresh(run): void, showBanner(def, best): void,
+ * @returns {{ setRoute(run|null): void, refresh(run): void, showBanner(def, best, locked?): void,
  *   hideBanner(): void, setCountdown(step|null): void, showSafetyTip(seconds?): void,
  *   dispose(): void }}
  */
@@ -78,16 +81,21 @@ export function createRouteHud(root) {
       flow.hidden = !(run.state === "running");
     },
 
-    showBanner(def, best) {
+    /** `locked`: the mockup's start banner, but with a lock line instead of stats/best/START. */
+    showBanner(def, best, locked = false) {
       const category = CATEGORY_BY_ID[def.category];
       banner.style.setProperty("--cat-color", category ? category.css : "var(--cat-blue)");
-      banner.replaceChildren(
-        el("div", "cat", t(`cat.${def.category}`).toUpperCase()),
-        el("div", "name", t(def.nameKey)),
-        facts(def),
-        (() => { const b = el("div", "best"); b.appendChild(bestBlock(best)); return b; })(),
-        el("div", "go", t("hud.start")),
-      );
+      const head = [el("div", "cat", t(`cat.${def.category}`).toUpperCase()), el("div", "name", t(def.nameKey))];
+      if (locked) {
+        banner.replaceChildren(...head, el("div", "locked", t(LOCK_NOTICE_KEY[def.category] || "notice.lockedRed")));
+      } else {
+        banner.replaceChildren(
+          ...head,
+          facts(def),
+          (() => { const b = el("div", "best"); b.appendChild(bestBlock(best)); return b; })(),
+          el("div", "go", t("hud.start")),
+        );
+      }
       banner.hidden = false;
     },
     hideBanner() { banner.hidden = true; },

@@ -265,6 +265,37 @@ rig – that cannot be merged without breaking their own animation).
 file (`js/main.js#boot` calls `generateParkLayout` itself against the real terrain) – it is the
 reproducibility record ROADMAP M1.1 asks for.
 
+## Park signage (M1.2 – contract)
+
+### `js/park/signs.js`
+```js
+createSigns({ parkDef, scene, terrain, textures, rng }) → { group: THREE.Group, dispose() }
+```
+A second, small "loader": reads `parkDef` and the terrain sampler directly (never the built `course`,
+so it can run before or after `loadPark` without caring which) and builds the signage from
+`docs/reference/photos/README.md`'s "Wegweiser" – arrow-shaped white boards, thick category-colour
+border, the category word in capitals, the category symbol (accessibility: colour is never the only
+cue) and route numerals in white circles. Two kinds: a **hub cluster** near the spawn hub's rim, one
+post + board per category present in the park, each board yawed to the average bearing (circular mean)
+of that category's own route entries – a real trailhead fingerpost, every blade turns to face its own
+trail; and an **entry sign** per route beside its entry deck (numeral + localised name). Every board is
+two flat arrow silhouettes (`arrowGeometry`, a `THREE.Shape` with hand-remapped 0–1 UVs, no extrusion):
+a white face with a unique baked canvas texture (`paintCategoryBoard`/`paintEntryBoard`, `ctx.fillText`
+– the first use of real text rendering in this codebase, existing signs are icon-only) and a slightly
+larger category-colour backer sat behind it. The board is mounted shifted forward from its post by half
+its own length, so the post lands at the arrow's *tail* – mounted at the board's centre instead, the
+post would stand straight through the middle of the printed face and blot out whatever sits there
+(found the hard way: every board was losing its text at the same point regardless of word length).
+Draw calls stay low the same way `js/park/loader.js` does it: one merged mesh for every post
+(`timber.js` builder, shared "log" bucket) and one merged mesh **per category colour** for every backer
+board (`timber.js#mergeParts`, reused directly – a category's hub board and its routes' entry boards
+all fold into the same colour bucket) regardless of how many signs use it; only the white face stays
+one mesh per board, because its text is unique. None of it casts a shadow (a thin board's shadow is a
+sliver not worth a doubled draw call – the same call `world/ground-detail.js` already made for
+pebbles/twigs). Category words shrink to fit ahead of the numeral circles (`fitText`, measures then
+rescales) – German runs longer than English ("SCHWARZ" vs "BLACK") and both must clear the *edge* of
+the first circle, not its centre.
+
 ## Rail elements (M0.5 – contracts)
 
 ### `js/elements/element.js`
@@ -423,7 +454,7 @@ to the bus as `belay:*` by main.js.
 
 ### `js/player/interaction.js` + `js/player/climb-ladder.js`
 ```js
-createInteraction({ player, input, belay, course, hud, events, vitals? }) → { update(dt), prompt, anchor, entry, dispose() }
+createInteraction({ player, input, belay, course, hud, events, vitals?, save? }) → { update(dt), prompt, anchor, entry, dispose() }
 createLadderState({ input, events }) → state          // register as "ladder"; ownsMovement, phase, progress
 ```
 Within 1.6 m of an anchor, `clip` (F / gamepad X, plus X for carabiner B in classic mode) runs one
@@ -441,6 +472,12 @@ established on is never an F target** (so you can clip out of the zip cable into
 `element.playerState` (`"element"` by default, `"zipline"` for the Flying Fox). An element may also
 supply its own wording via `enterPrompt` / `clipPrompt`, and any state that exposes a `prompt` getter
 speaks for itself while it is active.
+
+Since M1.2, `save` (optional – omit it and nothing is ever locked) gates a route's entry anchor by
+category (GDD §3.12): `clip` on a locked anchor is refused outright (no `belay.clipTo` call) and the
+prompt shows the lock line (`notice.lockedRed`/`lockedBlack`) instead of the clip prompt. The anchor is
+still *offered* as reachable – only clipping it is refused – so the player reads why, standing right
+there, rather than the prompt silently doing nothing.
 
 ## Balance, strength, nerves and the fall (M0.5)
 
@@ -529,10 +566,10 @@ console clean, because Chrome warns about an AudioContext started without one.
 | Module | API |
 |---|---|
 | `js/core/i18n.js` | `initI18n({locale, dicts?})` (fetches `assets/strings/<locale>.json`, en fallback), `t(key, vars?)`, `formatTime(s)`; missing keys render as the key |
-| `js/core/save.js` | `createSave(storage?) → {data, routeBest(id), recordRun(id,{seconds,falls})→isBest, setLocale, flush}`; schema-versioned, corrupt data collapses to defaults |
-| `js/game/route.js` | `createRouteRun(def)`: idle→armed→countdown(3-2-1-GO)→running→done; `completeObstacle(id)` dedupes; `BLUE_I` (worked example, M0 fixture); `routesFromPark(parkDef)` (M1.1) – pure, one run-def per generated route |
-| `js/game/session.js` | one `createRouteRun` per route (`routesFromPark`), all `update`d every frame; events (`player:ladder-exit`, `player:element-exit`, `player:fell`, `zip:finished`) broadcast to every run – each run's own `completeObstacle` already ignores ids/states it does not own, so at most one ever advances; the HUD follows whichever run is counting down/riding, else the nearest entry deck (`course.routes[i].entryDeck`); stores best times per route id, emits `route:completed` |
-| `js/ui/hud-route.js` | mockup-1:1 route header (`--cat-color` bar, category, ● numeral · name, progress/time/best), FLOW placeholder, start banner with key figures, countdown discs, safety tooltip |
+| `js/core/save.js` | `createSave(storage?) → {data, routeBest(id), recordRun(id,{seconds,falls})→isBest, isUnlocked(category), unlockCategory(category)→isNewlyUnlocked, setLocale, flush}`, `nextGateCategory(category)` (pure, blue→red→black→null); schema-versioned, corrupt data collapses to defaults; `data.unlocks` (M1.2, GDD §3.12: "Farben sind Tore") is additive – blue always `true`, red/black default `false`, forced back to the default shape on load regardless of what an old/corrupt save says |
+| `js/game/route.js` | `createRouteRun(def)`: idle→armed→countdown(3-2-1-GO)→running→done; `completeObstacle(id)` dedupes; `BLUE_I` (worked example, M0 fixture); `routesFromPark(parkDef)` (M1.1) – pure, one run-def per generated route; `obstacles`/`heightM` (max deck height)/`lengthM` (sum of edge span minus each edge's two `EDGE_OFFSET` lead-ins, plus the zip) are real numbers straight out of `parkDef`, never placeholders |
+| `js/game/session.js` | one `createRouteRun` per route (`routesFromPark`), all `update`d every frame; events (`player:ladder-exit`, `player:element-exit`, `player:fell`, `zip:finished`) broadcast to every run – each run's own `completeObstacle` already ignores ids/states it does not own, so at most one ever advances; the HUD follows whichever run is counting down/riding, else the nearest entry deck within 6 m (`course.routes[i].entryDeck`); stores best times per route id, emits `route:completed`; on `zip:finished` also runs the category gate (M1.2): completing a route unlocks the next colour (`save.unlockCategory`, `nextGateCategory`) and folds that into the *same* "route done" notice rather than a second one competing for the line; a locked route's start banner never arms (`shown.arm()` is skipped) |
+| `js/ui/hud-route.js` | mockup-1:1 route header (`--cat-color` bar, category, ● numeral · name, progress/time/best), FLOW placeholder, start banner with key figures, countdown discs, safety tooltip; `showBanner(def, best, locked?)` (M1.2) swaps the facts/best/START block for a lock line (`notice.lockedRed`/`lockedBlack`) when `locked` is true |
 | `js/game/autoplay.js` | `?autoplay=1`: prompt-driven smoke bot in the **input phase** (synthetic key events must precede edge consumers); starts on the entry deck, goal-directed clipping (only the route's next anchor), plank tapping, holds Space on the zip; platform-hop self-help after repeated stalls (logged as "shortcut") |
 
 Input-phase rule: anything that synthesises keyboard events (bots) must run inside `loop.on("input")` –

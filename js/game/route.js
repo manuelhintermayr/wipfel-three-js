@@ -1,6 +1,7 @@
 // A route run: pure logic, no DOM/THREE – the session module renders it. Lifecycle:
 // idle → armed (standing at the start banner) → countdown (3-2-1-GO while entering) → running
 // (timer live) → done (zip finished). Obstacles complete in any order but each only counts once.
+import { EDGE_OFFSET } from "../park/layout-route.js";
 
 /**
  * @param {{ id: string, category: string, numeral: string, nameKey: string,
@@ -97,11 +98,14 @@ export function routesFromPark(parkDef) {
     const obstacles = ["ladder", ...route.edges.map((e) => e.id)];
     if (route.zip) obstacles.push(`${route.id}-zip`);
     const deckHeights = route.platforms.map((p) => p.deckHeight);
+    // Sum of edge lengths + zip length (sanity rule M1.2): each edge leaves the deck EDGE_OFFSET short
+    // of the trunk axis at *both* ends (js/park/loader.js#buildRouteElement), so the walkable span is
+    // the tree-to-tree distance minus twice that lead-in/out – not the raw hero-tree spacing.
     let lengthM = route.zip ? route.zip.length : 0;
     for (let i = 1; i < route.platforms.length; i++) {
       const a = parkDef.heroTrees[route.platforms[i - 1].treeIndex];
       const b = parkDef.heroTrees[route.platforms[i].treeIndex];
-      lengthM += Math.hypot(b.x - a.x, b.z - a.z);
+      lengthM += Math.max(0, Math.hypot(b.x - a.x, b.z - a.z) - 2 * EDGE_OFFSET);
     }
     return {
       id: route.id, category: route.category, numeral: route.numeral, nameKey: route.nameKey,

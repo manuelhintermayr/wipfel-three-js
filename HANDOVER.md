@@ -5,24 +5,32 @@
 > `ROADMAP.md`. Eine neue Session muss allein mit dieser Datei + `ROADMAP.md` weiterarbeiten können.
 
 ## Aktueller Meilenstein
-**M1.1 Park-Definition + Layout-Generator ABGESCHLOSSEN** (uncommitted, Session 3, 2026-08-25):
-seeded Generator (`js/park/layout.js` + `layout-route.js` + `layout-validate.js`) liefert sechs
-validierte Routen (2 blau/2 rot/2 schwarz) für die Seeds 1–8; `js/park/loader.js` baut alle sechs
-Routen als Szene (Podeste, Übungen, Flying Fox) und ersetzt `first-course.js` (gelöscht) vollständig.
-Route „Blue I · Fox Trail" bleibt Start-bis-Ziel spielbar (`?autoplay=1` bestanden, siehe unten).
-Nächster Schritt: **M1.2 Sechs Parcours** – Schilder, Kategorie-Freigaben, Start-Banner je Route,
-Podest-Typen. Noch **kein Commit** – siehe „Dateien, an denen gerade gearbeitet wird".
+**M1.2 Schilder + Kategorie-Freigaben + Routen-Banner ABGESCHLOSSEN** (uncommitted, Session 4,
+2026-08-25): `js/park/signs.js` (neu) baut den Wegweiser-Cluster am Hub-Rand (ein Pfosten + eine
+pfeilförmige Tafel je vorhandener Kategorie, Pfeil zeigt auf die mittlere Peilung der eigenen Routen)
+und je Route ein kleines Namensschild am Einstiegsdeck – beides nach `docs/reference/photos/README.md`.
+`core/save.js` führt Kategorie-Freigaben (`unlocks`, additiv, Blau immer offen); `player/interaction.js`
+verweigert das Einhängen an einer gesperrten Route und zeigt stattdessen den Sperrhinweis;
+`game/session.js` schaltet nach jedem Routenabschluss die nächste Farbe frei und zeigt am Start-Banner
+einer gesperrten Route die Sperrzeile statt Kennzahlen/START. Aus den ursprünglich in `ROADMAP.md`
+M1.2 gelisteten Punkten sind **Podest-Typen** (Übergang/Kreuzung/Rast/Hub als eigene Bautypen) **nicht**
+Teil dieser Session – nur Schilder, Freigaben, Banner (siehe Auftrag). Noch **kein Commit** – siehe
+„Dateien, an denen gerade gearbeitet wird".
 
 ## Letzter funktionierender Commit
 `43993bb` „feat(elements): twelve traversable kinds with catalogue, discrete-step generalisation and
 dev showcase" (M1.8, HEAD; Tag `m0` = `d20789e`, zwei Commits zurück – siehe `git log --oneline -8`).
-M1.1 (Generator + Loader, diese Session) liegt komplett **uncommitted** obendrauf.
-Geprüft (2026-08-25, headless Chromium via Playwright MCP, Seed 1, sechs Routen):
+M1.1 (Generator + Loader) und M1.2 (Schilder + Freigaben, diese Session) liegen komplett
+**uncommitted** obendrauf.
+Geprüft (2026-08-25, echter Chromium via Playwright MCP, Seed 1, sechs Routen, `python serve.py`):
 `?autoplay=1` spielt Blue I komplett durch – Einhängen (F,F), Blockleiter, Burma-Brücke, hängende
-Planken, Netz, Flying Fox mit Netzbremse, Landung – **„route completed in 111.37 s · falls 0“**,
-Bestzeit im Save; **0 Konsolenfehler, 0 externe Requests**; `WIPFEL.course.routes.length === 6`;
-~428 Draw-Calls / ~0,93 M Dreiecke am Spawn (Ziel ≤ 420/≤ 1,0 M – s. „Offen"), 26 Bäume/Podeste.
-`check-all` 114/114, `node --test` 104/104. Screenshot `docs/screenshots/m1-park.png`.
+Planken, Netz, Flying Fox mit Netzbremse, Landung – **„route completed in 111.16 s · falls 0“**,
+Bestzeit im Save, **`save.data.unlocks.red === true`** danach (per `localStorage` geprüft);
+**0 Konsolenfehler, 0 externe Requests**; `WIPFEL.course.routes.length === 6`; **434 Draw-Calls**
+(Ziel ≤ 440 inkl. Schilder – erreicht; ohne Schilder 428, s. „Offen") / ~0,93 M Dreiecke am Spawn.
+`check-all` 115/115, `node --test` 108/108 (104 + 4 neue Save-Gating-Tests).
+Screenshots `docs/screenshots/m1-signs.png` (Wegweiser-Cluster, alle drei Tafeln lesbar), `m1-locked.png`
+(Start-Banner „RED ROUTE · RAVEN RUN · Complete a blue route first" an einer gesperrten Route).
 
 ## Was funktioniert
 - **Kern:** `js/main.js` (Boot + Loop-Verdrahtung), `core/{loop,input,rng,params,errors,events,renderer,physics}.js`,
@@ -121,9 +129,9 @@ Bestzeit im Save; **0 Konsolenfehler, 0 externe Requests**; `WIPFEL.course.route
   (Ankunftspodest, Rampe, Hackschnitzelbett, Erdanker), `player/on-zipline.js` (Zustand `zipline`,
   Ego-Kamera automatisch, Körper bleibt sichtbar, Kopf ausgeblendet), `ui/hud.js#setSpeed/setNotice`,
   `audio/sfx.js#sfxTrolley/sfxWindRush/sfxZipArrive` über `synth.voice()` (Dauerton mit Live-Handle).
-- **Tests:** `node tools/check-all.mjs` (114 Dateien), `node --test` (**104 Tests**: RNG, Lighting,
-  Belay, Balance, Stamina, Nerves, Chunk-Index, Zipline, Route, Catalogue, i18n, Save, **Layout
-  (M1.1, 11 Tests)**, check-all).
+- **Tests:** `node tools/check-all.mjs` (**115 Dateien**), `node --test` (**108 Tests**: RNG, Lighting,
+  Belay, Balance, Stamina, Nerves, Chunk-Index, Zipline, Route, Catalogue, i18n, Save (**+4 M1.2:
+  Freigabe-Fortschritt, Migration**), Layout (M1.1, 11 Tests), check-all).
 - **Dev-Seiten:** `tools/dev/{forest,terrain,sky,player}.html` – je Modul isoliert testbar
   (`?seed=`, Views, Bot); Screenshots `docs/screenshots/dev-*.png`.
 
@@ -131,20 +139,49 @@ Bestzeit im Save; **0 Konsolenfehler, 0 externe Requests**; `WIPFEL.course.route
   Standard, DE komplett; Prompts, HUD, alle sechs Routennamen), `core/save.js` (Schema v1, Bestzeiten
   je Routen-ID, validiert), `game/route.js` (`createRouteRun(def)`: idle→armed→countdown→running→done,
   unit-getestet; `BLUE_I` bleibt als Fixture; **`routesFromPark(parkDef)`** – neu M1.1, rein, ein
-  Run-Def je generierter Route), `game/session.js` (seit M1.1 **ein Run pro Route**, alle laufen mit;
-  Events werden an alle gebroadcastet – jeder Run ignoriert Ids/Zustände, die ihm nicht gehören, also
-  kommt höchstens einer voran; HUD folgt dem Run, der zählt/fährt, sonst dem nächsten Einstiegsdeck),
-  `ui/hud-route.js` (Routen-Header mit Farbbalken 1:1 nach Mockup, FLOW-Platzhalter, Banner mit
-  Kennzahlen, Countdown-Scheiben), `game/autoplay.js` (?autoplay=1: prompt-getriebener Bot, spielt
-  Blue I komplett durch; Podest-Hops als dokumentierte Selbsthilfe; liest `course.ladderAnchorId`/
-  `course.entryDeck` – beides zeigt dank Loader weiterhin auf Blue I).
+  Run-Def je generierter Route; `heightM`/`lengthM` echte Zahlen aus `parkDef`, `lengthM` seit M1.2
+  abzüglich der beiden `EDGE_OFFSET`-Vorläufe je Kante statt Baum-zu-Baum-Luftlinie), `game/session.js`
+  (seit M1.1 **ein Run pro Route**, alle laufen mit; Events werden an alle gebroadcastet – jeder Run
+  ignoriert Ids/Zustände, die ihm nicht gehören, also kommt höchstens einer voran; HUD folgt dem Run,
+  der zählt/fährt, sonst dem nächsten Einstiegsdeck **in 6 m**), `ui/hud-route.js` (Routen-Header mit
+  Farbbalken 1:1 nach Mockup, FLOW-Platzhalter, Banner mit Kennzahlen, Countdown-Scheiben),
+  `game/autoplay.js` (?autoplay=1: prompt-getriebener Bot, spielt Blue I komplett durch; Podest-Hops
+  als dokumentierte Selbsthilfe; liest `course.ladderAnchorId`/`course.entryDeck` – beides zeigt dank
+  Loader weiterhin auf Blue I).
+- **Schilder + Kategorie-Freigaben (M1.2):** `park/signs.js` (`createSigns({parkDef,scene,terrain,
+  textures,rng}) → {group,dispose}` – liest `parkDef` + Terrain-Sampler direkt, nie den gebauten
+  `course`, läuft also unabhängig von `loadPark`): Wegweiser-Cluster am Hub-Rand (ein Pfosten + eine
+  pfeilförmige Tafel je Kategorie in diesem Park, Pfeil auf die Kreismittel-Peilung der eigenen Routen
+  gedreht – wie ein echter Wegweiser, jede Zunge zeigt für sich) und ein Namensschild je Route am
+  Einstiegsdeck (Ziffer + lokalisierter Name). Jede Tafel: zwei flache Pfeilsilhouetten
+  (`arrowGeometry`, `THREE.Shape` mit von Hand neu gesetzten UVs) – eine weiße mit gebackener
+  Canvas-Textur (erste echte `ctx.fillText`-Nutzung im Projekt; Wort schrumpft bis es vor die
+  Ziffernkreise passt, `fitText`, Deutsch läuft länger als Englisch) und ein etwas größerer
+  Kategorie-Farb-Unterleger dahinter. Tafel sitzt um die halbe Eigenlänge vor ihrem Pfosten versetzt
+  (der Pfosten steht am Pfeil-*Ende*, nicht in der Mitte – mittig gebaut, stand der Pfosten mitten durch
+  die Schrift und schluckte immer denselben Textabschnitt, unabhängig vom Wortlaut). Draw-Calls: ein
+  Mesh für alle Pfosten (`timber.js`-Builder, „log"), ein Mesh **je Kategorie-Farbe** für alle
+  Unterleger zusammen (`timber.js#mergeParts`), nur die weiße Schriftfläche bleibt je Tafel eigen (fürs
+  ganze Modul ≤ 9 Meshes); nichts wirft Schatten (dünne Tafel, Schatten-Pass würde die Draw-Calls
+  verdoppeln). `core/save.js#unlocks` (additiv, Blau immer `true`, Rot/Schwarz `false`; `isUnlocked`,
+  `unlockCategory`, `nextGateCategory` – Blau→Rot→Schwarz→`null`), `player/interaction.js` (optionales
+  `save`: Einhängen an der Einstiegs-Cable eines gesperrten Anchors wird verweigert, Prompt zeigt
+  `notice.lockedRed`/`lockedBlack` statt des Einhäng-Textes – der Anchor bleibt „erreichbar" fürs
+  Prompt, nur das Einhängen selbst nicht), `game/session.js` (schaltet bei `zip:finished` die nächste
+  Farbe frei, eine gemeinsame Notice statt zwei konkurrierender, `showBanner(def,best,locked)` bei
+  gesperrter Route ohne `arm()`), `ui/hud-route.js` (`showBanner`s dritter Parameter tauscht
+  Kennzahlen/Bestzeit/START gegen die Sperrzeile), `css/screens.css#.start-banner .locked`.
 
 ## Was halb fertig ist
 - Route-Header/Banner/Countdown zeigen nur die Route, die der Spieler gerade angeht (nächstes
-  Einstiegsdeck oder laufender Run) – Schilder/Wegweiser im Wald selbst, Kategorie-Freigaben und ein
-  Podest-Typ „Kreuzung" für Routen, die sich Bäume teilen könnten, kommen erst mit M1.2.
-- Draw-Calls liegen bei ~428 (Ziel ≤ 420, s. „Offen"); die Übungen/der Flying Fox je Route bleiben
-  bewusst unverschmolzen (Wobble-Deformer/Trolley-Bewegung brauchen ein eigenes Mesh je Instanz).
+  Einstiegsdeck in 6 m oder laufender Run) – das steht seit M1.2, Schilder und Freigaben ebenso.
+  **Offen bleibt aus der ursprünglichen M1.2-Liste in `ROADMAP.md`:** eigene Podest-*Typen*
+  (Übergang/Kreuzung/Rast/Hub als Bauvarianten – `platform.js#kind` kennt bisher nur
+  „standard"/„transition") für Routen, die sich Bäume teilen könnten; diese Session hat nur Schilder,
+  Freigaben und Banner gebaut (so beauftragt), keine neuen Podest-Bautypen.
+- Draw-Calls liegen bei **434** (Ziel ≤ 440 inkl. Schilder – erreicht; ohne Schilder 428, altes
+  M1.1-Ziel ≤ 420 weiter offen, s. „Offen"); die Übungen/der Flying Fox je Route bleiben bewusst
+  unverschmolzen (Wobble-Deformer/Trolley-Bewegung brauchen ein eigenes Mesh je Instanz).
 
 ## Was kaputt ist
 – nichts Bekanntes. Beobachtungen: siehe „Offen / Provisorisch“.
@@ -158,7 +195,15 @@ wegnehmen, nie hinzufügen (`asked`-Klemme).
 
 ## Dateien, an denen gerade gearbeitet wird
 – keine offene Baustelle, aber **alles seit Tag `m0` (`d20789e`) ist uncommitted**, inklusive M1.8
-(bereits HEAD `43993bb`, s. u.) und M1.1 (diese Session). M1.1 laut `git status`: neu
+(bereits HEAD `43993bb`, s. u.), M1.1 und M1.2 (diese Session). M1.2 laut `git status`: neu
+`js/park/signs.js`, `docs/screenshots/{m1-signs,m1-locked}.png`; geändert `js/core/save.js` (`unlocks`,
+`nextGateCategory`), `js/player/interaction.js` (`save`-Param, Sperr-Prompt), `js/game/{route,
+session}.js` (`lengthM`-Präzision, Freigabe-Logik, Banner-Sperrzweig), `js/ui/hud-route.js`
+(`showBanner`-drittes Argument), `js/main.js` (`signs`-Verdrahtung, `save` an `interaction`),
+`css/screens.css` (`.start-banner .locked`), `assets/strings/{en,de}.json` (`notice.locked*`,
+`notice.unlocked*`, `sign.*`), `tests/unit/save.test.mjs` (4 neue Tests), `docs/architecture.md`,
+`HANDOVER.md`.
+M1.1 laut `git status`: neu
 `js/park/{layout,layout-route,layout-validate,loader}.js`, `tools/{headless-terrain,bake-park}.mjs`,
 `tools/dev/smoke-layout.mjs`, `tests/unit/layout.test.mjs`, `assets/parks/sonnwendberg.json`,
 `docs/screenshots/m1-park.png`; geändert `js/main.js`, `js/game/{route,session,autoplay}.js`,
@@ -183,35 +228,51 @@ geändert `js/world/{terrain,ground-detail,forest}.js`, `js/world/terrain/materi
 – keine reproduzierten. Zu prüfen: Kamera-Kollision mit Kronen im echten Wald (nur in Dev-Seite getestet).
 
 ## Unmittelbar nächste Aufgabe
-**M1.2 Sechs Parcours** (`ROADMAP.md`): Namen zusätzlich zu Farbe + römischer Ziffer (Strings stehen
-schon in `en.json`/`de.json`), Podest-Typen (Übergang, Standard, Kreuzung, Start, Zip-Ankunft, Rast,
-Hub), Start-Banner je Route (Session/HUD folgen schon der Route, an der der Spieler gerade ist –
-s. „Was funktioniert“ → Route/HUD), Wegweiser wie im echten Park (pfeilförmige Tafeln, Farbrand,
-Ziffern in Kreisen). Kategorie-Freigaben kommen erst mit M1.3 (Kassa/Größenklasse) – noch nicht bauen.
+**M1.3 Kassa + Einschulung** (`ROADMAP.md`): Ticketart, Größenklasse, Modus; Trainer-Dialog mit echtem
+Inhalt; Übungsparcours in 1 m Höhe als Freigabe. Größenklasse (`RULES.sizeClasses`, `config.js`) trifft
+auf die bestehenden Kategorie-Freigaben (`save.data.unlocks`, M1.2) – wie beide zusammenspielen (darf
+eine zu kleine Größenklasse eine freigeschaltete Farbe trotzdem nicht betreten?) ist noch keine
+ADR-Entscheidung, sondern beim Einstieg in M1.3 zu treffen. Aus M1.2s ursprünglicher `ROADMAP.md`-Liste
+bleiben **Podest-Typen** (Übergang/Kreuzung/Rast/Hub) offen – s. „Was halb fertig ist".
 
 ## Nächste fünf Aufgaben
-1. M1.2 Sechs Parcours (s. o.).
-2. Draw-Calls auf ≤ 420 drücken (aktuell ~428, s. „Offen"): die Podest-Merge-Optimierung ist am
+1. M1.3 Kassa + Einschulung (s. o.).
+2. Podest-Typen nachziehen (Übergang, Kreuzung, Rast, Hub – aus der ursprünglichen M1.2-Liste
+   zurückgestellt, s. „Was halb fertig ist"): `platform.js#kind` kennt bisher nur
+   „standard"/„transition"; Kreuzungspodeste würden auch verlangen, dass zwei Routen sich einen
+   Baum/ein Podest teilen können – das rührt an den Layout-Generator (`layout.js`/`layout-route.js`),
+   nicht nur an den Loader.
+3. Draw-Calls am Spawn weiter drücken (434 mit Schildern, Ziel für diese Session ≤ 440 erreicht; das
+   ältere M1.1-Ziel ≤ 420 ohne Schilder bleibt offen, s. „Offen"): die Podest-Merge-Optimierung ist am
    Deckungsgrad der statischen Geometrie ausgereizt; als Nächstes käme nur noch dynamische Geometrie
    in Frage (Zip-Netz/Trolley, Element-Wobble-Meshes) – dafür müsste `element.js`/`zipline.js` eigene
    LOD- oder Batch-Strategien bekommen, kein reiner Loader-Fix mehr.
-3. Politur M0.5: Hände/Füße per IK auf Halteseil und Planke (die Posen treffen die Seile noch nicht),
+4. Politur M0.5: Hände/Füße per IK auf Halteseil und Planke (die Posen treffen die Seile noch nicht),
    Tuning-Pass mit echten Testern (Balance-Fenster, Kraftkosten, Nervenanstieg), Wind-Böen hörbar.
-4. Eingabe-Kante über den festen Schritt retten (siehe „Offen“ unten) – betrifft die Planken, den
+5. Eingabe-Kante über den festen Schritt retten (siehe „Offen“ unten) – betrifft die Planken, den
    Sturz und jede künftige Übung, die `input.pressed` im Physik-Takt liest.
-5. Figur zusammenfassen: `player/rig*.js` baut 64 Einzel-Meshes → 98 Draw-Calls (mit Schatten) und
-   damit der grösste Posten im Budget. Ein Mesh pro Material (SkinnedMesh oder Merge pro Pose-Update)
-   würde ~90 Calls sparen.
 
 ## Offen / Provisorisch
-- **M1.1:** ~428 Draw-Calls am Spawn, Ziel ≤ 420 (s. „Nächste fünf Aufgaben" 2) – nicht erreicht, aber
-  aus ~590 vor der Podest-Merge-Optimierung; ehrlich als „nahe dran, nicht erfüllt" markiert. Der
-  Übersichts-Screenshot `m1-park.png` ist eine freigestellte Kamera weit über dem Park (`loop.stop()`
-  + `renderer.render` von Hand) und zeigt **keinen** realen Spielwert – dort reichen Dreiecke bis
-  ~1,2 M (Nebel/Wald in einer Aufsicht, die kein Spieler je einnimmt); der reale Spawn-Wert (~0,93 M)
-  bleibt unter dem 1,0-M-Ziel. `assets/parks/sonnwendberg.json` wird vom Spiel nicht gelesen (nur
-  `tools/bake-park.mjs`-Beleg) – falls M1.2 einen echten Cache/Fixture-Konsum will, ist das ein
-  eigener Schritt.
+- **M1.2:** Der Wegweiser-Cluster sucht sich einen Punkt „nahe am Weg" über eine begrenzte Zufallssuche
+  (`signs.js#findNearPath`, 16 Versuche) und fällt sonst auf den reinen Radialpunkt am Hub-Rand zurück –
+  die generierten Routen führen selbst in keinen kartierten Waldweg hinein (nur die Hub-zu-Hub-Wege sind
+  gepackt), insofern ist „nahe am Weg" hier eher „am Hub-Rand, wo man beim Verlassen des Hubs
+  vorbeikommt" als ein echter Wegeanschluss. Schild-Pfosten haben **keine Collider** (wie
+  `world/ground-detail.js`s Streudetail) – man kann hindurchlaufen; für dünne Pfosten am Wegrand als
+  vertretbar eingestuft, nicht wie ein Podest-Pfosten geprüft. Ein extrem langer, leerzeichenloser
+  Routenname (aktuell keiner: „Turmfalkenlinie" bei 344 von 440 px verfügbarer Breite) würde am
+  Namensschild über den Rand laufen – `wrapText` bricht nur an Leerzeichen, kein Shrink-to-fit wie beim
+  Kategoriewort (`fitText`); nicht gebaut, weil kein aktueller Name das auslöst (YAGNI). Größenklassen-
+  Freigabe (`RULES.sizeClasses`) und Kategorie-Freigabe (`save.data.unlocks`) sind bisher zwei getrennte
+  Systeme, die sich nie gegenseitig geprüft haben – wird mit M1.3 (Kassa) zusammenlaufen müssen.
+- **M1.1:** 434 Draw-Calls am Spawn mit Schildern (Ziel dieser Session ≤ 440 – erreicht); ohne Schilder
+  428 (M1.1s eigenes Ziel ≤ 420 – nicht erreicht, aber aus ~590 vor der Podest-Merge-Optimierung;
+  ehrlich als „nahe dran, nicht erfüllt" markiert). Der Übersichts-Screenshot `m1-park.png` ist eine
+  freigestellte Kamera weit über dem Park (`loop.stop()` + `renderer.render` von Hand) und zeigt
+  **keinen** realen Spielwert – dort reichen Dreiecke bis ~1,2 M (Nebel/Wald in einer Aufsicht, die
+  kein Spieler je einnimmt); der reale Spawn-Wert (~0,93 M) bleibt unter dem 1,0-M-Ziel.
+  `assets/parks/sonnwendberg.json` wird vom Spiel nicht gelesen (nur `tools/bake-park.mjs`-Beleg) –
+  falls ein künftiger Meilenstein einen echten Cache/Fixture-Konsum will, ist das ein eigener Schritt.
 - **M0.6 (Eingabe, betrifft auch M0.5):** `input.pressed()` wird von den Zuständen im **Physik-Takt**
   gelesen, `input.endFrame()` läuft aber jeden Frame. Über 60 fps hat ein Frame manchmal **keinen**
   festen Schritt – die Kante geht dann verloren (Planken-Schritt, Retter-E, Abstoßen). Die Zipline
@@ -330,11 +391,14 @@ Manuelle Smoke-Checkliste: `docs/testing.md`.
 `?debug=1`/F1 Stats · `?physics=1`/F2 Rapier-Wireframe · `?seed=<n>` · `?fast=1` · `?locale=de` ·
 `?belay=continuous|smart|classic` (wirkt; ungültige Werte fallen auf `smart` zurück) ·
 `window.WIPFEL` = {loop, physics, scene, camera, renderer, rng, input, events, terrain, forest, sky,
-wind, player, course, belay, hud, interaction, **vitals, debug**}.
+wind, player, parkDef, course, **signs**, belay, hud, interaction, vitals, session, save, autoplay, debug}.
 Skripten/Testen: `WIPFEL.player.teleport(x, y, z)`, `WIPFEL.player.setState("ground")`,
 `WIPFEL.course.{anchors, elements, platforms, graph, zipline, zipLanding, zipPlan}`,
 `WIPFEL.course.elements[i].getEntryAnchor().stand`,
 `WIPFEL.belay.state()`, `WIPFEL.vitals.{balance,stamina,nerves}` + `WIPFEL.vitals.probe()`,
+**`WIPFEL.signs.group`** (M1.2: alle Schild-/Pfosten-Meshes, `.children.filter(o => o.name ===
+"sign-face")` sind die neun beschrifteten Tafeln), **`WIPFEL.save.data.unlocks`** (Kategorie-Freigaben,
+`{blue,red,black}`) + **`WIPFEL.save.isUnlocked(cat)`**/**`unlockCategory(cat)`**,
 **`WIPFEL.debug.forceSlip(±1)`** (erzwingt einen Sturz auf der aktuellen Übung),
 **`WIPFEL.debug.setWindAlong(m/s|null)`** (negativ = Gegenwind auf der Zipline; −7 lässt ein Kind
 stehenbleiben) und **`WIPFEL.debug.setRiderMass(kg)`** (Größenklasse für die nächste Fahrt).
