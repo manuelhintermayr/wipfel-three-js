@@ -126,6 +126,21 @@ und Übungsparcours (Wichtel + Einweisung, ≤ 3 m), **Blue** leicht, **Red** mi
 **Legendary** versteckt/extrem. Der Kahlenberg selbst hat nur Blau/Rot/Schwarz (+ Wichtel) – Green fasst
 Wichtel + Übungsparcours. Farbe immer mit Form/Icon (◈ ◆ ◐ ◆ ✦ bzw. ● ■ ◆).
 
+## ADR-028 · M3 wird gebaut · 2026-08-25 · angenommen
+**Kontext:** ADR-019 vertagte die Entscheidung auf „nach M1“. Manuel hat am 2026-08-25 beauftragt,
+alle Meilensteine vollständig umzusetzen. **Entscheidung:** M3 (Betreiber-Akt) wird gebaut – Builder,
+Gäste-Simulation, Begehungspflicht, Inspektionen, Ökonomie, Teilen. **Konsequenzen:** der Park-Graph
+(ADR-003) ist die gemeinsame Datenstruktur; der Builder schreibt, was der Generator (M1.1) erzeugt.
+
+## ADR-029 · M4-Koop ist lokal, Teilen ist dateibasiert · 2026-08-25 · angenommen
+**Kontext:** ADR-001 (statische Site, kein Backend) schließt Server für Matchmaking/Signaling aus;
+echtes Online-Koop und ein Online-Parcours-Marktplatz sind damit nicht ehrlich lieferbar.
+**Entscheidung:** M4 = **lokales Koop** (2 Spieler an einem Gerät: Gamepad + Tastatur/Maus, geteilte
+Kamera oder Splitscreen nach Machbarkeit), geteilte Brückenphysik, Koop-Übungen, NPC-Zuschauer-Rufe;
+„Teilen“ = Park-/Parcours-Export als JSON-Datei bzw. Code zum Einfügen (Import validiert wie der
+Generator). **Alternativen:** WebRTC-P2P (braucht Signaling-Server – abgelehnt), eigener Server
+(ADR-001-Bruch – abgelehnt). **Konsequenzen:** Bestenlisten bleiben lokal pro Gerät.
+
 ---
 
 ## Offen (von der jeweiligen Session zu entscheiden und hier einzutragen)
@@ -135,4 +150,4 @@ Wichtel + Übungsparcours. Farbe immer mit Form/Icon (◈ ◆ ◐ ◆ ✦ bzw. �
 - ADR-016 · Baumarten-Mix und Blatt-Instancing-Ansatz · offen
 - ADR-017 · Podest-Geometrie (Achteck vs. Ring) und Klemmen-Detailgrad · offen
 - ADR-018 · Nerven-Parameter (Höhen-Log-Basis, Schwelle, Regenerationsraten) · offen
-- ADR-019 · Ob M3 (Betreiber) gebaut wird – Entscheidung nach M1 · offen
+- ~~ADR-019~~ → entschieden, siehe ADR-028
