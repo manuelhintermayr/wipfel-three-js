@@ -119,3 +119,11 @@ export const MAP = Object.freeze({
   hillLightDir: Object.freeze({ x: -0.55, z: -0.4 }),   // relief "sun" comes from the upper-left
   zoomLevels: Object.freeze([1, 2]),
 });
+
+/** Options screen (ROADMAP M1.7). Logic: js/ui/options.js. Values persisted additively in
+ * `save.data.settings` (js/core/save.js). */
+export const OPTIONS = Object.freeze({
+  // The look-sensitivity slider (0–100) maps linearly onto core/input.js's raw sensitivity units.
+  lookSensitivityMin: 0.0008,
+  lookSensitivityMax: 0.0060,
+});

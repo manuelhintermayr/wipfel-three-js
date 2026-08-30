@@ -43,6 +43,7 @@ import { createTicketClock } from "./game/ticket.js";
 import { createKassa } from "./ui/kassa.js";
 import { createBriefing } from "./game/briefing.js";
 import { createStampCard } from "./ui/stamp-card.js";
+import { createOptions } from "./ui/options.js";
 import { sfxCarabinerOpen, sfxCarabinerLock, sfxHarnessCatch } from "./audio/sfx.js";
 
 async function boot() {
@@ -161,9 +162,26 @@ async function boot() {
     onConfirm: startDay,
   });
 
+  // --- pause/options screen (M1.7) --------------------------------------------------------------------
+  /** Shared by the options screen's official "End day" button and the WIPFEL.debug.endTicket() dev hook
+   * (M1.5) – exhausts the ticket's remaining game minutes and skips the extend-grace window. */
+  function endTicketNow() {
+    if (!ticket.started) return false;
+    ticket.update(ticket.remainingGameMinutes * TIME.gameHourMinutes + 1);
+    session.forceDayEnd();
+    return true;
+  }
+  const options = createOptions({
+    root: overlay, save, input, camera: player.camera, loop, ticket,
+    onEndDay: endTicketNow,
+    onCourseMap: () => courseMap.open(),
+  });
+  options.applyAll();   // settings from a previous visit, applied once before the first frame
+
   const resuming = !params.autoplay && !params.kassa && !!save.data.ticket;
   if (resuming) resumeDay();
   else if (!params.autoplay) kassa.show();
+  if (params.options) { kassa.hide(); options.open(); }   // ?options=1: screenshots (M1.7)
 
   const autoplay = params.autoplay ? createAutoplay({ player, course, interaction, events, belay, session, kassa, briefing }) : null;
   armAudio(window);
@@ -209,15 +227,18 @@ async function boot() {
     if (autoplay) autoplay.update(frameDt);   // synthesises key events – must run before consumers read edges
     if (input.pressed("debug")) debug.toggle();
     if (input.pressed("physdebug")) physics.setDebug(scene, !physics.debugEnabled);
-    if (input.pressed("map")) courseMap.toggle();
+    if (input.pressed("map") && !options.visible) courseMap.toggle();
     if (courseMap.visible) {
       // The world keeps living behind the dark overlay (no loop.paused) – only the player's own
       // movement input is gated, the same "a screen is up, check its `visible` flag" idea
       // js/ui/kassa.js and js/ui/stamp-card.js already use for themselves.
       input.move.x = 0; input.move.y = 0;
       if (input.pressed("pause")) courseMap.close();
-    } else if (input.pressed("pause")) {
-      loop.paused = !loop.paused;
+    } else if (options.visible) {
+      // Options itself sets loop.paused (M1.7) – Esc here only toggles its own visibility.
+      if (input.pressed("pause")) options.close();
+    } else if (!params.autoplay && input.pressed("pause")) {
+      options.open();   // `?autoplay=1` never presses this action, but never trust that silently.
     }
     if (input.pressed("camera")) player.setThirdPerson(player.camera.isFirstPerson);
   });
@@ -264,7 +285,7 @@ async function boot() {
   window.WIPFEL = {
     version: GAME.version, params, loop, physics, scene, camera, renderer, rng, input, events,
     terrain, forest, sky, wind, player, parkDef, course, signs, belay, hud, interaction, vitals, session, save, autoplay,
-    kassa, briefing, stampCard, ticket,
+    kassa, briefing, stampCard, ticket, options,
     parkBoard, courseMap, occupancy, agents, guestRig,
     debug: {
       /** Force the slip a play-test needs on demand (screenshots, smoke runs). */
@@ -281,13 +302,9 @@ async function boot() {
       /**
        * Jump straight to the stamp card (screenshots, smoke runs): exhausts the ticket's remaining
        * game minutes and skips the extend-prompt grace window. No-op before a ticket is active.
+       * Same path as the options screen's "End day" button (M1.7) – see `endTicketNow` above.
        */
-      endTicket() {
-        if (!ticket.started) return false;
-        ticket.update(ticket.remainingGameMinutes * TIME.gameHourMinutes + 1);
-        session.forceDayEnd();
-        return true;
-      },
+      endTicket() { return endTicketNow(); },
       panel: debug,
     },
     ready: true,

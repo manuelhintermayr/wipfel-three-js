@@ -73,3 +73,78 @@ test("an older save without unlocks migrates to the default gate, blue forced op
   assert.equal(corrupt.isUnlocked("red"), false, "non-boolean values are ignored, default kept");
   assert.equal(corrupt.isUnlocked("black"), true);
 });
+
+test("an older save without settings migrates to the defaults (M1.7)", () => {
+  const storage = memoryStorage();
+  storage.setItem(GAME.saveKey, JSON.stringify({ schema: GAME.saveSchema, routes: {} }));
+  const save = createSave(storage);
+  assert.deepEqual(save.data.settings, {
+    audio: { master: 100, sfx: 100, ambience: 100, ui: 100 },
+    lookSensitivity: null,
+    invertY: false,
+    reducedCameraMotion: false,
+    reducedMotion: false,
+    assist: false,
+  });
+});
+
+test("updateSettings merges partial patches, persists, and reloads", () => {
+  const storage = memoryStorage();
+  const save = createSave(storage);
+  save.updateSettings({ audio: { sfx: 40 }, assist: true, lookSensitivity: 0.004 });
+  assert.equal(save.data.settings.audio.sfx, 40);
+  assert.equal(save.data.settings.audio.master, 100, "untouched categories keep their value");
+  assert.equal(save.data.settings.assist, true);
+  assert.equal(save.data.settings.lookSensitivity, 0.004);
+
+  const reloaded = createSave(storage);
+  assert.equal(reloaded.data.settings.audio.sfx, 40);
+  assert.equal(reloaded.data.settings.assist, true);
+  assert.equal(reloaded.data.settings.lookSensitivity, 0.004);
+  assert.equal(reloaded.data.settings.invertY, false, "fields never patched keep their default");
+});
+
+test("updateSettings ignores malformed fields and clamps volumes to 0..100", () => {
+  const save = createSave(memoryStorage());
+  save.updateSettings({ audio: { master: 500, sfx: -20, ambience: "loud" }, invertY: "yes" });
+  assert.equal(save.data.settings.audio.master, 100, "clamped to the max");
+  assert.equal(save.data.settings.audio.sfx, 0, "clamped to the min");
+  assert.equal(save.data.settings.audio.ambience, 100, "non-numeric value ignored, default kept");
+  assert.equal(save.data.settings.invertY, false, "non-boolean value ignored, default kept");
+});
+
+test("a corrupt settings block collapses only the bad fields, not the whole save", () => {
+  const storage = memoryStorage();
+  storage.setItem(GAME.saveKey, JSON.stringify({
+    schema: GAME.saveSchema, routes: {},
+    settings: { audio: { master: "loud", sfx: 55 }, lookSensitivity: "fast", assist: 1 },
+  }));
+  const save = createSave(storage);
+  assert.equal(save.data.settings.audio.master, 100, "non-numeric volume ignored, default kept");
+  assert.equal(save.data.settings.audio.sfx, 55, "valid sibling field still applied");
+  assert.equal(save.data.settings.lookSensitivity, null, "non-numeric, non-null value ignored, default kept");
+  assert.equal(save.data.settings.assist, false, "non-boolean value ignored, default kept");
+});
+
+test("export/import round-trips the whole save through the same validation as a page load", () => {
+  const save = createSave(memoryStorage());
+  save.recordRun("blue-1", { seconds: 88, falls: 1 });
+  save.unlockCategory("red");
+  save.updateSettings({ audio: { ui: 30 }, assist: true });
+  const json = save.export();
+
+  const fresh = createSave(memoryStorage());
+  assert.equal(fresh.import(json), true);
+  assert.equal(fresh.routeBest("blue-1"), 88);
+  assert.equal(fresh.isUnlocked("red"), true);
+  assert.equal(fresh.data.settings.audio.ui, 30);
+  assert.equal(fresh.data.settings.assist, true);
+});
+
+test("import refuses malformed JSON or a foreign schema, leaving the existing save untouched", () => {
+  const save = createSave(memoryStorage());
+  save.recordRun("blue-1", { seconds: 50, falls: 0 });
+  assert.equal(save.import("{not json"), false);
+  assert.equal(save.import(JSON.stringify({ schema: 999, routes: {} })), false);
+  assert.equal(save.routeBest("blue-1"), 50, "untouched by the refused imports");
+});

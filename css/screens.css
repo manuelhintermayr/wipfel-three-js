@@ -113,3 +113,28 @@
   background: var(--hud-bg); border: 1px solid var(--hud-line); border-radius: var(--radius);
   padding: 0.4rem 0.9rem; font: 500 0.85rem/1 var(--font-display); letter-spacing: 0.06em; color: var(--hud-text);
 }
+
+/* Pause/options (M1.7): a system menu, not diegetic paper like the kassa – plain dark HUD panel. */
+.options-sheet { max-width: 34rem; width: min(92vw, 34rem); max-height: 88vh; display: flex; flex-direction: column; }
+.options-menu-wrap { margin-bottom: 0.4rem; }
+.options-menu { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.options-menu .btn { flex: 1 1 8rem; }
+.options-sections { overflow-y: auto; margin: 0.8rem 0 0.2rem; padding-right: 0.2rem; }
+.options-section { padding: 0.8rem 0; border-top: 1px solid var(--hud-line); }
+.options-section:first-child { border-top: none; padding-top: 0; }
+.options-section h2 { font: 700 0.78rem/1 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--hud-accent); margin: 0 0 0.6rem; }
+
+.opt-row { display: grid; grid-template-columns: 11rem 1fr auto; align-items: center; gap: 0.7rem; margin: 0.5rem 0; }
+.opt-row.opt-toggle { grid-template-columns: auto 1fr; cursor: pointer; }
+.opt-label { font: 500 0.82rem/1.3 var(--font-ui); color: var(--hud-text); }
+.opt-value { font: 600 0.78rem/1 var(--font-display); font-variant-numeric: tabular-nums; min-width: 2.4em; text-align: right; color: var(--hud-muted); }
+.opt-note { font: 400 0.74rem/1.4 var(--font-ui); color: var(--hud-muted); margin: 0.2rem 0 0.5rem; }
+.opt-locale { display: flex; gap: 0.4rem; }
+.opt-locale-btn { font: 600 0.75rem/1 var(--font-display); letter-spacing: 0.04em; padding: 0.35em 0.8em; background: var(--hud-bg); border: 1px solid var(--hud-line); border-radius: var(--radius); color: var(--hud-muted); cursor: pointer; }
+.opt-locale-btn.selected { background: var(--hud-accent); border-color: var(--hud-accent); color: #21201b; }
+
+.opt-controls-list { display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 1rem; margin-top: 0.4rem; }
+.opt-controls-label { font: 500 0.78rem/1.4 var(--font-ui); color: var(--hud-muted); }
+.opt-controls-keys { font: 600 0.8rem/1.4 var(--font-display); letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+
+.options-version { margin-top: 0.7rem; padding-top: 0.6rem; border-top: 1px solid var(--hud-line); font: 500 0.7rem/1 var(--font-mono); color: var(--hud-muted); text-align: right; }

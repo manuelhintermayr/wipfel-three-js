@@ -84,18 +84,18 @@ fahren, landen · Parcours abgeschlossen mit Rückmeldung (Stempel) · 60 fps ·
       Versalien, Ziffern in Kreisen (+ Formen) an Startbereichen und Kreuzungen.
 - [x] **M1.3 Kassa + Einschulung** – Ticketart, Größenklasse, Modus; Trainer-Dialog mit echtem Inhalt;
       Übungsparcours in 1 m Höhe als Freigabe.
-- [ ] **M1.4 Course Map + Parkplan** – Course-Map-Overlay 1:1 nach Mockup (Relief-Untergrund aus
+- [x] **M1.4 Course Map + Parkplan** – Course-Map-Overlay 1:1 nach Mockup (Relief-Untergrund aus
       dem Terrain, farbige Routen mit Podest-Knoten, Spielerposition, Legende Green/Blue/Red/Black/
       Legendary, Filter/Player/Zoom/Exit) aus dem Graphen; in der Welt zusätzlich die diegetische
       Parkplan-Tafel im Stil der echten (grüne Karte auf Pfosten, Schleifen mit römischen Ziffern);
       Wartezeiten, entdeckte Abschnitte, Karten je Parcours, Stempelkarte.
 - [x] **M1.5 Ticket-Uhr + Freigaben + Stempelkarte** – 4 h = 40 min, letzter Einlass, Verlängerung,
       Farbfreigaben, Run-Ende mit Rückmeldung.
-- [ ] **M1.6 NPC-Gäste** – Agenten auf dem Graphen mit Podest-/Übungsregeln → Warteschlangen; Zusehen
+- [x] **M1.6 NPC-Gäste** – Agenten auf dem Graphen mit Podest-/Übungsregeln → Warteschlangen; Zusehen
       gibt Vertrauen.
-- [ ] **M1.7 Save + Optionen** – versioniertes Save-Schema mit Validierung, Einstellungen (Lautstärke-
+- [x] **M1.7 Save + Optionen** – versioniertes Save-Schema mit Validierung, Einstellungen (Lautstärke-
       Kategorien, reduzierte Bewegung/Shake, Assist, Farbe + Form, Tastenbelegung vorbereitet).
-- [ ] **M1.8 Zweite Übungsfamilien** – mindestens 12 robuste Übungen insgesamt (Fässer, Hangeln/Ringe,
+- [x] **M1.8 Zweite Übungsfamilien** – mindestens 12 robuste Übungen insgesamt (Fässer, Hangeln/Ringe,
       Tarzansprung, Balken, Skateboard …). **Tag `m1`.**
 
 **Akzeptanz M1:** ein Run dauert 30–40 min, und man will „noch eine halbe Stunde“; Rot fühlt sich anders

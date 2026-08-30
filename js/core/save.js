@@ -15,7 +15,20 @@ const DEFAULTS = Object.freeze({
   // Active ticket (M1.5) – null when no day is in progress (fresh boot, or after "Continue browsing").
   // Reopening the page with a ticket here resumes the day instead of showing the kassa (js/main.js).
   ticket: null,
+  // Options screen (M1.7, js/ui/options.js) – applied live on every change and again once at boot.
+  // `lookSensitivity: null` means "use core/input.js's own default", not "silent at 0".
+  settings: Object.freeze({
+    audio: Object.freeze({ master: 100, sfx: 100, ambience: 100, ui: 100 }),   // 0–100 sliders
+    lookSensitivity: null,
+    invertY: false,
+    reducedCameraMotion: false,   // js/player/camera.js#setReducedMotion – fall shake + nerve breathing
+    reducedMotion: false,         // HUD pulse animations (body class, css/base.css)
+    assist: false,                // js/player/assist.js – gentler balance disturbance, wider slip window
+  }),
 });
+
+const SETTINGS_BOOLEANS = Object.freeze(["invertY", "reducedCameraMotion", "reducedMotion", "assist"]);
+const clampVolume = (v) => Math.max(0, Math.min(100, v));
 
 /** What completing a route in `category` unlocks next, or null (GDD §3.12: Blue → Red → Black). */
 export function nextGateCategory(category) {
@@ -86,6 +99,38 @@ export function createSave(storage = defaultStorage()) {
       flush();
     },
 
+    /**
+     * Options screen (M1.7): merge a partial settings patch, e.g. `{ audio: { sfx: 40 } }` or
+     * `{ assist: true }`. Unknown keys are ignored; `data.settings` itself is never replaced wholesale
+     * so other modules holding a reference to it keep seeing live values.
+     */
+    updateSettings(patch = {}) {
+      if (patch.audio && typeof patch.audio === "object") {
+        for (const key of Object.keys(data.settings.audio)) if (Number.isFinite(patch.audio[key])) data.settings.audio[key] = clampVolume(patch.audio[key]);
+      }
+      if (patch.lookSensitivity === null || Number.isFinite(patch.lookSensitivity)) data.settings.lookSensitivity = patch.lookSensitivity;
+      for (const key of SETTINGS_BOOLEANS) if (typeof patch[key] === "boolean") data.settings[key] = patch[key];
+      flush();
+    },
+
+    /** A JSON string snapshot of the whole save (M3/M4: share/back up a profile). */
+    export() { return JSON.stringify(data); },
+
+    /**
+     * Load a previously exported JSON string, through the exact same validation a page load uses –
+     * malformed JSON, a foreign schema, or corrupt fields never touch the live save.
+     * @returns {boolean} true if the import was applied
+     */
+    import(json) {
+      let parsed;
+      try { parsed = JSON.parse(json); } catch { return false; }
+      if (!parsed || typeof parsed !== "object" || parsed.schema !== GAME.saveSchema) return false;
+      const next = normalize(parsed);
+      for (const key of Object.keys(DEFAULTS)) data[key] = next[key];
+      flush();
+      return true;
+    },
+
     flush,
   };
 }
@@ -96,6 +141,11 @@ function load(storage) {
   if (!raw) return structuredClone(DEFAULTS);
   let parsed;
   try { parsed = JSON.parse(raw); } catch { return structuredClone(DEFAULTS); }
+  return normalize(parsed);
+}
+
+/** Pure: an arbitrary parsed object → a full, defaulted, validated save. Shared by `load()` (storage) and `import()` (a pasted/exported string) so both paths trust the same rules. */
+function normalize(parsed) {
   if (!parsed || typeof parsed !== "object" || parsed.schema !== GAME.saveSchema) return structuredClone(DEFAULTS);
   const data = structuredClone(DEFAULTS);
   if (parsed.routes && typeof parsed.routes === "object") {
@@ -125,6 +175,16 @@ function load(storage) {
       elapsedReal: Number.isFinite(tk.elapsedReal) ? tk.elapsedReal : 0,
       extensionsUsed: Number.isFinite(tk.extensionsUsed) ? tk.extensionsUsed : 0,
     };
+  }
+  if (parsed.settings && typeof parsed.settings === "object") {
+    const s = parsed.settings;
+    if (s.audio && typeof s.audio === "object") {
+      for (const key of Object.keys(data.settings.audio)) {
+        if (Number.isFinite(s.audio[key])) data.settings.audio[key] = clampVolume(s.audio[key]);
+      }
+    }
+    if (s.lookSensitivity === null || Number.isFinite(s.lookSensitivity)) data.settings.lookSensitivity = s.lookSensitivity;
+    for (const key of SETTINGS_BOOLEANS) if (typeof s[key] === "boolean") data.settings[key] = s[key];
   }
   return data;
 }

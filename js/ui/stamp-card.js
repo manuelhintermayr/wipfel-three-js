@@ -39,8 +39,9 @@ export function createStampCard({ root, save, onNewDay, onContinue }) {
       const category = CATEGORY_BY_ID[route.category];
       const stamp = el("div", "stamp");
       stamp.style.setProperty("--cat-color", category ? category.css : "var(--cat-blue)");
+      // Colour is never the only cue (GDD §5) – the category symbol rides along with the numeral.
       stamp.append(
-        el("div", "numeral", route.numeral),
+        el("div", "numeral", `${category ? category.symbol : ""} ${route.numeral}`.trim()),
         el("div", "name", t(route.nameKey)),
         el("div", "time", formatTime(route.seconds)),
         el("div", "falls", t("stamp.falls", { falls: route.falls })),

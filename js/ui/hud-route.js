@@ -89,7 +89,9 @@ export function createRouteHud(root) {
     showBanner(def, best, locked = false) {
       const category = CATEGORY_BY_ID[def.category];
       banner.style.setProperty("--cat-color", category ? category.css : "var(--cat-blue)");
-      const head = [el("div", "cat", t(`cat.${def.category}`).toUpperCase()), el("div", "name", t(def.nameKey))];
+      // Colour is never the only cue (GDD §5) – the category symbol goes wherever the colour does.
+      const catLabel = `${category ? category.symbol : ""} ${t(`cat.${def.category}`).toUpperCase()}`.trim();
+      const head = [el("div", "cat", catLabel), el("div", "name", t(def.nameKey))];
       if (locked) {
         banner.replaceChildren(...head, el("div", "locked", t(LOCK_NOTICE_KEY[def.category] || "notice.lockedRed")));
       } else {

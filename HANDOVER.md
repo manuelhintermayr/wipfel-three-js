@@ -5,8 +5,55 @@
 > `ROADMAP.md`. Eine neue Session muss allein mit dieser Datei + `ROADMAP.md` weiterarbeiten können.
 
 ## Aktueller Meilenstein
-**M1.4 Course Map + Parkplan UND M1.6 NPC-Gäste ABGESCHLOSSEN** (uncommitted, Session 6, 2026-08-26,
-oben auf dem ebenfalls noch uncommitteten M1.1–M1.3/M1.5): Course-Map-Overlay (`js/ui/course-map.js`,
+**M1.7 Save + Optionen ABGESCHLOSSEN – damit ist M1 „Ein Ticket" komplett** (uncommitted, Session 7,
+2026-08-26, oben auf dem ebenfalls noch uncommitteten M1.1–M1.6): Pause-/Optionen-Bildschirm
+(`js/ui/options.js` + `js/ui/options-controls.js`, neu) – **Esc** öffnet ihn jetzt statt des früheren
+blanken `loop.paused`-Umschaltens (der Screen selbst setzt `loop.paused` beim Öffnen/Schließen, der Rest
+der Loop-Verdrahtung bleibt unverändert: Physik/Gameplay laufen bei Pause weiter mit `dt = 0`, wie schon
+vor M1.7), Esc/„Resume" schließt ihn wieder. Ein Panel, keine Unter-Navigation: oben Resume/Course-Map-
+Shortcut/„End day" (teilt sich die Logik mit `WIPFEL.debug.endTicket()` über eine gemeinsame
+`endTicketNow()` in `main.js` – der Debug-Pfad wurde damit zum offiziellen Feature, ausgegraut ohne
+laufendes Ticket), unten die `GAME.version`-Zeile, dazwischen vier scrollbare Abschnitte: **Audio**
+(vier Regler Master/Effekte/Umgebung/Oberfläche 0–100 %, `js/audio/synth.js` bekam dafür drei
+Kategorie-Gain-Knoten neben `master` – `noiseBurst`/`ping`/`voice` nehmen jetzt ein optionales
+`category`, Default `"sfx"`, sodass jeder bestehende Aufruf in `js/audio/sfx.js` ohne Änderung dort
+bereits über den `sfx`-Bus läuft; `ambience`/`ui` haben noch keine Klänge – GDD-Ambiente/Interface-Sounds
+sind M2 –, die Regler sind verdrahtet und bereit, wirken aber hörbar noch auf nichts, ehrlich als „Offen"
+vermerkt), **Kamera & Bewegung** (Blickempfindlichkeit → `input.bindings.lookSensitivity`, Invertieren
+→ neues `core/input.js#Input.invertY`, „reduziertes Kamerawackeln/Atmen" → `player.camera.
+setReducedMotion()` – existierte bereits seit M0.7 extra für diesen Schalter, nullt Sturz-Shake **und**
+nervenbedingtes Schwanken in einem Aufruf –, „reduzierte Bewegung (HUD)" → neue `body.reduced-motion`-
+CSS-Klasse in `css/base.css`, spiegelt die vorhandene `prefers-reduced-motion`-Regel), **Gameplay &
+Barrierefreiheit** (Assist-Modus, neues `js/player/assist.js` – Balance-Störung ×0,6, Sturzfenster ×1,35,
+angewendet an den Aufrufstellen in `js/player/on-element.js`/`fall.js`, `BALANCE.topple`/`slipAngle`
+selbst bleiben unangetastet; Sprachumschalter EN/DE → `initI18n`+`save.setLocale`, Panel rendert sich
+selbst neu, HUD-Prompts/Banner lösen ohnehin bei jedem Aufruf frisch auf; ein Hinweistext bestätigt
+Farbe+Form) und **Steuerung** (`js/ui/options-controls.js#renderControlsList`, nur lesbar aus
+`input.bindings`, ohne Debug-Aktionen, „Neubelegung folgt später"). Farbe+Form-Lücken geschlossen:
+Start-Banner (`hud-route.js#showBanner`) und Stempelkarte (`stamp-card.js`) zeigten das Kategorie-Symbol
+bisher nicht, jetzt beide. **Save (`js/core/save.js`):** additiv `data.settings` (Audio, Blick-
+empfindlichkeit `null`=Engine-Default, vier Booleans), `updateSettings(patch)`, `export()`/`import(json)`
+(gleiche Validierung wie `load()`, dafür in eine gemeinsame reine `normalize(parsed)` extrahiert). `?options=1`
+öffnet den Screen beim Boot (Screenshots, blendet dafür eine sonst gleichzeitig sichtbare Kassa aus);
+`?autoplay=1` erreicht die `pause`-Aktion nie, zusätzlich in der Input-Phase defensiv abgesichert.
+Geprüft (echter Chromium via Playwright MCP, `localStorage.clear()` + Reload für Frischstart):
+`?options=1` öffnet **`options.visible === true`, `loop.paused === true`**, Kassa dabei ausgeblendet,
+0 Konsolenfehler/-warnungen, 0 externe Requests; echte Klicks auf „Assist mode" und „Reduced camera shake
+& breathing" setzen **`save.data.settings.assist/reducedCameraMotion === true`**, nach echtem Reload
+weiterhin in `localStorage['wipfel-save-v1']` UND im frisch geladenen `save.data.settings` vorhanden;
+Esc öffnet/schließt mit `loop.paused` synchron kippend (echter `KeyDown Escape`); Klick auf „Deutsch"
+übersetzt Titel/Buttons/Sektionsüberschriften/Toggle-Labels sofort (`"Paused"→"Pause"`,
+`"Resume"→"Fortsetzen"` etc.), `save.data.locale === "de"` persistiert. Voller `?autoplay=1&fast=1`-Lauf
+danach (Assist/Sprache zurückgesetzt via frischem `localStorage`): **„blue-1 · 353.47 s · falls 0 ·
+progress 5/5 · isBest true"**, **`save.data.unlocks.red === true`**, **0 Konsolenfehler/-warnungen, 0
+externe Requests** (117 Ressourcen, alle `127.0.0.1:8200`), 404 Draw-Calls/0,83 M Dreiecke am Ende,
+`options.visible === false`/`loop.paused === false` nach Lauf-Ende (Autoplay hat den Pause-Screen nie
+geöffnet). `check-all` **131/131**, `node --test` **140/140** (134 + 6 neue Save-Settings/Export-Import-
+Tests). Screenshot `docs/screenshots/m1-options.png` (Pause-Panel, Audio/Kamera/Gameplay-Sektionen
+sichtbar, END DAY ausgegraut ohne Ticket, 170 KB).
+
+**M1.4 Course Map + Parkplan UND M1.6 NPC-Gäste** (weiterhin uncommitted, Session 6, 2026-08-26):
+Course-Map-Overlay (`js/ui/course-map.js`,
 Tab öffnet/schließt, auch Esc/EXIT) 1:1 nach Mockup – dunkles Relief-Untergrundbild (einmal pro Park
 gebacken, `js/ui/map-render.js#paintBackground`, Hangschattierung aus `terrain.normalAt` + Höhe→Grün-
 Dunkel-Gradient, helle Wege), farbige Routenlinien mit weißen Podest-Punkten, gestrichelter Zip-Linie
@@ -326,6 +373,13 @@ PIL: 900 px Kantenlänge, 128–160-Farben-Palette).
   einen Element-Slot als `"player"` frei). `js/player/nerves.js#watchSuccess()` (neu, kleine
   Vertrauens-/Nerven-Anpassung für `npc:watched-success`). `?npc=0` deaktiviert Gäste, `?map=1` öffnet
   die Course Map beim Boot. Tests `tests/unit/agents.test.mjs` (15, rein).
+- **Pause/Optionen + Settings (M1.7):** `js/ui/options.js` + `js/ui/options-controls.js` (Panel:
+  Resume/Course-Map/End-day, Audio/Kamera & Bewegung/Gameplay & Barrierefreiheit/Steuerung, `applyAll()`
+  fürs Booten), `js/player/assist.js` (Assist-Skalierung, gelesen von `on-element.js`/`fall.js`),
+  `core/save.js#data.settings` (additiv) + `updateSettings`/`export`/`import`, `audio/synth.js`
+  (Kategorie-Gain-Busse `sfx`/`ambience`/`ui` neben `master`), `core/input.js#invertY`. `?options=1`
+  öffnet beim Boot. Details/Prüfnachweis: oben unter „Aktueller Meilenstein“, Verträge in
+  `docs/architecture.md#Options + settings (M1.7 – contracts)`.
 
 ## Was halb fertig ist
 - **M1.4/M1.6:** Gäste behandeln Tarzansprung und Skateboard wie eine normale kontinuierliche Übung
@@ -346,6 +400,9 @@ PIL: 900 px Kantenlänge, 128–160-Farben-Palette).
 - Draw-Calls liegen bei **434** (Ziel ≤ 440 inkl. Schilder – erreicht; ohne Schilder 428, altes
   M1.1-Ziel ≤ 420 weiter offen, s. „Offen"); die Übungen/der Flying Fox je Route bleiben bewusst
   unverschmolzen (Wobble-Deformer/Trolley-Bewegung brauchen ein eigenes Mesh je Instanz).
+- **M1.7:** die `ambience`/`ui`-Audio-Busse haben noch keine Klänge (kein Ambiente, keine UI-Sounds im
+  Spiel – s. „Offen"); Tastenbelegung ist nur lesbar (`js/ui/options-controls.js`), Neubelegung selbst
+  ist laut Auftrag „vorbereitet, nicht implementiert" und bewusst nicht gebaut.
 
 ## Was kaputt ist
 – nichts Bekanntes. Beobachtungen: siehe „Offen / Provisorisch“.
@@ -359,7 +416,18 @@ wegnehmen, nie hinzufügen (`asked`-Klemme).
 
 ## Dateien, an denen gerade gearbeitet wird
 – keine offene Baustelle, aber **alles seit Tag `m0` (`d20789e`) ist uncommitted**, inklusive M1.8
-(bereits HEAD `43993bb`, s. u.), M1.1, M1.2, M1.3/M1.5 und M1.4/M1.6 (diese Session).
+(bereits HEAD `43993bb`, s. u.), M1.1, M1.2, M1.3/M1.5, M1.4/M1.6 und M1.7 (diese Session).
+M1.7 laut geänderten Dateien: neu
+`js/ui/options.js`, `js/ui/options-controls.js`, `js/player/assist.js`,
+`docs/screenshots/m1-options.png`; geändert `js/config.js` (`OPTIONS`), `js/core/params.js` (`?options=`),
+`js/core/input.js` (`invertY`), `js/core/save.js` (`data.settings`, `updateSettings`/`export`/`import`,
+`load()` in eine reine `normalize()` aufgeteilt), `js/audio/synth.js` (Kategorie-Gain-Busse, `category`-
+Parameter auf `noiseBurst`/`ping`/`voice`, `setCategoryVolume`), `js/player/on-element.js`/`fall.js`
+(Assist-Skalierung an den Aufrufstellen), `js/ui/hud-route.js`/`stamp-card.js` (Kategorie-Symbol
+ergänzt), `js/main.js` (Esc→Options-Verdrahtung, `endTicketNow()`, `options.applyAll()`, `?options=1`,
+`WIPFEL.options`), `css/base.css` (`.reduced-motion`, `accent-color`, `:disabled`), `css/screens.css`
+(`.options-*`, `.opt-*`), `assets/strings/{en,de}.json` (38 neue `options.*`-Keys, Parität geprüft),
+`tests/unit/save.test.mjs` (6 neue Tests), `docs/architecture.md`, `HANDOVER.md`.
 M1.4/M1.6 laut geänderten Dateien: neu
 `js/ui/map-render.js`, `js/ui/course-map.js`, `js/park/park-board.js`, `js/game/occupancy.js`,
 `js/npc/agents.js`, `js/npc/guest-rig.js`, `tests/unit/agents.test.mjs`,
@@ -412,30 +480,31 @@ geändert `js/world/{terrain,ground-detail,forest}.js`, `js/world/terrain/materi
 
 ## Wichtige Architekturentscheidungen
 `docs/architecture.md` (Modulverträge – Park/Belay/HUD/Audio seit M0.4 eingetragen, Course-Map/Parkplan-
-Tafel/Gäste-Occupancy seit M1.4/M1.6), `docs/DECISIONS.md` ADR-001…012, 020…027 (Mockup 1:1, UI EN+DE,
-Kategorien mit Green). Offen: ADR-013 (Three.js 0.185.1 – faktisch entschieden, eintragen), ADR-014
-(Rapier compat 0.20.0 – dito), 015–019.
+Tafel/Gäste-Occupancy seit M1.4/M1.6, Optionen + Settings seit M1.7), `docs/DECISIONS.md` ADR-001…012,
+020…027 (Mockup 1:1, UI EN+DE, Kategorien mit Green). Offen: ADR-013 (Three.js 0.185.1 – faktisch
+entschieden, eintragen), ADR-014 (Rapier compat 0.20.0 – dito), 015–019.
 
 ## Bekannte Bugs
 – keine reproduzierten. Zu prüfen: Kamera-Kollision mit Kronen im echten Wald (nur in Dev-Seite getestet).
 
 ## Unmittelbar nächste Aufgabe
-**M1.7 Save + Optionen** (`ROADMAP.md`): versioniertes Save-Schema mit Validierung (Schema-Version und
-additive Migration existieren schon in `core/save.js` – prüfen, was für Einstellungen dazukommt, nicht
-neu bauen), Einstellungen-Screen (Lautstärke-Kategorien, reduzierte Bewegung/Shake, Assist-Modus, Farbe +
-Form statt nur Farbe – die Kategorien haben bereits Symbole in `config.js#CATEGORIES`, das ist die
-Grundlage –, Tastenbelegung vorbereiten auch wenn Remapping selbst erst später kommt). M1.8 ist bereits
-HEAD (`43993bb`); danach folgt M2 („Ein Park").
+**M1 „Ein Ticket" ist mit M1.7 komplett** (M1.1–M1.8 alle abgehakt in `ROADMAP.md`, M1.8 bereits HEAD
+`43993bb`). Als Nächstes **M2 „Ein Park"** (`ROADMAP.md`): 15 Parcours + 2 Wichtel, Kreuzungspodeste,
+Legendäre Route, Saisonpass-Modus, Zeitläufe (3-2-1), Flow-Multiplikator (nur bei ruhigen Nerven),
+Umhäng-Feedback, Meisterschaftsstufen, Nachtklettern, drei Sicherungsmodi (bereits an der Kassa wählbar –
+prüfen, was für M2 noch fehlt), Fotos, Sidegrades, Übungskatalog auf 20–25 Familien, Grafikoptionen,
+Touch-Steuerung.
 
-Offene Entscheidung aus M1.3: Größenklasse (`RULES.sizeClasses[].allowed`) ist an der Kassa wählbar und
-persistiert (`save.data.ticket.sizeClassId`), treibt aber **nur** die Zip-Masse
+Offene Entscheidung aus M1.3 (weiterhin unentschieden): Größenklasse (`RULES.sizeClasses[].allowed`) ist
+an der Kassa wählbar und persistiert (`save.data.ticket.sizeClassId`), treibt aber **nur** die Zip-Masse
 (`player.states.get("zipline").setRiderMass`) – sie gated **nicht**, ob eine zu kleine Größenklasse eine
 bereits freigeschaltete Farbe betreten darf (GDD §3.7 „Größenklasse (Farbfreigabe, Zip-Tempo)" nennt
 beides). Noch keine ADR; wenn gewünscht, gehört der Check neben `lockedCategoryOf` in
 `player/interaction.js`, mit einer eigenen Prompt-Zeile.
 
 ## Nächste fünf Aufgaben
-1. M1.7 Save + Optionen (s. o.).
+1. M2-Kickoff: Umfang aus `ROADMAP.md`/GDD §8 schneiden (welche der 15 Parcours zuerst, Kreuzungspodeste
+   vs. Legendäre Route vs. Saisonpass zuerst entscheiden – vermutlich eigene ADR).
 2. Größenklasse → Kategorie-Zugang entscheiden und ggf. verdrahten (s. o., „Offene Entscheidung aus M1.3").
 3. Podest-Typen nachziehen (Übergang, Kreuzung, Rast, Hub – aus der ursprünglichen M1.2-Liste
    zurückgestellt, s. „Was halb fertig ist"): `platform.js#kind` kennt bisher nur
@@ -452,6 +521,22 @@ beides). Noch keine ADR; wenn gewünscht, gehört der Check neben `lockedCategor
    `element.js`/`zipline.js` eigene LOD- oder Batch-Strategien bekommen, kein reiner Loader-Fix mehr.
 
 ## Offen / Provisorisch
+- **M1.7:** Die `ambience`- und `ui`-Audio-Busse (`js/audio/synth.js`) sind verdrahtet, haben aber noch
+  keinen einzigen Klang, der über sie läuft (kein Ambiente-Bett, keine Interface-Sounds – beides erst M2)
+  – die zwei Regler im Optionen-Bildschirm wirken also gerade auf nichts Hörbares, klar so vermerkt in
+  der UI-Copy selbst (`options.audio.futureNote`). Tastenbelegung ist nur lesbar
+  (`js/ui/options-controls.js`), Neubelegung selbst kommt später (ROADMAP „Tastenbelegung vorbereitet"),
+  ohne eigenes UI dafür. Der Sprachumschalter rendert sich selbst sofort neu, aber bereits einmal
+  gebaute, nie neu gerenderte Bildschirme (Kassa, das Options-Panel selbst erst nach dem nächsten
+  `open()`, die HUD-Vitalbox-Labels „Belay"/„Str"/„Bpm") bleiben bis zum nächsten Boot in der alten
+  Sprache – so in der UI-Copy selbst dokumentiert (`options.gameplay.localeNote`), kein Bug. Solange der
+  Optionen-Bildschirm offen ist (`loop.paused === true`), laufen `parkBoard.update()`/`briefing.update()`
+  in der Gameplay-Phase trotzdem weiter (dieselbe Vorbedingung galt schon vor M1.7 für den blanken
+  Pause-Toggle – die Gameplay-Phase feuert immer, nur mit `dt = 0`): steht der Spieler zufällig in
+  Reichweite der Parkplan-Tafel, öffnet ein `E`-Druck während der Pause die Course Map dahinter – ein
+  vorbestehendes, nicht durch M1.7 verursachtes Detail der „weichen" Pause, nicht behoben (out of scope).
+  Assist-Modus lässt `js/elements/element.js`s Wind-Böen-Anregung bewusst unangetastet (nur die Aktionen
+  des Kletterers selbst werden sanfter) – dokumentierte Abgrenzung, kein Bug.
 - **M1.4:** Routenlinien auf Course Map und Parkplan-Tafel zu blass (Kategorie-Farben kaum
   erkennbar, Weg-Linie dominiert) – im M2-Politur-Pass sättigen/glühen lassen wie im Mockup.
 - **M1.4/M1.6:** Tarzansprung/Skateboard haben keine eigene Gast-Animation (s. „Nächste fünf Aufgaben").
@@ -611,7 +696,8 @@ Browser-Pane in Claude Code: `.claude/launch.json` → „wipfel”. Steuerung: 
 Shift Sprint, Leertaste Sprung, **F einhängen/umhängen** (classic zusätzlich X für Karabiner B),
 **E klettern / auf die Übung steigen / Course Map an der Parkplan-Tafel öffnen**, **Tab Course Map**
 (auch Esc/EXIT-Button schließt sie; öffnet nicht pausiert, sperrt nur die Bewegung), T Kamera, F1 Debug,
-F2 Physik-Wireframe, Esc Pause (bzw. Course-Map-schließen, wenn sie offen ist).
+F2 Physik-Wireframe, **Esc Pause/Optionen** (M1.7: öffnet `js/ui/options.js`, `loop.paused === true`
+solange offen; bzw. Course-Map-schließen, wenn die offen ist – Course Map hat Vorrang vor Optionen).
 **Auf einer Übung:** W/S vor und zurück (auf den Planken **ein Druck = eine Planke**), A/D lehnen,
 **Q** linke Hand, **rechte Maustaste** rechte Hand, **R** atmen (nur im Stehen).
 **Im Gurt:** Leertaste hochziehen, W/S am Seil zum Podest hangeln, E Retter rufen.
@@ -638,10 +724,11 @@ Manuelle Smoke-Checkliste: `docs/testing.md`.
 `?belay=continuous|smart|classic` (wirkt; ungültige Werte fallen auf `smart` zurück) ·
 `?kassa=1` (Kassa erzwingen trotz laufendem Ticket) · `?briefing=0` (Einschulung dauerhaft überspringen) ·
 **`?npc=0`** (Gäste komplett deaktivieren, M1.6) · **`?map=1`** (Course Map beim Boot öffnen, M1.4,
-für Screenshots) ·
+für Screenshots) · **`?options=1`** (Pause/Optionen beim Boot öffnen, M1.7, für Screenshots – blendet
+eine sonst gleichzeitig sichtbare Kassa aus) ·
 `window.WIPFEL` = {loop, physics, scene, camera, renderer, rng, input, events, terrain, forest, sky,
 wind, player, parkDef, course, **signs**, belay, hud, interaction, vitals, session, save, autoplay,
-kassa, briefing, stampCard, ticket, **parkBoard, courseMap, occupancy, agents, guestRig**, debug}.
+kassa, briefing, stampCard, ticket, **options**, **parkBoard, courseMap, occupancy, agents, guestRig**, debug}.
 Skripten/Testen: `WIPFEL.player.teleport(x, y, z)`, `WIPFEL.player.setState("ground")`,
 `WIPFEL.course.{anchors, elements, platforms, graph, zipline, zipLanding, zipPlan}`,
 `WIPFEL.course.elements[i].getEntryAnchor().stand`,

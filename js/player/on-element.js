@@ -13,6 +13,7 @@ import * as THREE from "three";
 import { ELEMENT_MOVE } from "./tuning.js";
 import { elementPose } from "./rig-poses.js";
 import { lookDownAmount } from "./vitals.js";
+import { assistScale } from "./assist.js";
 
 const TWO_PI = Math.PI * 2;
 const wrapAngle = (a) => a - TWO_PI * Math.floor((a + Math.PI) / TWO_PI);
@@ -52,7 +53,7 @@ export function createElementState({ input, events = null, balance, stamina, ner
     if (Math.floor(stepPhase) === Math.floor(before)) return 0;
     const foot = Math.floor(stepPhase) % 2 === 0 ? 1 : -1;
     const hurry = Math.abs(railSpeed) / Math.max(0.1, element.walkSpeed);
-    element.wobble.excite(foot * ELEMENT_MOVE.stepExcite * (0.4 + hurry));
+    element.wobble.excite(foot * ELEMENT_MOVE.stepExcite * (0.4 + hurry) * assistScale().disturbance);
     const hold = element.footholdAt(t);
     if (hold.discrete && element.stepOn) element.stepOn(hold.index, 0.6 + 0.6 * hurry, drive >= 0 ? 1 : -1);
     // stepping onto something that is not where it should be is what throws you
@@ -99,7 +100,7 @@ export function createElementState({ input, events = null, balance, stamina, ner
     const step = steps[stepIndex];
     const hold = element.footholdAt((step.x + step.offset) / element.length);
     element.stepOn(stepIndex, 1, direction);
-    element.wobble.excite(direction * ELEMENT_MOVE.stepExcite * 0.5);
+    element.wobble.excite(direction * ELEMENT_MOVE.stepExcite * 0.5 * assistScale().disturbance);
     return (1 - clamp01(hold.ready)) * ELEMENT_MOVE.missStepKick * (stepIndex % 2 === 0 ? 1 : -1);
   }
 
@@ -164,6 +165,7 @@ export function createElementState({ input, events = null, balance, stamina, ner
       const frozen = nerves.frozen;
       const breathing = input.down("breathe");
       const hands = readHands(dt);
+      const assist = assistScale();   // options screen "Assist mode" (M1.7) – 1/1 when off
 
       // --- travel along the rail ----------------------------------------------------------------
       const blocked = frozen || breathing;
@@ -174,16 +176,16 @@ export function createElementState({ input, events = null, balance, stamina, ner
 
       // --- what the element does about it -------------------------------------------------------
       const lean = frozen ? 0 : clampSigned(input.move.x);
-      element.wobble.excite(lean * ELEMENT_MOVE.leanExcite * dt
-        + (railSpeed - previous) * ELEMENT_MOVE.hurryExcite * Math.sign(lean || 1) * 0.5);
+      element.wobble.excite((lean * ELEMENT_MOVE.leanExcite * dt
+        + (railSpeed - previous) * ELEMENT_MOVE.hurryExcite * Math.sign(lean || 1) * 0.5) * assist.disturbance);
 
       noisePhase += dt * (3.1 + 7.0 * nerves.value);
       const tremor = nerves.tremor * Math.sin(noisePhase);
-      const drivenBy = element.wobble.lateralVelocity * ELEMENT_MOVE.wobbleDrive + misStep * 2.6;
+      const drivenBy = element.wobble.lateralVelocity * ELEMENT_MOVE.wobbleDrive + misStep * 2.6 * assist.disturbance;
       const result = balance.update(dt, {
         lean, hands, drive: drivenBy, noise: tremor,
         speed: Math.abs(railSpeed) / Math.max(0.1, element.walkSpeed),
-        slipAngle: element.slipAngle,
+        slipAngle: element.slipAngle * assist.slipWindow,
       });
 
       // --- resources ----------------------------------------------------------------------------
@@ -221,7 +223,9 @@ export function createElementState({ input, events = null, balance, stamina, ner
     element.pointAt(t, point);
     element.tangentAt(t, tangent);
     side.set(-tangent.z, 0, tangent.x).normalize();
-    const lean = balance.angle / Math.max(1e-3, element.slipAngle) * ELEMENT_MOVE.leanOffset;
+    // Divide by the same effective slip angle balance.update() was given (assist widens it) – otherwise
+    // the visual lean would overshoot leanOffset once the pendulum is allowed past the raw slipAngle.
+    const lean = balance.angle / Math.max(1e-3, element.slipAngle * assistScale().slipWindow) * ELEMENT_MOVE.leanOffset;
     player.moveTo(point.x - side.x * lean, point.y, point.z - side.z * lean);
     const yaw = Math.atan2(tangent.x, tangent.z);      // always facing the far platform
     player.setHeading(dt > 0

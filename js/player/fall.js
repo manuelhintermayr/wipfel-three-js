@@ -15,6 +15,7 @@ import * as THREE from "three";
 import { GROUP, groups } from "../core/physics.js";
 import { FALL } from "./tuning.js";
 import { fallPose } from "./rig-poses.js";
+import { assistScale } from "./assist.js";
 
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const NO_CONTACTS = groups(GROUP.DYNAMIC, 0);
@@ -196,7 +197,7 @@ export function createFallState({ physics, input, scene = null, events = null, b
   function recover(player) {
     const t = element.lifeline.closestT(hang);
     stamina.spend(0.12);
-    balance.catchAt(element.slipAngle);
+    balance.catchAt(element.slipAngle * assistScale().slipWindow);   // same effective window as on-element.js
     nerves.survivedFall();
     if (events) events.emit("player:recovered", { element: element.id, t, how: "pull-up" });
     return { state: "element", data: { element, t } };

@@ -34,6 +34,8 @@ export class Input {
     this.pointerLocked = false;
     this.move = { x: 0, y: 0 };
     this.look = { x: 0, y: 0 };
+    /** Accessibility (options screen, M1.7): flips vertical look – camera pitch, not the actions above. */
+    this.invertY = false;
     this._target = target;
     this._bind();
   }
@@ -107,8 +109,9 @@ export class Input {
     const len = Math.hypot(mx, my);
     if (len > 1) { mx /= len; my /= len; }
     this.move.x = mx; this.move.y = my;
+    const invert = this.invertY ? -1 : 1;
     this.look.x = this._mouseDelta.x * this.bindings.lookSensitivity + this._padAxes.lookX * this.bindings.gamepadLookSpeed / 60;
-    this.look.y = this._mouseDelta.y * this.bindings.lookSensitivity + this._padAxes.lookY * this.bindings.gamepadLookSpeed / 60;
+    this.look.y = (this._mouseDelta.y * this.bindings.lookSensitivity + this._padAxes.lookY * this.bindings.gamepadLookSpeed / 60) * invert;
     this._mouseDelta.x = 0; this._mouseDelta.y = 0;
   }
 

@@ -60,6 +60,10 @@ button, .btn {
 }
 button:hover, .btn:hover { background: var(--hud-bg-strong); }
 button:focus-visible, .btn:focus-visible { outline: 2px solid var(--hud-accent); outline-offset: 2px; }
+button:disabled, .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Native form controls (options screen, M1.7) – one accent colour instead of full custom track/thumb CSS. */
+input[type="range"], input[type="checkbox"] { accent-color: var(--hud-accent); }
 
 /* fatal error screen (WebGL / Rapier init failure) */
 #fatal .fatal-box {
@@ -93,3 +97,7 @@ button:focus-visible, .btn:focus-visible { outline: 2px solid var(--hud-accent);
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* Manual "Reduced motion" toggle (options screen, M1.7) – same effect as the media query above, but
+   under the player's own control instead of the OS setting (stops the HUD heartbeat pulse etc.). */
+body.reduced-motion * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }

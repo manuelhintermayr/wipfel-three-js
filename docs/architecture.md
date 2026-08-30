@@ -797,3 +797,91 @@ guest-vs-guest contention only – refusing a step-on with `notice.waitForClimbe
 ahead") when a guest already holds the element; the claim is released the frame the player's mode next
 reads anything other than `"element"` (a slip into `"fall"` releases it too – documented simplification,
 not a deadlock risk since the cap is 1 either way).
+
+## Options + settings (M1.7 – contracts)
+
+### `js/core/save.js` (extended)
+```js
+data.settings = {
+  audio: { master: 0-100, sfx: 0-100, ambience: 0-100, ui: 0-100 },
+  lookSensitivity: number|null,   // null = core/input.js's own default
+  invertY: boolean, reducedCameraMotion: boolean, reducedMotion: boolean, assist: boolean,
+}
+save.updateSettings(patch)        // merges a partial patch (e.g. { audio: { sfx: 40 } }), flushes
+save.export() → json               // whole-save snapshot, for M3/M4
+save.import(json) → boolean         // same validation `load()` uses (`normalize()`, shared); false = refused
+```
+Additive like every other field here – an old save without `settings` gets the defaults, a corrupt
+field falls back to its own default without dragging the rest of `settings` down with it (each field
+validated independently in `normalize()`, the pure function `load()` and `import()` both now call).
+
+### `js/ui/options.js` + `js/ui/options-controls.js`
+```js
+createOptions({ root, save, input, camera, loop, ticket?, onEndDay, onCourseMap }) →
+  { visible, open(), close(), toggle(), applyAll(), dispose() }
+renderControlsList(bindings) → HTMLElement            // read-only, from core/input.js#bindings directly
+```
+The pause screen (GDD §3.2 "Start/Esc: Pause, Optionen"). `Esc` (`js/main.js`, input phase) opens it in
+place of the old bare `loop.paused = !loop.paused` toggle; `open()`/`close()` now own that flip
+themselves (plus releasing pointer lock), so the rest of the frame loop is unchanged – physics/gameplay
+still run every tick with `dt = 0` while paused, exactly as before M1.7. One scrollable panel (no
+sub-screen navigation): Resume / Course Map / End day (`onEndDay`, shared with `WIPFEL.debug.endTicket()`
+– both exhaust the ticket's remaining minutes and call `session.forceDayEnd()`, "End day" is that path
+made official, greyed out via `ticket.started` when no day is running) at the top, four stacked sections
+below, `GAME.version` at the bottom. `?options=1` opens it at boot for screenshots (hides the kassa first
+if a fresh save would otherwise show both); `?autoplay=1` never reaches the `pause` action, and the input
+phase refuses to open it while autoplay is on regardless.
+
+Every control both **live-applies** (a tiny named function per field: `input.bindings.lookSensitivity =
+…`, `camera.setReducedMotion(…)`, `document.body.classList.toggle("reduced-motion", …)`,
+`setAssistMode(…)`, `setMasterVolume`/`setCategoryVolume`) **and persists** (`save.updateSettings`) in
+the same handler; `applyAll()` reuses the same live-apply functions once at boot (no redundant
+persistence) so `js/main.js` only has to call `options.applyAll()` after construction. Audio: four
+sliders (`master`, `sfx`, `ambience`, `ui`) – see the synth bus section below. Camera & motion: look
+sensitivity (0–100 slider mapped onto `OPTIONS.lookSensitivityMin/Max`, `js/config.js`), invert Y
+(`core/input.js#Input.invertY`, flips the sign of `look.y` in `poll()`), "reduced camera shake &
+breathing" (`player.camera.setReducedMotion` – already existed since the camera module was built with
+this option in mind, M0.7; zeroes fall-shake trauma *and* nerve-driven sway in one switch) and "reduced
+motion (HUD)" (a `body.reduced-motion` class, `css/base.css`, mirroring the existing
+`prefers-reduced-motion` rule so both the OS setting and this toggle stop the same animations – today
+just the HUD heartbeat pulse, `css/hud.css`). Gameplay: assist mode (`js/player/assist.js`, below) and
+the locale switcher (`initI18n({locale})` + `save.setLocale`, then the panel re-renders its own labels;
+every other `t()` caller in the game is unaffected code-wise – `js/ui/hud-route.js#setRoute/showBanner`
+and the HUD prompt already call `t()` fresh on every change, so they pick up the new language on their
+next redraw with zero changes here; screens built once at construction and never rebuilt, like
+`js/ui/kassa.js` and the static labels in `js/ui/hud.js`, stay in the old language until reload – the
+options copy says so). Controls: `renderControlsList` reflects `input.bindings` read-only (no debug-only
+actions listed, per CLAUDE.md "Debug-UI vom Produkt-UI trennbar") with a "remapping comes later" note.
+
+### `js/player/assist.js`
+```js
+setAssistMode(on)   isAssistMode()   assistScale() → { disturbance, slipWindow }   // 1/1 when off, 0.6/1.35 when on
+```
+A live closure-variable toggle, the same shape `js/player/belay.js#setMode` already uses for the kassa's
+belay choice. `js/player/on-element.js` multiplies every wobble excitation it feeds an element from the
+climber's own actions (footstep, lean+hurry, missed-step kick) by `disturbance`, and the slip angle it
+hands to `balance.update`/uses for the cosmetic lean offset by `slipWindow`; `js/player/fall.js` scales
+the same slip angle in `balance.catchAt` on recovery, so mid-crossing and post-catch stay consistent.
+`js/player/balance.js`'s own tuning (`BALANCE.topple`/`slipAngle`, `js/player/tuning.js`) is never
+touched – assist scales what feeds it at the call site, so the pure module and its unit tests are
+unaffected. Ambient disturbance (`js/elements/element.js`'s wind-gust excite) is deliberately left alone:
+assist is about the climber's own actions, and elements never import from `js/player/` (nor vice versa
+before this – `js/elements` stays a leaf module).
+
+### `js/audio/synth.js` (extended)
+```js
+setCategoryVolume(category: "sfx"|"ambience"|"ui", volume: 0-1)   // + the existing setMasterVolume
+```
+`arm()` now creates three category `GainNode`s alongside `master`, each connecting into it; every
+`noiseBurst`/`ping`/`voice` call takes an optional `category` (default `"sfx"`) and connects through
+`busFor(category)` instead of straight into `master`. Every existing call in `js/audio/sfx.js` (clicks,
+harness catch, heartbeat, breath, trolley, wind rush, arrivals) is therefore already routed through the
+`sfx` bus with no changes needed there. `ambience` and `ui` have no sounds yet – GDD's ambient bed (wind,
+birds, distant city) and any interface clicks are later milestones – so those two sliders currently
+affect nothing audible; the buses exist and are wired, ready for M2 (documented, not silently assumed).
+
+### Colour + shape (GDD §5: "Farbe trägt immer eine Form")
+Audited and completed as part of this milestone: the start banner (`js/ui/hud-route.js#showBanner`) and
+the stamp card (`js/ui/stamp-card.js`) were missing the category symbol next to their colour – both now
+prefix it, matching the route header, the signage, the course map legend and the map's route info panel,
+which already had it.
