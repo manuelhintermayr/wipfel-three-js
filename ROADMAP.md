@@ -73,23 +73,23 @@ fahren, landen · Parcours abgeschlossen mit Rückmeldung (Stempel) · 60 fps ·
 
 ## M1 · „Ein Ticket“ – ein Run
 
-- [ ] **M1.1 Park-Definition + Layout-Generator** – `assets/parks/sonnwendberg.json`, seeded Generator
+- [x] **M1.1 Park-Definition + Layout-Generator** – `assets/parks/sonnwendberg.json`, seeded Generator
       auf dem Graphen mit **Validierung** (Start-/Endanker, Seilwinkel, Lichtraum, keine
       Baumdurchdringung, Begehbarkeit, Kontinuität, Landezonen, Zip-Gefälle 3–6 %, Podest-Zugang);
       Unit-Tests: Graph-Konnektivität, Generator-Validität, Schwierigkeitsmetadaten.
-- [ ] **M1.2 Sechs Parcours** – 2 blue, 2 red, 2 black + Green-Übungsparcours; Namen zusätzlich zu
+- [x] **M1.2 Sechs Parcours** – 2 blue, 2 red, 2 black + Green-Übungsparcours; Namen zusätzlich zu
       Farbe + römischer Ziffer (z. B. `RED ROUTE III · RAVEN RUN` / „Rot III · Rabenlauf“); Podest-Typen
       (Übergang, Standard, Kreuzung, Start, Zip-Ankunft, Rast, Hub); Start-Banner je Route mit
       Kennzahlen; Wegweiser wie im echten Park: pfeilförmige weiße Tafeln mit Farbrand, Farbname in
       Versalien, Ziffern in Kreisen (+ Formen) an Startbereichen und Kreuzungen.
-- [ ] **M1.3 Kassa + Einschulung** – Ticketart, Größenklasse, Modus; Trainer-Dialog mit echtem Inhalt;
+- [x] **M1.3 Kassa + Einschulung** – Ticketart, Größenklasse, Modus; Trainer-Dialog mit echtem Inhalt;
       Übungsparcours in 1 m Höhe als Freigabe.
 - [ ] **M1.4 Course Map + Parkplan** – Course-Map-Overlay 1:1 nach Mockup (Relief-Untergrund aus
       dem Terrain, farbige Routen mit Podest-Knoten, Spielerposition, Legende Green/Blue/Red/Black/
       Legendary, Filter/Player/Zoom/Exit) aus dem Graphen; in der Welt zusätzlich die diegetische
       Parkplan-Tafel im Stil der echten (grüne Karte auf Pfosten, Schleifen mit römischen Ziffern);
       Wartezeiten, entdeckte Abschnitte, Karten je Parcours, Stempelkarte.
-- [ ] **M1.5 Ticket-Uhr + Freigaben + Stempelkarte** – 4 h = 40 min, letzter Einlass, Verlängerung,
+- [x] **M1.5 Ticket-Uhr + Freigaben + Stempelkarte** – 4 h = 40 min, letzter Einlass, Verlängerung,
       Farbfreigaben, Run-Ende mit Rückmeldung.
 - [ ] **M1.6 NPC-Gäste** – Agenten auf dem Graphen mit Podest-/Übungsregeln → Warteschlangen; Zusehen
       gibt Vertrauen.

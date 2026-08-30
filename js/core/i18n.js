@@ -52,3 +52,12 @@ export function formatTime(seconds) {
   const s = seconds - m * 60;
   return `${String(m).padStart(2, "0")}:${s.toFixed(2).padStart(5, "0")}`;
 }
+
+/** HH:MM, 24-hour, from a fractional hour of day (sky/ticket clock) – wraps into [0, 24). */
+export function formatClock(hours) {
+  const wrapped = ((hours % 24) + 24) % 24;
+  let h = Math.floor(wrapped);
+  let m = Math.round((wrapped - h) * 60);
+  if (m === 60) { m = 0; h = (h + 1) % 24; }
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}

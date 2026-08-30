@@ -439,7 +439,8 @@ ends it. Debug: `setWindAlong(m/s|null)`, `setRiderMass(kg)`. Events: `zip:seate
 ### `js/player/belay.js` (pure logic, unit-tested)
 ```js
 createBelay({ mode = "smart", onEvent }) → {
-  mode, state(), isSafe(), bothOnSameAnchor(), currentAnchor(), pendingAnchor(),
+  mode, setMode(next),                 // M1.3: live getter + kassa mode switch (resets both carabiners open)
+  state(), isSafe(), bothOnSameAnchor(), currentAnchor(), pendingAnchor(),
   clipTo(anchorId, carabiner?),        // ONE step of the current mode's ritual
   attach(anchorId),                    // continuous only
   open(carabiner), clip(carabiner, anchorId),   // classic only
@@ -450,11 +451,13 @@ Carabiner states `clipped | locked | open`. In "smart" mode press 1 locks the fo
 lead across (`pendingAnchor`), press 2 brings the follower over and only then does `currentAnchor`
 change – both can never be open. "continuous" attaches both in one press. "classic" lets you get it
 wrong (`isSafe() === false`, event `unsafe`). Events `open | click | locked | unsafe` are forwarded
-to the bus as `belay:*` by main.js.
+to the bus as `belay:*` by main.js. `mode` was a plain field until M1.3 turned it into a live getter
+backed by the same mutable variable every closure already reads, so `setMode` (the kassa's belay
+choice) takes effect instantly everywhere without reconstructing the belay.
 
 ### `js/player/interaction.js` + `js/player/climb-ladder.js`
 ```js
-createInteraction({ player, input, belay, course, hud, events, vitals?, save? }) → { update(dt), prompt, anchor, entry, dispose() }
+createInteraction({ player, input, belay, course, hud, events, vitals?, save?, ticket? }) → { update(dt), prompt, anchor, entry, dispose() }
 createLadderState({ input, events }) → state          // register as "ladder"; ownsMovement, phase, progress
 ```
 Within 1.6 m of an anchor, `clip` (F / gamepad X, plus X for carabiner B in classic mode) runs one
@@ -478,6 +481,14 @@ category (GDD §3.12): `clip` on a locked anchor is refused outright (no `belay.
 prompt shows the lock line (`notice.lockedRed`/`lockedBlack`) instead of the clip prompt. The anchor is
 still *offered* as reachable – only clipping it is refused – so the player reads why, standing right
 there, rather than the prompt silently doing nothing.
+
+Since M1.3, the same `save` also gates every route's entry anchor behind `save.data.briefingDone`
+(`notice.briefingRequired`) – the Einschulung practice gate (`js/game/briefing.js`) must be completed
+once, ever, before any ladder cable accepts a clip. Since M1.5, the optional `ticket` (the pure clock,
+`js/game/ticket.js`) refuses a *new* clip-in the moment `ticket.clippable` is false – no ticket bought
+yet, the day's ticket expired, or "Continue browsing" ended it – via `notice.noActiveTicket`. Both gates
+only block starting a fresh ritual: an anchor the belay is already established on (mid-route) is
+unaffected, so an element in progress when the ticket expires is never interrupted.
 
 ## Balance, strength, nerves and the fall (M0.5)
 
@@ -565,13 +576,77 @@ console clean, because Chrome warns about an AudioContext started without one.
 
 | Module | API |
 |---|---|
-| `js/core/i18n.js` | `initI18n({locale, dicts?})` (fetches `assets/strings/<locale>.json`, en fallback), `t(key, vars?)`, `formatTime(s)`; missing keys render as the key |
-| `js/core/save.js` | `createSave(storage?) → {data, routeBest(id), recordRun(id,{seconds,falls})→isBest, isUnlocked(category), unlockCategory(category)→isNewlyUnlocked, setLocale, flush}`, `nextGateCategory(category)` (pure, blue→red→black→null); schema-versioned, corrupt data collapses to defaults; `data.unlocks` (M1.2, GDD §3.12: "Farben sind Tore") is additive – blue always `true`, red/black default `false`, forced back to the default shape on load regardless of what an old/corrupt save says |
+| `js/core/i18n.js` | `initI18n({locale, dicts?})` (fetches `assets/strings/<locale>.json`, en fallback), `t(key, vars?)`, `formatTime(s)`, `formatClock(hours)` (M1.5: HH:MM from a fractional hour of day); missing keys render as the key |
+| `js/core/save.js` | `createSave(storage?) → {data, routeBest(id), recordRun(id,{seconds,falls})→isBest, isUnlocked(category), unlockCategory(category)→isNewlyUnlocked, completeBriefing()→isNewlyDone, startTicket({type,sizeClassId,belayMode}), updateTicket(patch), endTicket(), setLocale, flush}`, `nextGateCategory(category)` (pure, blue→red→black→null); schema-versioned, corrupt data collapses to defaults; `data.unlocks` (M1.2, GDD §3.12: "Farben sind Tore") is additive – blue always `true`, red/black default `false`; `data.briefingDone` (M1.3, default `false`) and `data.ticket` (M1.5, default `null` – `{type,sizeClassId,belayMode,elapsedReal,extensionsUsed}` while a day is in progress) are both forced back to their default shape on load regardless of what an old/corrupt save says |
 | `js/game/route.js` | `createRouteRun(def)`: idle→armed→countdown(3-2-1-GO)→running→done; `completeObstacle(id)` dedupes; `BLUE_I` (worked example, M0 fixture); `routesFromPark(parkDef)` (M1.1) – pure, one run-def per generated route; `obstacles`/`heightM` (max deck height)/`lengthM` (sum of edge span minus each edge's two `EDGE_OFFSET` lead-ins, plus the zip) are real numbers straight out of `parkDef`, never placeholders |
-| `js/game/session.js` | one `createRouteRun` per route (`routesFromPark`), all `update`d every frame; events (`player:ladder-exit`, `player:element-exit`, `player:fell`, `zip:finished`) broadcast to every run – each run's own `completeObstacle` already ignores ids/states it does not own, so at most one ever advances; the HUD follows whichever run is counting down/riding, else the nearest entry deck within 6 m (`course.routes[i].entryDeck`); stores best times per route id, emits `route:completed`; on `zip:finished` also runs the category gate (M1.2): completing a route unlocks the next colour (`save.unlockCategory`, `nextGateCategory`) and folds that into the *same* "route done" notice rather than a second one competing for the line; a locked route's start banner never arms (`shown.arm()` is skipped) |
-| `js/ui/hud-route.js` | mockup-1:1 route header (`--cat-color` bar, category, ● numeral · name, progress/time/best), FLOW placeholder, start banner with key figures, countdown discs, safety tooltip; `showBanner(def, best, locked?)` (M1.2) swaps the facts/best/START block for a lock line (`notice.lockedRed`/`lockedBlack`) when `locked` is true |
-| `js/game/autoplay.js` | `?autoplay=1`: prompt-driven smoke bot in the **input phase** (synthetic key events must precede edge consumers); starts on the entry deck, goal-directed clipping (only the route's next anchor), plank tapping, holds Space on the zip; platform-hop self-help after repeated stalls (logged as "shortcut") |
+| `js/game/session.js` | one `createRouteRun` per route (`routesFromPark`), all `update`d every frame; events (`player:ladder-exit`, `player:element-exit`, `player:fell`, `zip:finished`) broadcast to every run – each run's own `completeObstacle` already ignores ids/states it does not own, so at most one ever advances; the HUD follows whichever run is counting down/riding, else the nearest entry deck within 6 m (`course.routes[i].entryDeck`); stores best times per route id, emits `route:completed`; on `zip:finished` also runs the category gate (M1.2): completing a route unlocks the next colour (`save.unlockCategory`, `nextGateCategory`) and folds that into the *same* "route done" notice rather than a second one competing for the line; a locked route's start banner never arms (`shown.arm()` is skipped). M1.5: also owns the `day` stats (`get day` – routes completed, obstacles crossed, top zip speed, rescues from `player:rescued`) and the optional ticket clock's day-end sequence – polls `ticket` once a frame (no callbacks, plain edge detection like `bannerShown`), shows the 30-min-left toast once, and on expiry offers `[E]` to extend (`ticket.extend()`, `input.pressed("interact")`) for `TICKET.extendPromptSeconds` before calling `stampCard.show(day)`; `beginDay()` (kassa confirm/resume) resets the day; `forceDayEnd()` is the `WIPFEL.debug.endTicket()` shortcut |
+| `js/ui/hud-route.js` | mockup-1:1 route header (`--cat-color` bar, category, ● numeral · name, progress/time/best), FLOW placeholder, start banner with key figures, countdown discs, safety tooltip; `showBanner(def, best, locked?)` (M1.2) swaps the facts/best/START block for a lock line (`notice.lockedRed`/`lockedBlack`) when `locked` is true; `setTicket(remainingGameMinutes\|null)` (M1.5) shows/hides the `.hud-ticket` box top-right (mockup: `[Ticket 2 h 41]`) |
+| `js/game/autoplay.js` | `?autoplay=1`: prompt-driven smoke bot in the **input phase** (synthetic key events must precede edge consumers); on its very first `update()` fast-forwards the kassa and briefing (`kassa.confirmDefaults()`, `briefing.completeForBot()` – M1.3, no fragile DOM clicking or scripted walk-to-the-practice-stand); starts on the entry deck, goal-directed clipping (only the route's next anchor), plank tapping, holds Space on the zip; platform-hop self-help after repeated stalls (logged as "shortcut") |
 
 Input-phase rule: anything that synthesises keyboard events (bots) must run inside `loop.on("input")` –
 edge sets (`input.pressed`) are cleared in the ui phase, so events fired later are invisible to the
 next frame's physics.
+
+## Kassa, Einschulung, ticket clock, stamp card (M1.3/M1.5 – contracts)
+
+### `js/game/ticket.js` (pure logic, unit-tested)
+```js
+gameHoursElapsed(realSeconds) → hours                        // TIME.gameHourMinutes real minutes = 1 game hour
+timeOfDayFor(hoursElapsed, openingHour?) → hour               // wraps into [0, 24)
+createTicketClock({ ticketHours?, openingHour?, extendGameMinutes?, maxExtensions? }) → {
+  elapsedReal, totalGameMinutes, remainingGameMinutes, timeOfDay,
+  started, expired, clippable, extensionsUsed, extensionsLeft,
+  update(dtSeconds), extend(): boolean, reset(next?: {ticketHours?}), end()
+}
+```
+No callbacks, no DOM – `js/game/session.js` polls the getters once a frame and does its own edge
+detection (warning toast, expiry sequence), exactly like `js/player/belay.js` stays pure for its ritual.
+`clippable` (`started && remaining > 0`) is the single fact `js/player/interaction.js` needs to gate a
+new clip-in; `extend()` (+`TICKET.extendGameMinutes`, capped at `TICKET.maxExtensions`) un-expires it
+without touching `started`; `end()` ("Continue browsing") clears `started` – there is simply no ticket,
+which reads differently from an expired one but gates clipping identically.
+
+### `js/ui/kassa.js`
+```js
+createKassa({ root, defaultChoice?: {type,sizeClassId,belayMode}, onConfirm }) →
+  { visible, show(), hide(), confirmDefaults(), dispose() }
+```
+The GDD's "ein Blatt Papier" screen: a `.screen`/`.panel` overlay (dark translucent app frame, per the
+mockup) with a laminated-sheet-styled form inside it – three option groups (ticket type from
+`TICKET_TYPES`, size class from `RULES.sizeClasses`, belay mode from `BELAY_MODES`, each a row of
+clickable cards with a one-line description) and a Confirm button. Shown at boot before pointer lock
+(`js/main.js` guards `requestPointerLock` on `!kassa.visible`); `onConfirm(choice)` is the one thing
+this module knows about the game – `js/main.js#startDay` applies it to the save, the ticket clock, the
+sky and the belay. `confirmDefaults()` is the `?autoplay=1` hook: calls the exact same `onConfirm` path
+a click would, no DOM interaction.
+
+### `js/park/practice-stand.js` + `js/game/briefing.js`
+```js
+createPracticeStand({ scene, physics, position, facing?, rng, textures }) → { group, top, clipAnchor, dispose() }
+createBriefing({ root, scene, physics, terrain, parkDef, textures, rng, belay, player, input, save, events? }) →
+  { active, phase, start(), update(), completeForBot(), dispose() }
+```
+The Einschulung (GDD §3.7): one post + a short taut cable at "1 m height" (RESEARCH-DATA §1's practice
+course), built lazily the first time `start()` runs, placed opposite the mean bearing of every route
+entry from the spawn hub (clear of the fan, the same circular-mean trick `js/park/signs.js` uses for its
+category boards). `phase` runs `idle → dialogue → practiceGate → done`: four HUD steps (own bespoke
+`.briefing-panel`, not `hud.setPrompt` – no ordering fight with `js/player/interaction.js`'s own prompt
+line) advanced with `interact` (E), then the practice gate waits for the *real* belay ritual on a
+dedicated anchor id (`"practice-anchor"`) – whichever mode is active (continuous/smart/classic) needs
+however many presses it needs, `briefing.js` just watches `belay.bothOnSameAnchor() &&
+belay.currentAnchor() === "practice-anchor"`. Finishing calls `save.completeBriefing()` (additive,
+one-way) and `belay.detach()`. `completeForBot()` is the `?autoplay=1` hook: skips straight to done, no
+scripted walk-and-clip. The gate itself lives in `js/player/interaction.js` (`save.data.briefingDone`),
+not here – this module only drives the sequence and builds the hardware.
+
+### `js/ui/stamp-card.js`
+```js
+createStampCard({ root, save, onNewDay, onContinue }) → { visible, show(summary), hide(), dispose() }
+// summary = { routes: [{category,numeral,nameKey,seconds,falls}], obstaclesTotal, maxZipKmh, rescues }
+```
+End-of-day summary (GDD §3.7): one stamp per completed route (category colour, numeral, name, time,
+falls), the day's totals, and `save.isUnlocked("red"|"black")` for the unlock chips (read-only – the
+gate itself is M1.2's). `js/game/session.js` decides *when* to call `show()` (ticket end, or a route
+finished with `ticket.expired`) and builds `summary` from its own `day` stats. "New day" re-shows the
+kassa after `save.endTicket()`; "Continue browsing" calls `ticket.end()` – the world stays open, clipping
+just refuses (see the interaction gate above).

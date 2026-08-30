@@ -9,6 +9,12 @@ const DEFAULTS = Object.freeze({
   // category unlocks once any route of the *previous* colour has been completed (js/game/session.js).
   unlocks: Object.freeze({ blue: true, red: false, black: false }),
   locale: null,             // null = use DEFAULTS.locale / ?locale=
+  // Einschulung (M1.3, GDD §3.7): once true the practice-anchor gate never shows again
+  // (js/game/briefing.js, js/player/interaction.js).
+  briefingDone: false,
+  // Active ticket (M1.5) – null when no day is in progress (fresh boot, or after "Continue browsing").
+  // Reopening the page with a ticket here resumes the day instead of showing the kassa (js/main.js).
+  ticket: null,
 });
 
 /** What completing a route in `category` unlocks next, or null (GDD §3.12: Blue → Red → Black). */
@@ -52,6 +58,34 @@ export function createSave(storage = defaultStorage()) {
       return true;
     },
     setLocale(locale) { data.locale = locale; flush(); },
+
+    /** @returns {boolean} true the first time the briefing is completed, false if it already was */
+    completeBriefing() {
+      if (data.briefingDone) return false;
+      data.briefingDone = true;
+      flush();
+      return true;
+    },
+
+    /** Kassa confirm: start a fresh ticket for today (js/game/ticket.js owns the running clock). */
+    startTicket({ type, sizeClassId, belayMode = null }) {
+      data.ticket = { type, sizeClassId, belayMode, elapsedReal: 0, extensionsUsed: 0 };
+      flush();
+    },
+
+    /** Low-frequency progress write (caller throttles) so a reload can resume close to where it left off. */
+    updateTicket(patch) {
+      if (!data.ticket) return;
+      Object.assign(data.ticket, patch);
+      flush();
+    },
+
+    /** "New day" / "Continue browsing": no ticket is in progress any more. */
+    endTicket() {
+      data.ticket = null;
+      flush();
+    },
+
     flush,
   };
 }
@@ -81,6 +115,17 @@ function load(storage) {
   }
   data.unlocks.blue = true;   // always open, regardless of what an older/corrupt save says
   if (typeof parsed.locale === "string") data.locale = parsed.locale;
+  if (typeof parsed.briefingDone === "boolean") data.briefingDone = parsed.briefingDone;
+  if (parsed.ticket && typeof parsed.ticket === "object") {
+    const tk = parsed.ticket;
+    data.ticket = {
+      type: typeof tk.type === "string" ? tk.type : "standard",
+      sizeClassId: typeof tk.sizeClassId === "string" ? tk.sizeClassId : "adult",
+      belayMode: typeof tk.belayMode === "string" ? tk.belayMode : null,
+      elapsedReal: Number.isFinite(tk.elapsedReal) ? tk.elapsedReal : 0,
+      extensionsUsed: Number.isFinite(tk.extensionsUsed) ? tk.extensionsUsed : 0,
+    };
+  }
   return data;
 }
 

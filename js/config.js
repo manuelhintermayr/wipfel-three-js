@@ -19,6 +19,21 @@ export const TIME = Object.freeze({
   lastEntryHoursBeforeClose: 2,
 });
 
+/** Ticket clock tuning (js/game/ticket.js, ROADMAP M1.5). */
+export const TICKET = Object.freeze({
+  openingHour: 9,              // the park's opening time on the sky clock (GDD §3.7)
+  warnMinutes: 30,             // game minutes remaining that trigger the "running out" toast
+  extendGameMinutes: 30,       // one "+30 min" extension (RESEARCH-DATA §1: "+5 € je weitere 1/2 h")
+  maxExtensions: 2,
+  extendPromptSeconds: 8,      // real seconds the "extend?" prompt stays up before the day ends anyway
+});
+
+/** Ticket types sold at the kassa (GDD §3.7/§3.8). scoreMultiplier is a placeholder – applied in M2 (Flow). */
+export const TICKET_TYPES = Object.freeze([
+  { id: "standard", hours: TIME.ticketHours, labelKey: "kassa.ticket.standard.name", descKey: "kassa.ticket.standard.desc", scoreMultiplier: 1 },
+  { id: "happyHour", hours: TIME.ticketHours / 2, labelKey: "kassa.ticket.happyHour.name", descKey: "kassa.ticket.happyHour.desc", scoreMultiplier: 1.25 },
+]);
+
 export const RENDER = Object.freeze({
   maxPixelRatio: 1.75,
   shadowMapSize: 2048,
@@ -51,10 +66,10 @@ export const RULES = Object.freeze({
   minHeightCm: 110,
   maxWeightKg: 120,
   sizeClasses: Object.freeze([
-    { id: "s110", minCm: 110, allowed: ["green", "blue"],                       massKg: 32 },
-    { id: "s130", minCm: 130, allowed: ["green", "blue", "red"],                massKg: 45 },
-    { id: "s150", minCm: 150, allowed: ["green", "blue", "red", "black"],       massKg: 60 },
-    { id: "adult", minCm: 160, allowed: ["green", "blue", "red", "black", "legendary"], massKg: 78 },
+    { id: "s110", minCm: 110, allowed: ["green", "blue"],                       massKg: 32, labelKey: "kassa.size.s110" },
+    { id: "s130", minCm: 130, allowed: ["green", "blue", "red"],                massKg: 45, labelKey: "kassa.size.s130" },
+    { id: "s150", minCm: 150, allowed: ["green", "blue", "red", "black"],       massKg: 60, labelKey: "kassa.size.s150" },
+    { id: "adult", minCm: 160, allowed: ["green", "blue", "red", "black", "legendary"], massKg: 78, labelKey: "kassa.size.adult" },
   ]),
 });
 

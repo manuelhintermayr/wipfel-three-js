@@ -43,18 +43,22 @@ export const PROMPTS = Object.freeze({
   stepOn: (element) => t("prompt.stepOn", { label: t(ELEMENT_LABEL_KEYS[element.kind] || "element.burma") }),
   /** Category gate (GDD §3.12): shown instead of the clip prompt at a locked route's entry anchor. */
   locked: (category) => t(category === "black" ? "notice.lockedBlack" : "notice.lockedRed"),
+  /** Einschulung gate (M1.3): shown instead of the clip prompt until the practice gate is done. */
+  get briefingRequired() { return t("notice.briefingRequired"); },
+  /** Ticket gate (M1.5): no ticket, or the day's ticket has run out (js/game/ticket.js). */
+  get noTicket() { return t("notice.noActiveTicket"); },
 });
 
 /**
- * @param {{ player, input, belay, course, hud?, events?, vitals?, save? }} options
- *   `save` gates category entry anchors (GDD §3.12) – omit it (dev harnesses, older tests) and nothing
- *   is ever locked.
+ * @param {{ player, input, belay, course, hud?, events?, vitals?, save?, ticket? }} options
+ *   `save` gates category entry anchors (GDD §3.12) and the Einschulung practice gate (M1.3) – omit it
+ *   (dev harnesses, older tests) and nothing is ever locked. `ticket` gates every anchor once a day is
+ *   over (M1.5, js/game/ticket.js) – omit it and clipping is never refused for lack of a ticket.
  * @returns {{ update(dt: number): void, prompt: string|null, anchor: object|null,
  *   entry: {element: object, end: string}|null, dispose(): void }}
  */
-export function createInteraction({ player, input, belay, course, hud = null, events = null, vitals = null, save = null }) {
+export function createInteraction({ player, input, belay, course, hud = null, events = null, vitals = null, save = null, ticket = null }) {
   const chest = new THREE.Vector3();
-  const classic = belay.mode === "classic";
   let prompt = null;
   let anchor = null;
   let entry = null;
@@ -65,6 +69,15 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
     const route = course.routes.find((r) => r.ladderAnchorId === anchorId);
     return route && !save.isUnlocked(route.category) ? route.category : null;
   };
+
+  /** Einschulung (M1.3): a route's entry cable refuses the ritual until the practice gate is done. */
+  const briefingRequiredAt = (anchorId) => {
+    if (!save || save.data.briefingDone) return false;
+    return course.routes.some((r) => r.ladderAnchorId === anchorId);
+  };
+
+  /** Ticket gate (M1.5): no new clip-in once the day has no active, unexpired ticket. */
+  const ticketBlocks = () => !!ticket && !ticket.clippable;
 
   /** The ladder the belay is currently clipped to, whichever of the six routes that is – or null. */
   const clippedLadder = () => course.ladderFor(belay.currentAnchor());
@@ -113,6 +126,8 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
     if (anchor) {
       const locked = lockedCategoryOf(anchor.id);
       if (locked) return PROMPTS.locked(locked);
+      if (briefingRequiredAt(anchor.id)) return PROMPTS.briefingRequired;
+      if (!established(anchor.id) && ticketBlocks()) return PROMPTS.noTicket;
       if (!established(anchor.id)) return belay.pendingAnchor() === anchor.id ? PROMPTS.clipSecond : PROMPTS.clipIn;
     }
     if (next) return next.element.clipPrompt || PROMPTS.clipFirst;
@@ -134,8 +149,11 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
   function handleInput() {
     // element, fall and zipline read the keys themselves and must not have them eaten here
     if (player.mode === "element" || player.mode === "fall" || player.mode === "zipline") return;
+    const classic = belay.mode === "classic";
     if (anchor && (input.pressed("clip") || (classic && input.pressed("clip2")))) {
-      if (lockedCategoryOf(anchor.id)) return;   // refused: the route's category is not unlocked yet
+      if (lockedCategoryOf(anchor.id)) return;         // refused: the route's category is not unlocked yet
+      if (briefingRequiredAt(anchor.id)) return;       // refused: the Einschulung practice gate is not done
+      if (!established(anchor.id) && ticketBlocks()) return;   // refused: no active, unexpired ticket
       belay.clipTo(anchor.id, classic && input.pressed("clip2") ? "B" : "A");
       return;
     }

@@ -5,17 +5,34 @@
 > `ROADMAP.md`. Eine neue Session muss allein mit dieser Datei + `ROADMAP.md` weiterarbeiten können.
 
 ## Aktueller Meilenstein
-**M1.2 Schilder + Kategorie-Freigaben + Routen-Banner ABGESCHLOSSEN** (uncommitted, Session 4,
-2026-08-25): `js/park/signs.js` (neu) baut den Wegweiser-Cluster am Hub-Rand (ein Pfosten + eine
-pfeilförmige Tafel je vorhandener Kategorie, Pfeil zeigt auf die mittlere Peilung der eigenen Routen)
-und je Route ein kleines Namensschild am Einstiegsdeck – beides nach `docs/reference/photos/README.md`.
-`core/save.js` führt Kategorie-Freigaben (`unlocks`, additiv, Blau immer offen); `player/interaction.js`
-verweigert das Einhängen an einer gesperrten Route und zeigt stattdessen den Sperrhinweis;
-`game/session.js` schaltet nach jedem Routenabschluss die nächste Farbe frei und zeigt am Start-Banner
-einer gesperrten Route die Sperrzeile statt Kennzahlen/START. Aus den ursprünglich in `ROADMAP.md`
-M1.2 gelisteten Punkten sind **Podest-Typen** (Übergang/Kreuzung/Rast/Hub als eigene Bautypen) **nicht**
-Teil dieser Session – nur Schilder, Freigaben, Banner (siehe Auftrag). Noch **kein Commit** – siehe
-„Dateien, an denen gerade gearbeitet wird".
+**M1.3 Kassa + Einschulung UND M1.5 Ticket-Uhr + Stempelkarte ABGESCHLOSSEN** (uncommitted, Session 5,
+2026-08-26, oben auf dem ebenfalls noch uncommitteten M1.2): Kassa-Bildschirm (`js/ui/kassa.js`, „ein
+Blatt Papier" auf dem dunkel-transparenten App-Rahmen) mit Ticketart/Größenklasse/Sicherungsmodus als
+anklickbare Kartenreihen; Confirm startet den Tag (`js/main.js#startDay`: `save.startTicket`,
+`ticket.reset`, `sky.setTimeOfDay(9:00)`, `belay.setMode`, Größenklasse → `player.states.get("zipline")
+.setRiderMass`, Notice „Ticket gültig bis …"). Einschulung (`js/game/briefing.js` +
+`js/park/practice-stand.js`, neu): vier Trainer-Dialogzeilen (echter Inhalt aus RESEARCH-DATA §1 –
+Gurt/ein Karabiner immer dran, eine Person pro Übung/drei pro Podest, Flying Fox nur bei freier
+Landezone, Atmen bei Einfrieren), mit **E** vorgeblättert, dann ein echter Klick-Klick-Ritual-Test an
+einem eigenen Übungsanker (`"practice-anchor"`, ein Pfosten + kurzes Seil auf 1 m nahe dem Spawn-Hub,
+gegenüber der mittleren Peilung aller Routen-Einstiege) – erst danach akzeptiert **irgendeine**
+Routen-Einstiegscable das Einhängen (`save.data.briefingDone`, geprüft in `player/interaction.js`, neue
+Sperrzeile „Complete the briefing first" / „Zuerst die Einschulung abschließen"). Ticket-Uhr
+(`js/game/ticket.js`, reine Logik, 11 Unit-Tests): 1 Spielstunde = `TIME.gameHourMinutes` reale Minuten,
+Restzeit als `.hud-ticket`-Box oben rechts (`ui/hud-route.js#setTicket`); bei 30 Spielminuten ein Toast,
+bei 0 ein Erweiterungsfenster (`[E]` = +30 min, max. 2×, `TICKET.extendPromptSeconds` = 8 s Gnadenfrist),
+danach die Stempelkarte (`js/ui/stamp-card.js`, neu: Stempel je geschaffter Route mit Kategoriefarbe/
+Ziffer/Name/Zeit/Stürze, Übungen gesamt, Höchsttempo Flying Fox, Rettungen, Rot/Schwarz-Freigabestatus,
+Buttons „Neuer Tag" → Kassa erneut / „Weiter im Park bleiben" → `ticket.end()`, danach verweigert
+`player/interaction.js` jedes neue Einhängen mangels Ticket). `js/game/session.js` trägt jetzt die
+Tages-Statistik (`day`) und die ganze Ticket-Ende-Sequenz; `js/player/belay.js` bekommt `setMode()`
+(kassa-Wechsel wirkt sofort, `mode` ist jetzt ein live Getter statt eines statischen Feldes);
+`js/game/autoplay.js` feuert einmalig `kassa.confirmDefaults()` + `briefing.completeForBot()` auf dem
+allerersten `update()`, damit `?autoplay=1` weiter unbeaufsichtigt läuft. Neuer Debug-Hook
+`WIPFEL.debug.endTicket()` für Screenshots/Smoke-Läufe (erschöpft die Restzeit und ruft
+`session.forceDayEnd()` direkt auf – überspringt die 8-s-Erweiterungs-Gnadenfrist komplett, landet sofort
+auf der Stempelkarte). Noch **kein Commit** – siehe „Dateien, an denen gerade gearbeitet wird" (M1.2 UND M1.3/M1.5
+liegen beide uncommitted übereinander).
 
 ## Letzter funktionierender Commit
 `43993bb` „feat(elements): twelve traversable kinds with catalogue, discrete-step generalisation and
@@ -31,6 +48,34 @@ Bestzeit im Save, **`save.data.unlocks.red === true`** danach (per `localStorage
 `check-all` 115/115, `node --test` 108/108 (104 + 4 neue Save-Gating-Tests).
 Screenshots `docs/screenshots/m1-signs.png` (Wegweiser-Cluster, alle drei Tafeln lesbar), `m1-locked.png`
 (Start-Banner „RED ROUTE · RAVEN RUN · Complete a blue route first" an einer gesperrten Route).
+
+M1.3/M1.5 (diese Session, 2026-08-26) geprüft, echter Chromium via Playwright MCP, `localStorage.clear()`
++ Reload für den Frischstart: Kassa erscheint beim Boot vor Pointer-Lock, echte Klicks auf Happy-Hour/
+Größe M/Klassisch + Confirm setzen **`save.data.ticket`** korrekt (`type/sizeClassId/belayMode`),
+`belay.mode → "classic"`, `ticket.totalGameMinutes === 120`, `sky.timeOfDay ≈ 9.0`; Einschulung startet
+automatisch, vier `[E]`-Drücke bringen sie zur Übungsanker-Phase, Teleport auf die aus `parkDef`/
+`terrain.hubs[0]` berechnete Standposition + echtes **F, X** (klassischer Modus, zwei Karabiner einzeln)
+schließt sie ab – **`briefing.phase === "done"`, `save.data.briefingDone === true`**, Belay danach wieder
+offen. `WIPFEL.debug.endTicket()` erschöpft die Restzeit und ruft `session.forceDayEnd()` direkt auf –
+die Stempelkarte öffnet sich ohne die 8-s-Erweiterungs-Gnadenfrist abzuwarten; „Neuer Tag" zeigt die
+Kassa erneut, ein zweiter Confirm startet einen frischen
+Tag; „Weiter im Park bleiben" setzt **`ticket.clippable === false`**, und am Einstiegsdeck-Anker liest
+`interaction.prompt` daraufhin korrekt **„No active ticket – visit the kassa"**. Deutsches Locale
+(`?locale=de`) spotgeprüft: Kassa-Titel „Kassa", Confirm „Tag starten", erster Trainer-Satz „Gurt an.
+Immer mindestens einen Karabiner eingehängt lassen." – alle 114 Keys in `en.json`/`de.json` deckungsgleich
+(automatisiert geprüft, keine fehlenden Keys in beide Richtungen). Vollständiger `?autoplay=1&fast=1`-Lauf
+ab frischem `localStorage`: Bot bootstrapped Kassa+Einschulung in Frame 1 (`kassa.confirmDefaults()` +
+`briefing.completeForBot()`), spielt Blue I komplett durch – **„route completed in 372.14 s · falls 0 ·
+best true"**, **`save.data.unlocks.red === true`** danach, **0 Konsolenfehler/-warnungen** (eigener
+Konsolen-Hook über den gesamten Lauf), **0 externe Requests** (alle 327 Requests → `127.0.0.1:8200`),
+Laufzeit real **~103 s** (≤ 6-min-Ziel). Draw-Calls am Spawn vor der Kassa-Bestätigung **419** (Übungsstand
+existiert erst nach `briefing.start()` → lazy gebaut, danach **2 zusätzliche Meshes**, wie geplant);
+Dreiecke ~0,88–0,92 M, kein Regressions-Sprung ggü. M1.2. `check-all` 121/121, `node --test`
+**119/119** (108 + 11 neue Ticket-Uhr-Tests). Screenshots `docs/screenshots/m1-kassa.png` (Kassa-Bildschirm,
+alle drei Gruppen + Auswahl sichtbar), `m1-briefing.png` (Trainer-Dialog + Ticket-Box oben rechts,
+Übungsstand im Hintergrund), `m1-stampcard.png` (Stempelkarte, „No routes completed today" da in diesem
+Testlauf keine Route beendet wurde, bevor die Uhr erzwungen abgelaufen ist) – alle < 300 KB (PIL:
+720 px Kantenlänge, 96-Farben-Palette).
 
 ## Was funktioniert
 - **Kern:** `js/main.js` (Boot + Loop-Verdrahtung), `core/{loop,input,rng,params,errors,events,renderer,physics}.js`,
@@ -129,9 +174,10 @@ Screenshots `docs/screenshots/m1-signs.png` (Wegweiser-Cluster, alle drei Tafeln
   (Ankunftspodest, Rampe, Hackschnitzelbett, Erdanker), `player/on-zipline.js` (Zustand `zipline`,
   Ego-Kamera automatisch, Körper bleibt sichtbar, Kopf ausgeblendet), `ui/hud.js#setSpeed/setNotice`,
   `audio/sfx.js#sfxTrolley/sfxWindRush/sfxZipArrive` über `synth.voice()` (Dauerton mit Live-Handle).
-- **Tests:** `node tools/check-all.mjs` (**115 Dateien**), `node --test` (**108 Tests**: RNG, Lighting,
+- **Tests:** `node tools/check-all.mjs` (**121 Dateien**), `node --test` (**119 Tests**: RNG, Lighting,
   Belay, Balance, Stamina, Nerves, Chunk-Index, Zipline, Route, Catalogue, i18n, Save (**+4 M1.2:
-  Freigabe-Fortschritt, Migration**), Layout (M1.1, 11 Tests), check-all).
+  Freigabe-Fortschritt, Migration**), Layout (M1.1, 11 Tests), Ticket (**+11 M1.3/M1.5**: game-time
+  mapping, Restzeit, Warnschwelle, Ablauf, Verlängerungsdeckel), check-all).
 - **Dev-Seiten:** `tools/dev/{forest,terrain,sky,player}.html` – je Modul isoliert testbar
   (`?seed=`, Views, Bot); Screenshots `docs/screenshots/dev-*.png`.
 
@@ -171,6 +217,20 @@ Screenshots `docs/screenshots/m1-signs.png` (Wegweiser-Cluster, alle drei Tafeln
   Farbe frei, eine gemeinsame Notice statt zwei konkurrierender, `showBanner(def,best,locked)` bei
   gesperrter Route ohne `arm()`), `ui/hud-route.js` (`showBanner`s dritter Parameter tauscht
   Kennzahlen/Bestzeit/START gegen die Sperrzeile), `css/screens.css#.start-banner .locked`.
+- **Kassa + Einschulung + Ticket-Uhr + Stempelkarte (M1.3/M1.5):** `js/game/ticket.js` (reine Uhr:
+  `gameHoursElapsed`/`timeOfDayFor` + `createTicketClock` – `started/expired/clippable/extensionsLeft`,
+  `update/extend/reset/end`, keine Callbacks, 11 Unit-Tests), `js/ui/kassa.js` (Ticketart/Größenklasse/
+  Sicherungsmodus als Kartenreihen, `confirmDefaults()` für `?autoplay=1`), `js/game/briefing.js` +
+  `js/park/practice-stand.js` (vier Trainer-Dialogzeilen + echter Klick-Klick-Test am eigenen
+  Übungsanker, `save.completeBriefing()`, `completeForBot()`), `js/ui/stamp-card.js` (Tagesabschluss:
+  Stempel je Route, Kennzahlen, Freigabestatus, „Neuer Tag"/„Weiter im Park bleiben"). `core/save.js`
+  führt `briefingDone` und `ticket` (additiv, `null` = kein Tag aktiv); `player/belay.js#setMode` (live
+  `mode`-Getter, Kassa-Wechsel wirkt sofort); `player/interaction.js` verweigert ein **neues** Einhängen
+  ohne `save.data.briefingDone` bzw. ohne `ticket.clippable` (laufende Übungen werden nie unterbrochen);
+  `game/session.js` trägt die Tages-Statistik (`day`) und die Ticket-Ende-Sequenz (30-Min-Toast,
+  Verlängerungsfenster `[E]`, dann `stampCard.show`); `ui/hud-route.js#setTicket` zeigt die
+  `.hud-ticket`-Box oben rechts; `game/autoplay.js` bootstrapped Kassa+Einschulung einmalig auf dem
+  ersten `update()`. Debug: `WIPFEL.debug.endTicket()`.
 
 ## Was halb fertig ist
 - Route-Header/Banner/Countdown zeigen nur die Route, die der Spieler gerade angeht (nächstes
@@ -195,7 +255,21 @@ wegnehmen, nie hinzufügen (`asked`-Klemme).
 
 ## Dateien, an denen gerade gearbeitet wird
 – keine offene Baustelle, aber **alles seit Tag `m0` (`d20789e`) ist uncommitted**, inklusive M1.8
-(bereits HEAD `43993bb`, s. u.), M1.1 und M1.2 (diese Session). M1.2 laut `git status`: neu
+(bereits HEAD `43993bb`, s. u.), M1.1, M1.2 und M1.3/M1.5 (diese Session).
+M1.3/M1.5 laut geänderten Dateien: neu
+`js/game/ticket.js`, `js/ui/kassa.js`, `js/game/briefing.js`, `js/park/practice-stand.js`,
+`js/ui/stamp-card.js`, `tests/unit/ticket.test.mjs`,
+`docs/screenshots/{m1-kassa,m1-briefing,m1-stampcard}.png`; geändert `js/config.js` (`TICKET`,
+`TICKET_TYPES`, `RULES.sizeClasses[].labelKey`), `js/core/save.js` (`briefingDone`, `ticket`,
+`completeBriefing`/`startTicket`/`updateTicket`/`endTicket`), `js/core/i18n.js` (`formatClock`),
+`js/core/params.js` (`?kassa=`, `?briefing=`), `js/player/belay.js` (`setMode`, `mode` als Getter),
+`js/player/interaction.js` (`ticket`-Param, Einschulungs-/Ticket-Sperre), `js/game/session.js`
+(`day`-Statistik, Ticket-Ende-Sequenz, `beginDay`/`forceDayEnd`), `js/game/autoplay.js` (`kassa`/
+`briefing`-Bootstrap), `js/ui/hud-route.js` (`setTicket`, `.hud-ticket`), `js/main.js` (komplette
+Kassa/Einschulung/Ticket/Stempelkarte-Verdrahtung, `WIPFEL.debug.endTicket`), `css/{hud,screens}.css`
+(`.hud-ticket`, `.kassa-*`, `.briefing-panel`, `.stamp-*`), `assets/strings/{en,de}.json` (44 neue Keys,
+Parität geprüft), `docs/architecture.md`, `ROADMAP.md`, `HANDOVER.md`.
+M1.2 laut `git status`: neu
 `js/park/signs.js`, `docs/screenshots/{m1-signs,m1-locked}.png`; geändert `js/core/save.js` (`unlocks`,
 `nextGateCategory`), `js/player/interaction.js` (`save`-Param, Sperr-Prompt), `js/game/{route,
 session}.js` (`lengthM`-Präzision, Freigabe-Logik, Banner-Sperrzweig), `js/ui/hud-route.js`
@@ -228,31 +302,57 @@ geändert `js/world/{terrain,ground-detail,forest}.js`, `js/world/terrain/materi
 – keine reproduzierten. Zu prüfen: Kamera-Kollision mit Kronen im echten Wald (nur in Dev-Seite getestet).
 
 ## Unmittelbar nächste Aufgabe
-**M1.3 Kassa + Einschulung** (`ROADMAP.md`): Ticketart, Größenklasse, Modus; Trainer-Dialog mit echtem
-Inhalt; Übungsparcours in 1 m Höhe als Freigabe. Größenklasse (`RULES.sizeClasses`, `config.js`) trifft
-auf die bestehenden Kategorie-Freigaben (`save.data.unlocks`, M1.2) – wie beide zusammenspielen (darf
-eine zu kleine Größenklasse eine freigeschaltete Farbe trotzdem nicht betreten?) ist noch keine
-ADR-Entscheidung, sondern beim Einstieg in M1.3 zu treffen. Aus M1.2s ursprünglicher `ROADMAP.md`-Liste
-bleiben **Podest-Typen** (Übergang/Kreuzung/Rast/Hub) offen – s. „Was halb fertig ist".
+**M1.4 Course Map + Parkplan** (`ROADMAP.md`): Vollbild-Overlay 1:1 nach Mockup (Relief-Untergrund aus
+dem Terrain, farbige Routen mit Podest-Knoten aus `course.graph`, Spielerposition, Legende Green/Blue/
+Red/Black/Legendary, Filter/Player/Zoom/Exit), dazu die diegetische Parkplan-Tafel in der Welt
+(grüne Karte auf Pfosten, Schleifen mit römischen Ziffern) und die Stempelkarte dort zusätzlich
+verlinkt. `css/screens.css#.course-map` hat schon Grundstile (leer); `course.graph.{nodes,edges}` (M1.1)
+ist die Datenquelle. Danach **M1.6 NPC-Gäste**: Agenten auf `course.graph` mit Podest-/Übungsregeln →
+Warteschlangen, Zusehen gibt Vertrauen (`js/player/nerves.js#trustGain` existiert schon).
+
+Offene Entscheidung aus M1.3: Größenklasse (`RULES.sizeClasses[].allowed`) ist an der Kassa wählbar und
+persistiert (`save.data.ticket.sizeClassId`), treibt aber **nur** die Zip-Masse
+(`player.states.get("zipline").setRiderMass`) – sie gated **nicht**, ob eine zu kleine Größenklasse eine
+bereits freigeschaltete Farbe betreten darf (GDD §3.7 „Größenklasse (Farbfreigabe, Zip-Tempo)" nennt
+beides). Noch keine ADR; wenn gewünscht, gehört der Check neben `lockedCategoryOf` in
+`player/interaction.js`, mit einer eigenen Prompt-Zeile.
 
 ## Nächste fünf Aufgaben
-1. M1.3 Kassa + Einschulung (s. o.).
-2. Podest-Typen nachziehen (Übergang, Kreuzung, Rast, Hub – aus der ursprünglichen M1.2-Liste
+1. M1.4 Course Map + Parkplan (s. o.).
+2. M1.6 NPC-Gäste (s. o.).
+3. Größenklasse → Kategorie-Zugang entscheiden und ggf. verdrahten (s. o., „Offene Entscheidung aus M1.3").
+4. Podest-Typen nachziehen (Übergang, Kreuzung, Rast, Hub – aus der ursprünglichen M1.2-Liste
    zurückgestellt, s. „Was halb fertig ist"): `platform.js#kind` kennt bisher nur
    „standard"/„transition"; Kreuzungspodeste würden auch verlangen, dass zwei Routen sich einen
    Baum/ein Podest teilen können – das rührt an den Layout-Generator (`layout.js`/`layout-route.js`),
    nicht nur an den Loader.
-3. Draw-Calls am Spawn weiter drücken (434 mit Schildern, Ziel für diese Session ≤ 440 erreicht; das
-   ältere M1.1-Ziel ≤ 420 ohne Schilder bleibt offen, s. „Offen"): die Podest-Merge-Optimierung ist am
-   Deckungsgrad der statischen Geometrie ausgereizt; als Nächstes käme nur noch dynamische Geometrie
-   in Frage (Zip-Netz/Trolley, Element-Wobble-Meshes) – dafür müsste `element.js`/`zipline.js` eigene
-   LOD- oder Batch-Strategien bekommen, kein reiner Loader-Fix mehr.
-4. Politur M0.5: Hände/Füße per IK auf Halteseil und Planke (die Posen treffen die Seile noch nicht),
-   Tuning-Pass mit echten Testern (Balance-Fenster, Kraftkosten, Nervenanstieg), Wind-Böen hörbar.
-5. Eingabe-Kante über den festen Schritt retten (siehe „Offen“ unten) – betrifft die Planken, den
-   Sturz und jede künftige Übung, die `input.pressed` im Physik-Takt liest.
+5. Draw-Calls am Spawn weiter drücken (das ältere M1.1-Ziel ≤ 420 ohne Schilder bleibt offen, s.
+   „Offen"): die Podest-Merge-Optimierung ist am Deckungsgrad der statischen Geometrie ausgereizt; als
+   Nächstes käme nur noch dynamische Geometrie in Frage (Zip-Netz/Trolley, Element-Wobble-Meshes) –
+   dafür müsste `element.js`/`zipline.js` eigene LOD- oder Batch-Strategien bekommen, kein reiner
+   Loader-Fix mehr.
 
 ## Offen / Provisorisch
+- **M1.3/M1.5:** Größenklasse gated nur die Zip-Masse, nicht den Kategorie-Zugang – s. „Unmittelbar
+  nächste Aufgabe". Die Tages-Statistik (`session.js#day`) ist **nicht** Teil von `save.data.ticket` –
+  ein Reload mitten im Tag stellt Uhr/Belay/Größenklasse korrekt wieder her (`resumeDay`), aber die
+  Stempelkarte würde bei einem sofortigen Ticketende danach bei null anfangen (bereits geschaffte
+  Routen vor dem Reload sind für die Karte verloren, nicht fürs Save – Bestzeiten/Freigaben bleiben
+  unberührt). Der Übungsstand hat einen Collider, aber kein Piktogramm-Schild wie der echte Einhängepunkt
+  am Einstiegsdeck – aus dem 80-Zeilen-Budget herausgefallen; der Trainer-Text sagt, was zu tun ist, aber
+  ein Erstspieler ohne Text-Fokus müsste den Pfosten selbst als Ziel erkennen. Das Erweiterungsfenster
+  (`TICKET.extendPromptSeconds` = 8 s) zeigt nur einen statischen Toast, keinen sichtbaren Countdown wie
+  die 3-2-1-GO-Scheiben – Politur-Kandidat. „Weiter im Park bleiben" und „nie ein Ticket gelöst" teilen
+  sich dieselbe Sperrzeile (`notice.noActiveTicket`) statt zweier unterschiedlicher Texte. Trainer-Dialog
+  und Übungsanker-Ritual verbrauchen `interact`/`clip` genau wie `player/interaction.js` – kollisionsfrei
+  nur, weil der Übungsstand bewusst weit von jedem Routen-Einstieg platziert ist (gegenüber der
+  mittleren Peilung aller Einstiege); keine harte Sperre, falls ein künftiger Layout-Seed das ändert.
+  `belay.setMode()` setzt beide Karabiner zurück auf offen – unkritisch, weil er nur beim Kassa-Confirm
+  und beim Resume aufgerufen wird (beides vor jedem möglichen Einhängen), aber nicht dagegen gefeit,
+  mitten im Klettern aufgerufen zu werden. Kein Titel-Bildschirm vor der Kassa (GDD §5 listet einen –
+  nicht beauftragt für M1.3, YAGNI). `.hud-ticket` (oben rechts) und das F1-Debug-Panel (`#debug
+  .debug-panel`, ebenfalls oben rechts) überlappen sich sichtbar, wenn beide gleichzeitig an sind –
+  nur ein Problem mit `?debug=1` an, nicht im Produkt-UI.
 - **M1.2:** Der Wegweiser-Cluster sucht sich einen Punkt „nahe am Weg" über eine begrenzte Zufallssuche
   (`signs.js#findNearPath`, 16 Versuche) und fällt sonst auf den reinen Radialpunkt am Hub-Rand zurück –
   die generierten Routen führen selbst in keinen kartierten Waldweg hinein (nur die Hub-zu-Hub-Wege sind
@@ -365,7 +465,12 @@ bleiben **Podest-Typen** (Übergang/Kreuzung/Rast/Hub) offen – s. „Was halb 
 ```
 python serve.py             # http://127.0.0.1:8200/   (?debug=1 Panel · ?physics=1 Wireframe · ?seed=N · ?fast=1)
 ```
-Browser-Pane in Claude Code: `.claude/launch.json` → „wipfel“. Steuerung: WASD, Maus (Klick = Pointer-Lock),
+Beim Boot erscheint zuerst die **Kassa** (Ticketart/Größenklasse/Sicherungsmodus, Confirm startet den
+Tag), danach die **Einschulung** (vier `[E]`-Dialogzeilen, dann F/F bzw. F/X am Übungsanker) – beides
+übersprungen bei `?autoplay=1` (Bot bestätigt Kassa-Standardwerte und schließt die Einschulung
+programmatisch ab). `?kassa=1` erzwingt die Kassa auch bei einem laufenden Ticket im Save (statt den Tag
+fortzusetzen); `?briefing=0` überspringt die Einschulung dauerhaft (setzt `save.data.briefingDone` sofort).
+Browser-Pane in Claude Code: `.claude/launch.json` → „wipfel”. Steuerung: WASD, Maus (Klick = Pointer-Lock),
 Shift Sprint, Leertaste Sprung, **F einhängen/umhängen** (classic zusätzlich X für Karabiner B),
 **E klettern / auf die Übung steigen**, T Kamera, F1 Debug, F2 Physik-Wireframe, Esc Pause.
 **Auf einer Übung:** W/S vor und zurück (auf den Planken **ein Druck = eine Planke**), A/D lehnen,
@@ -390,18 +495,27 @@ Manuelle Smoke-Checkliste: `docs/testing.md`.
 ## Debug-Kommandos / URL-Parameter
 `?debug=1`/F1 Stats · `?physics=1`/F2 Rapier-Wireframe · `?seed=<n>` · `?fast=1` · `?locale=de` ·
 `?belay=continuous|smart|classic` (wirkt; ungültige Werte fallen auf `smart` zurück) ·
+`?kassa=1` (Kassa erzwingen trotz laufendem Ticket) · `?briefing=0` (Einschulung dauerhaft überspringen) ·
 `window.WIPFEL` = {loop, physics, scene, camera, renderer, rng, input, events, terrain, forest, sky,
-wind, player, parkDef, course, **signs**, belay, hud, interaction, vitals, session, save, autoplay, debug}.
+wind, player, parkDef, course, **signs**, belay, hud, interaction, vitals, session, save, autoplay,
+**kassa, briefing, stampCard, ticket**, debug}.
 Skripten/Testen: `WIPFEL.player.teleport(x, y, z)`, `WIPFEL.player.setState("ground")`,
 `WIPFEL.course.{anchors, elements, platforms, graph, zipline, zipLanding, zipPlan}`,
 `WIPFEL.course.elements[i].getEntryAnchor().stand`,
-`WIPFEL.belay.state()`, `WIPFEL.vitals.{balance,stamina,nerves}` + `WIPFEL.vitals.probe()`,
+`WIPFEL.belay.state()` + **`WIPFEL.belay.setMode(mode)`**, `WIPFEL.vitals.{balance,stamina,nerves}` +
+`WIPFEL.vitals.probe()`,
 **`WIPFEL.signs.group`** (M1.2: alle Schild-/Pfosten-Meshes, `.children.filter(o => o.name ===
 "sign-face")` sind die neun beschrifteten Tafeln), **`WIPFEL.save.data.unlocks`** (Kategorie-Freigaben,
 `{blue,red,black}`) + **`WIPFEL.save.isUnlocked(cat)`**/**`unlockCategory(cat)`**,
+**`WIPFEL.save.data.briefingDone`**/**`.ticket`** (M1.3/M1.5), **`WIPFEL.ticket`** (die reine Uhr –
+`.started/.expired/.clippable/.remainingGameMinutes/.extensionsLeft`), **`WIPFEL.kassa.confirmDefaults()`**
+und **`WIPFEL.briefing.completeForBot()`** (die Bot-Hooks, auch von Hand aufrufbar),
 **`WIPFEL.debug.forceSlip(±1)`** (erzwingt einen Sturz auf der aktuellen Übung),
 **`WIPFEL.debug.setWindAlong(m/s|null)`** (negativ = Gegenwind auf der Zipline; −7 lässt ein Kind
-stehenbleiben) und **`WIPFEL.debug.setRiderMass(kg)`** (Größenklasse für die nächste Fahrt).
+stehenbleiben), **`WIPFEL.debug.setRiderMass(kg)`** (Größenklasse für die nächste Fahrt, normalerweise
+über die Kassa gesetzt) und **`WIPFEL.debug.endTicket()`** (M1.5: erschöpft die Restzeit und ruft
+`session.forceDayEnd()` – überspringt die 8-s-Erweiterungs-Gnadenfrist, landet direkt auf der
+Stempelkarte; No-op ohne laufendes Ticket).
 F1-Zeilen seit M0.5: `element` (id + t), `balance`, `stamina`, `nerves` (Wert + Stufe),
 `heart bpm`, `trust`, `air below`; seit M0.P `terrain lod` (Chunks je LOD, Summe 36).
 **Achtung headless:** In Chromium tickt `requestAnimationFrame` nur, wenn der Compositor Frames

@@ -11,11 +11,13 @@ const BOT = Object.freeze({
 });
 
 /**
- * @param {{ player, course, interaction, input, events }} o – `input` is the real Input; the bot
- *   presses synthetic keyboard events on `window` so remapping still applies.
+ * @param {{ player, course, interaction, input, events, belay?, session?, kassa?, briefing? }} o –
+ *   `input` is the real Input; the bot presses synthetic keyboard events on `window` so remapping
+ *   still applies. `kassa`/`briefing` (M1.3) are fast-forwarded once, on the very first update, via
+ *   their bot hooks – no fragile DOM clicking or scripted walk-to-the-practice-stand navigation.
  * @returns {{ state: string, log: string[], update(dt): void, dispose(): void }}
  */
-export function createAutoplay({ player, course, interaction, events, belay = null, session = null }) {
+export function createAutoplay({ player, course, interaction, events, belay = null, session = null, kassa = null, briefing = null }) {
   const belayAnchor = () => (belay ? belay.currentAnchor() : null);
   const done = (id) => (session ? session.run.completedIds.includes(id) : false);
   /** The next thing on the route: the ladder, then each unfinished element in course order. */
@@ -48,6 +50,7 @@ export function createAutoplay({ player, course, interaction, events, belay = nu
   let stuckCount = 0;
   let sidestepUntil = 0;
   let sidestepKey = "KeyD";
+  let bootstrapped = false;   // kassa + briefing fast-forwarded once, on the first update()
   const offs = [];
   offs.push(events.on("route:completed", (s) => {
     state = "done";
@@ -138,6 +141,12 @@ export function createAutoplay({ player, course, interaction, events, belay = nu
     get state() { return state; },
     log,
     update(dt) {
+      if (!bootstrapped) {
+        bootstrapped = true;
+        if (kassa) kassa.confirmDefaults();
+        if (briefing) briefing.completeForBot();
+        note("bootstrap: kassa + briefing fast-forwarded");
+      }
       if (state === "done") return;
       // stuck watchdog: the bot must always be making progress somewhere
       if (player.position.distanceTo(lastPos) > 0.15) { lastPos.copy(player.position); stuckTimer = 0; }

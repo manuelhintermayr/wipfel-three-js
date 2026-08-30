@@ -29,6 +29,8 @@ const other = (carabiner) => (carabiner === "A" ? "B" : "A");
  */
 export function createBelay({ mode = "smart", onEvent = null } = {}) {
   if (!BELAY_MODES.includes(mode)) throw new Error(`belay: unknown mode '${mode}'`);
+  // `mode` stays a plain mutable binding (not const) so `setMode` below can switch it after the kassa
+  // (M1.3) – every closure in this module reads the same variable, so the switch is instant everywhere.
   const hooks = { onEvent };
   const gear = { A: { state: "open", attachedTo: null }, B: { state: "open", attachedTo: null } };
   let lead = "A";          // the carabiner that moves first in the smart ritual
@@ -109,7 +111,25 @@ export function createBelay({ mode = "smart", onEvent = null } = {}) {
   }
 
   return {
-    mode,
+    /** Live – reflects the last `setMode()` call, not just what the belay was created with. */
+    get mode() { return mode; },
+
+    /**
+     * Kassa confirm (M1.3): switch the belay system for a fresh day. Resets both carabiners open,
+     * exactly like `reset()` – safe to call at any time, but only meant to run before any clip-in.
+     * @returns {boolean} false for an unknown mode
+     */
+    setMode(next) {
+      if (!BELAY_MODES.includes(next)) return false;
+      if (next !== mode) {
+        for (const carabiner of CARABINERS) { gear[carabiner].state = "open"; gear[carabiner].attachedTo = null; }
+        lead = "A";
+        anchor = null;
+        pending = null;
+        mode = next;
+      }
+      return true;
+    },
 
     /** Immutable snapshot for the HUD and for tests. */
     state() {

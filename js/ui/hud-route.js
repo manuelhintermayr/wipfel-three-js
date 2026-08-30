@@ -48,10 +48,14 @@ export function createRouteHud(root) {
   const tip = el("div", "hud-tip");
   tip.hidden = true;
 
-  root.append(header, flow, banner, countdown, tip);
+  const ticketBox = el("div", "hud-ticket");
+  ticketBox.hidden = true;
+
+  root.append(header, flow, banner, countdown, tip, ticketBox);
 
   let shown = { progress: -1, time: "", best: "", step: undefined };
   let tipUntil = 0;
+  let shownTicketMinutes;
 
   return {
     /** Bind the header to a run (or hide it with null). */
@@ -126,7 +130,21 @@ export function createRouteHud(root) {
       if (!tip.hidden && performance.now() > tipUntil) tip.hidden = true;
     },
 
-    dispose() { for (const node of [header, flow, banner, countdown, tip]) node.remove(); },
+    /** Remaining ticket time in game minutes (M1.5), or `null` to hide the box (no active ticket). */
+    setTicket(remainingGameMinutes) {
+      if (remainingGameMinutes == null) {
+        if (shownTicketMinutes !== null) { ticketBox.hidden = true; shownTicketMinutes = null; }
+        return;
+      }
+      const rounded = Math.max(0, Math.ceil(remainingGameMinutes));
+      if (rounded === shownTicketMinutes) return;
+      shownTicketMinutes = rounded;
+      const h = Math.floor(rounded / 60), m = rounded % 60;
+      ticketBox.textContent = `${t("hud.ticket")} ${h}h ${String(m).padStart(2, "0")}`;
+      ticketBox.hidden = false;
+    },
+
+    dispose() { for (const node of [header, flow, banner, countdown, tip, ticketBox]) node.remove(); },
   };
 
   function facts(def) {

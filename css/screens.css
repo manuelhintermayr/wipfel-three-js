@@ -26,6 +26,59 @@
 .countdown .disc.active { color: var(--hud-text); border-color: var(--hud-text); }
 .countdown .disc.go { color: #0d1210; background: var(--hud-ok); border-color: var(--hud-ok); font-size: 1rem; letter-spacing: 0.06em; }
 
+/* Kassa (M1.3): the app frame stays dark/translucent, the sheet itself reads as laminated paper. */
+.kassa-sheet {
+  max-width: 34rem; width: min(90vw, 34rem);
+  background: linear-gradient(180deg, rgba(245, 243, 237, 0.98), rgba(235, 232, 222, 0.98));
+  color: #21201b; border: 1px solid rgba(0, 0, 0, 0.15); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.kassa-sheet h1 { color: #21201b; }
+.kassa-sheet p { color: rgba(33, 32, 27, 0.7); }
+.kassa-group { margin-top: 1rem; }
+.kassa-group-label { font: 700 0.72rem/1 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: rgba(33, 32, 27, 0.65); margin-bottom: 0.4rem; }
+.kassa-options { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.kassa-option {
+  flex: 1 1 9rem; text-align: left; cursor: pointer;
+  background: rgba(255, 255, 255, 0.55); border: 1px solid rgba(0, 0, 0, 0.18); border-radius: var(--radius);
+  padding: 0.5rem 0.7rem; color: #21201b; font-family: var(--font-ui);
+}
+.kassa-option .name { display: block; font: 700 0.82rem/1.2 var(--font-display); letter-spacing: 0.04em; text-transform: uppercase; }
+.kassa-option .desc { display: block; font: 400 0.72rem/1.35 var(--font-ui); color: rgba(33, 32, 27, 0.7); margin-top: 0.2rem; }
+.kassa-option.selected { background: #21201b; border-color: #21201b; }
+.kassa-option.selected .name, .kassa-option.selected .desc { color: #f5f3ed; }
+.kassa-sheet .confirm { display: block; width: 100%; margin-top: 1.3rem; padding: 0.7em; background: var(--cat-blue); border-color: var(--cat-blue); color: #fff; font-size: 0.95rem; }
+.kassa-sheet .confirm:hover { filter: brightness(1.08); }
+
+/* Einschulung dialogue (M1.3) – diegetic, bottom-centre, does not block movement. */
+.briefing-panel {
+  position: absolute; left: 50%; bottom: calc(var(--hud-pad) + 4.6rem); transform: translateX(-50%);
+  max-width: 28rem; width: min(85vw, 28rem); text-align: center;
+  background: var(--hud-bg-strong); border: 1px solid var(--hud-line); border-radius: var(--radius);
+  padding: 0.9rem 1.2rem; color: var(--hud-text);
+}
+.briefing-panel .title { font: 700 0.72rem/1 var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--hud-accent); margin-bottom: 0.4rem; }
+.briefing-panel .text { font: 400 0.9rem/1.4 var(--font-ui); }
+.briefing-panel .hint { margin-top: 0.5rem; font: 600 0.7rem/1 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--hud-muted); }
+
+/* Stamp card (M1.5) – end-of-day summary. */
+.stamp-sheet { max-width: 40rem; width: min(92vw, 40rem); max-height: 85vh; overflow-y: auto; }
+.stamp-row { display: flex; flex-wrap: wrap; gap: 0.7rem; margin: 0.8rem 0; }
+.stamp { min-width: 8rem; border-left: 4px solid var(--cat-color, var(--cat-blue)); background: rgba(255, 255, 255, 0.06); border-radius: var(--radius); padding: 0.55rem 0.7rem; }
+.stamp .numeral { font: 700 1.3rem/1 var(--font-display); }
+.stamp .name { font: 500 0.72rem/1.3 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--hud-muted); margin: 0.15rem 0 0.35rem; }
+.stamp .time { font: 600 0.85rem/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.stamp .falls { font: 500 0.7rem/1.4 var(--font-ui); color: var(--hud-muted); }
+.stamp-empty { color: var(--hud-muted); font: 400 0.85rem/1.4 var(--font-ui); }
+.stamp-facts { display: flex; gap: 1.6rem; margin: 1rem 0; font-variant-numeric: tabular-nums; }
+.stamp-facts b { display: block; font: 700 1.2rem/1 var(--font-display); }
+.stamp-facts span { font: 600 0.6rem/1.6 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--hud-muted); }
+.stamp-unlocks { display: flex; gap: 0.6rem; margin-bottom: 1rem; }
+.stamp-unlock { font: 600 0.72rem/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; padding: 0.4rem 0.7rem; border-radius: var(--radius); border: 1px solid var(--hud-line); }
+.stamp-unlock.unlocked { color: var(--hud-ok); border-color: var(--hud-ok); }
+.stamp-unlock.locked { color: var(--hud-muted); }
+.stamp-actions { display: flex; gap: 0.6rem; }
+.stamp-actions .btn { flex: 1 1 auto; }
+
 .course-map { position: absolute; inset: 0; background: rgba(8, 10, 9, 0.85); display: grid; grid-template-rows: auto 1fr auto; padding: var(--hud-pad); }
 .course-map .head { display: flex; align-items: center; justify-content: space-between; }
 .course-map .title { font: 700 1.1rem/1 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; }
