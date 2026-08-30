@@ -120,6 +120,8 @@ export const NERVES = Object.freeze({
   trustGain: 0.42,          // how much full trust dampens every rise
   trustPerElement: 0.18,    // trust gained per completed element
   trustPerFall: 0.07,       // …and per fall that turned out to be harmless
+  trustPerWatch: 0.05,      // …and per guest watched finishing an element nearby (M1.6, quieter than doing it yourself)
+  watchRelief: 0.03,        // the tiny nerve dip that goes with it
   freezeThreshold: 0.88,
   freezeRelease: 0.62,      // value the climber is left at after breathing through it
   breathSeconds: 1.6,       // one deliberate breath

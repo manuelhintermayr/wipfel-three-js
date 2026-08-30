@@ -112,5 +112,17 @@
   "stamp.none": "Heute noch keine Route geschafft",
   "stamp.obstacles": "Übungen gemeistert",
   "stamp.maxSpeed": "Höchsttempo Flying Fox",
-  "stamp.rescues": "Rettungen"
+  "stamp.rescues": "Rettungen",
+  "notice.waitForClimber": "Warte, bis vor dir frei ist",
+  "map.title": "Parkplan",
+  "map.filter": "Filter",
+  "map.filter.all": "Alle",
+  "map.filter.blue": "Blau",
+  "map.filter.red": "Rot",
+  "map.filter.black": "Schwarz",
+  "map.player": "Spieler",
+  "map.zoom": "Zoom",
+  "map.exit": "Verlassen",
+  "parkBoard.title": "Waldseilpark Sonnwendberg",
+  "parkBoard.open": "Parkplan öffnen [E]"
 }

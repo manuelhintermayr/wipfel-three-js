@@ -319,8 +319,10 @@ function groupByCategory(routes) {
   return map;
 }
 
-/** Circular mean bearing from `from` to every point in `points` (atan2(dx,dz) – this codebase's yaw convention). */
-function averageBearing(points, from) {
+/** Circular mean bearing from `from` to every point in `points` (atan2(dx,dz) – this codebase's yaw
+ *  convention). Exported for js/park/park-board.js, which places the physical park board next to this
+ *  module's own hub cluster using the same trailhead-anchor math. */
+export function averageBearing(points, from) {
   let sx = 0, sz = 0;
   for (const p of points) {
     const dx = p.x - from.x, dz = p.z - from.z;
@@ -330,8 +332,9 @@ function averageBearing(points, from) {
   return Math.atan2(sx, sz);
 }
 
-/** Best-effort: nudge the cluster's anchor point onto a mapped path within a small arc, else the plain radial point. */
-function findNearPath(terrain, hub, radius, bearing, rng, tries) {
+/** Best-effort: nudge the cluster's anchor point onto a mapped path within a small arc, else the
+ *  plain radial point. Exported for js/park/park-board.js (same reuse as `averageBearing` above). */
+export function findNearPath(terrain, hub, radius, bearing, rng, tries) {
   const plain = { x: hub.x + Math.sin(bearing) * radius, z: hub.z + Math.cos(bearing) * radius };
   for (let i = 0; i < tries; i++) {
     const a = bearing + rng.float(-0.9, 0.9);

@@ -1,4 +1,4 @@
-// URL parameters → runtime flags. ?debug=1 ?autoplay=1 ?seed=42 ?fast=1 ?locale=de ?kassa=1 ?briefing=0
+// URL parameters → runtime flags. ?debug=1 ?autoplay=1 ?seed=42 ?fast=1 ?locale=de ?kassa=1 ?briefing=0 ?npc=0 ?map=1
 import { BELAY_MODES, DEFAULTS } from "../config.js";
 
 export function readParams(search = location.search) {
@@ -19,5 +19,7 @@ export function readParams(search = location.search) {
     belayMode: BELAY_MODES.includes(belay) ? belay : DEFAULTS.belayMode,
     kassa: flag("kassa"),       // force the kassa even with an active ticket in the save (M1.3)
     briefing: flagOff("briefing"),   // ?briefing=0 skips the Einschulung gate entirely (debug)
+    npc: flagOff("npc"),        // ?npc=0 disables guest agents entirely (M1.6)
+    map: flag("map"),           // ?map=1 opens the Course Map overlay at boot (screenshots, M1.4)
   });
 }

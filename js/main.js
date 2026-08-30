@@ -21,6 +21,11 @@ import { getWoodTextures } from "./procgen/textures/wood.js";
 import { generateParkLayout } from "./park/layout.js";
 import { loadPark } from "./park/loader.js";
 import { createSigns } from "./park/signs.js";
+import { createParkBoard } from "./park/park-board.js";
+import { createOccupancy } from "./game/occupancy.js";
+import { createAgents } from "./npc/agents.js";
+import { createGuestRig } from "./npc/guest-rig.js";
+import { createCourseMap } from "./ui/course-map.js";
 import { createBelay } from "./player/belay.js";
 import { createInteraction } from "./player/interaction.js";
 import { createVitals } from "./player/vitals.js";
@@ -81,8 +86,17 @@ async function boot() {
   const wood = getWoodTextures(params.seed);
   const course = loadPark(parkDef, { scene, physics, terrain, forest, rng: rng.fork("course"), textures: wood });
   const signs = createSigns({ parkDef, scene, terrain, textures: wood, rng: rng.fork("signs") });
+  const parkBoard = createParkBoard({
+    root: document.getElementById("hud"), scene, physics, parkDef, terrain, rng: rng.fork("park-board"), textures: wood,
+  });
   const buildMs = Math.round(performance.now() - t0);
   log.info(`world built in ${buildMs} ms · trees ${forest.trees.length} · hubs ${terrain.hubs.length} · routes ${course.routes.length} · course on tree #${course.tree.id}`);
+
+  // --- NPC guests (M1.6): occupancy is shared with the player's own belay/interaction below --------
+  const occupancy = createOccupancy();
+  const agents = params.npc ? createAgents({ course, parkDef, terrain, rng: rng.fork("npc"), occupancy, events }) : null;
+  const guestRig = agents ? createGuestRig({ scene, guestCount: agents.count }) : null;
+  if (agents) log.info(`guests: ${agents.count}`);
 
   // --- player + belay + HUD ----------------------------------------------------------------------------
   const player = createPlayer({ physics, scene, camera, input, terrain, rng: rng.fork("player"), events });
@@ -100,7 +114,9 @@ async function boot() {
   // --- kassa + Einschulung + ticket clock + stamp card (M1.3/M1.5) --------------------------------------
   const overlay = document.getElementById("overlay");
   const ticket = createTicketClock();
-  const interaction = createInteraction({ player, input, belay, course, hud, events, vitals, save, ticket });
+  const interaction = createInteraction({ player, input, belay, course, hud, events, vitals, save, ticket, occupancy });
+  const courseMap = createCourseMap({ root: overlay, parkDef, terrain, save, player, getAgents: () => (agents ? agents.list : []) });
+  if (params.map) courseMap.open();
 
   const ticketHoursFor = (typeId) => (TICKET_TYPES.find((tt) => tt.id === typeId) || TICKET_TYPES[0]).hours;
   const massForSizeClass = (id) => (RULES.sizeClasses.find((s) => s.id === id) || RULES.sizeClasses[RULES.sizeClasses.length - 1]).massKg;
@@ -155,8 +171,13 @@ async function boot() {
   events.on("belay:click", () => sfxCarabinerLock(0.14));
   events.on("player:fell", (e) => sfxHarnessCatch(e && e.first ? 1 : 0.7));
   events.on("zip:finished", (e) => log.info(`flying fox: ${e.outcome} arrival, top speed ${e.maxKmh.toFixed(1)} km/h`));
+  // Trust hook (GDD §3.4/§7 "Zusehen gibt Vertrauen", M1.6): watching a guest finish an element next
+  // to the platform the player is standing on ticks trust up and nerves down a little – js/npc/agents.js
+  // only emits the event, js/player/nerves.js#watchSuccess() decides what it is worth.
+  events.on("npc:watched-success", () => vitals.nerves.watchSuccess());
 
   // --- debug panel -----------------------------------------------------------------------------------
+  let npcMs = 0;   // set in the gameplay phase below – js/npc/agents.js's own per-frame budget
   const debug = new DebugPanel(document.getElementById("debug"), () => ({
     fps: loop.stats.fps.toFixed(0),
     "frame ms": loop.stats.frameMs.toFixed(2),
@@ -175,6 +196,8 @@ async function boot() {
     belay: `${belay.state().A.state}/${belay.state().B.state} @ ${belay.currentAnchor() || "–"}`,
     prompt: interaction.prompt || "–",
     ...vitals.probe(),
+    "npc count": agents ? agents.count : 0,
+    "npc ms": npcMs.toFixed(3),
     "world ms": buildMs,
   }));
   if (params.debug) debug.toggle(true);
@@ -186,7 +209,16 @@ async function boot() {
     if (autoplay) autoplay.update(frameDt);   // synthesises key events – must run before consumers read edges
     if (input.pressed("debug")) debug.toggle();
     if (input.pressed("physdebug")) physics.setDebug(scene, !physics.debugEnabled);
-    if (input.pressed("pause")) loop.paused = !loop.paused;
+    if (input.pressed("map")) courseMap.toggle();
+    if (courseMap.visible) {
+      // The world keeps living behind the dark overlay (no loop.paused) – only the player's own
+      // movement input is gated, the same "a screen is up, check its `visible` flag" idea
+      // js/ui/kassa.js and js/ui/stamp-card.js already use for themselves.
+      input.move.x = 0; input.move.y = 0;
+      if (input.pressed("pause")) courseMap.close();
+    } else if (input.pressed("pause")) {
+      loop.paused = !loop.paused;
+    }
     if (input.pressed("camera")) player.setThirdPerson(player.camera.isFirstPerson);
   });
   loop.on("physics", (dt) => {
@@ -199,7 +231,13 @@ async function boot() {
     session.update(dt);
     course.update(dt, elapsed);
     vitals.update(dt);
-    interaction.update(dt);
+    interaction.update(dt);       // the player's own occupancy claim/release happens here first –
+    if (agents) {                 // guests below only ever see a slot the player has already taken.
+      const t0 = performance.now();
+      agents.update(dt, player.position);
+      npcMs = performance.now() - t0;
+    }
+    parkBoard.update(player, input, () => courseMap.open());
     briefing.update();
     wind.update(dt);
     sky.update(dt, player.position);
@@ -210,11 +248,13 @@ async function boot() {
   });
   loop.on("render", (alpha, dt) => {
     player.render(alpha, dt);
+    if (guestRig) guestRig.update(agents.list, player.position, dt);
     physics.updateDebug();
     renderer.render(scene, camera);
   });
   loop.on("ui", (dt) => {
     debug.update(dt);
+    courseMap.update();
     input.endFrame();
   });
 
@@ -225,6 +265,7 @@ async function boot() {
     version: GAME.version, params, loop, physics, scene, camera, renderer, rng, input, events,
     terrain, forest, sky, wind, player, parkDef, course, signs, belay, hud, interaction, vitals, session, save, autoplay,
     kassa, briefing, stampCard, ticket,
+    parkBoard, courseMap, occupancy, agents, guestRig,
     debug: {
       /** Force the slip a play-test needs on demand (screenshots, smoke runs). */
       forceSlip(angle = 1) {

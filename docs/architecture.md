@@ -650,3 +650,150 @@ gate itself is M1.2's). `js/game/session.js` decides *when* to call `show()` (ti
 finished with `ticket.expired`) and builds `summary` from its own `day` stats. "New day" re-shows the
 kassa after `save.endTicket()`; "Continue browsing" calls `ticket.end()` – the world stays open, clipping
 just refuses (see the interaction gate above).
+
+## Course Map + park board (M1.4 – contracts)
+
+Two views of the same park, sharing one renderer. Both read `parkDef` (js/park/layout.js) and the
+terrain sampler directly – like js/park/signs.js, neither touches the built `course` – so heroTrees'
+`(x, z)` (not the built platforms' world anchors) are what every point on the map is projected from.
+
+### `js/ui/map-render.js`
+```js
+computeBounds(parkDef, terrain) → { minX, maxX, minZ, maxZ }
+createProjector(bounds, width, height, padding?) → { scale, width, height, toPx(x,z)→[px,py], toWorld(px,py)→[x,z] }
+paintBackground(canvas, { parkDef, terrain, style?: "relief"|"print", seed?, viewport?: {x,y,width,height} }) → projector
+paintRoutes(ctx, { parkDef, projector, filterCategory?, hoverRouteId?, style?, lineWidth?, dotRadius?, numerals? })
+paintNumeralBadge(ctx, x, y, numeral, colour, r?)   paintLegend(ctx, { x, y, fontPx?, gap? })
+paintTitle(ctx, text, { x, y, width, fontPx? })
+paintStaticBoard(canvas, { parkDef, terrain, seed, title }) → { projector }   // background+routes+legend+title, one shot
+mapColourOf(category) → hex   // category.colour, except "black" (near-black) → a light grey substitute
+cssHex(colour)
+```
+`paintBackground` is the expensive half: it samples a small offscreen buffer (~150 px along the
+canvas's longer edge, matching its aspect ratio) via `terrain.heightAt`/`normalAt`/`isPath` and
+upscales it (soft on purpose – the mockup's satellite look, not a sharp map). `style: "relief"` shades
+by height + a fixed hillshade light direction (`MAP.hillLightDir`); `style: "print"` paints a flat
+green base with seeded forest-patch blobs (`core/rng.js#makeNoise2D/fbm2D`), independent of real
+elevation. A `viewport` sub-rectangle lets `paintStaticBoard` reserve a header strip *before* fitting
+the projector to it, so the routes drawn against that viewport never drift off the terrain/paths under
+them (an independently-refitted second projector was the first version's bug – documented in case a
+third caller is tempted to repeat it). `paintRoutes` is the cheap half – projected polyline per route,
+platform dots, an entry ring, a dashed zip segment, optional numeral badges – redrawn every frame by
+the overlay (filter/hover/pan/zoom all live there) or once, baked, by the board.
+
+### `js/ui/course-map.js`
+```js
+createCourseMap({ root, parkDef, terrain, save, player, getAgents?: () => object[] }) →
+  { visible, open(), close(), toggle(), update(), dispose() }
+```
+`Tab` (input action `map`, js/main.js) opens/closes it; so do Esc and the EXIT button. The relief
+background is baked once per park on first `open()` (`map-render.js#paintBackground`, cached) onto an
+offscreen canvas; `update()` (called every `ui` phase while visible) just blits that cache plus a cheap
+vector pass (routes, the player chevron, NPC dots from `getAgents()`) onto the visible canvas, panned/
+zoomed via a 2-D transform (`ctx.translate/scale`). FILTER cycles all→blue→red→black (dims the rest);
+PLAYER centres the view on `player.position`; ZOOM toggles `MAP.zoomLevels` around the *current* view
+centre (not the player); dragging pans, only once zoomed. Hovering a route (point-to-segment distance
+in cache-pixel space, no inverse-projection needed) shows its name/numeral/obstacles/height/length/
+best time (`save.routeBest`, `game/route.js#routesFromPark`) and lock state in `.info`. Opening the map
+does **not** pause the loop – js/main.js only zeroes `input.move` for that frame and calls
+`document.exitPointerLock()`; it also toggles a `course-map-open` class on `<body>` so `css/screens.css`
+can hide the `#hud` layer's own text (route header, ticket box, prompt), which otherwise shares the
+same screen corners and shows through the overlay's translucent tint.
+
+### `js/park/park-board.js`
+```js
+createParkBoard({ root, scene, physics, parkDef, terrain, rng, textures }) →
+  { group, standPosition, interactRange, update(player, input, onOpen: () => void), dispose() }
+```
+Two posts, a header bar and a backing panel (`js/park/timber.js` builder) plus a printed face – a
+`THREE.PlaneGeometry` with `map-render.js#paintStaticBoard`'s baked "print" texture (1024×768,
+canvas.js's `title` from i18n) – built as its own mesh (not the timber builder) because its texture is
+unique, exactly like a sign's white face in `js/park/signs.js`. Placed beside that module's hub
+fingerpost cluster, reusing its exported `averageBearing`/`findNearPath` so the two clusters read as
+neighbours at one trailhead instead of overlapping. One thin static collider (`GROUP.STATIC`) over the
+board's face stops the player walking through it. `update()` is independent of
+`js/player/interaction.js` (scoped to belay/ladder/element) – its own tiny range check and its own
+`.board-prompt` DOM line (`css/screens.css`, same "do not fight `hud.setPrompt`" idea as
+`js/game/briefing.js`'s `.briefing-panel`) – E within `interactRange` calls the `onOpen` callback
+(`js/main.js` wires it to `courseMap.open()`).
+
+## NPC guests (M1.6 – contracts)
+
+Guests share the course graph and its occupancy rules with the player – GDD §3.4/§7: one climber per
+element/ladder, guests capped one below a platform's real capacity so the player always fits.
+
+### `js/game/occupancy.js`
+```js
+createOccupancy({ maxPerElement?, maxGuestsPerPlatform? }) → {
+  holderOfElement(id), claimElement(id, holderId) → bool, releaseElement(id, holderId),
+  guestsOnPlatform(id), claimPlatform(id, holderId, isGuest?) → bool, releasePlatform(id, holderId, isGuest?),
+  reset() }
+createQueue() → { join(id), leave(id), front(), isFront(id), positions(), size }
+createQueueRegistry() → { queueFor(id) → Queue, reset() }
+```
+Pure, no THREE – shared by `js/player/interaction.js` (the player claims/releases exactly one element,
+id `"player"`) and `js/npc/agents.js` (each guest claims by its own id). Element capacity is 1
+(`RULES.maxPerElement`); platform capacity is guest-only and one below `RULES.maxPerPlatform`
+(`NPC.maxPerPlatformGuests` = 2) – the player is never tracked there and never refused. A tie between
+the player and a guest resolves to whoever's `claimElement` call runs first in a frame; js/main.js's
+loop order (`interaction.update(dt)` before `agents.update(dt, …)`) makes that always the player.
+
+### `js/npc/agents.js`
+```js
+pickProfile(rng) → profile                       // NPC.profiles, weighted
+pickRouteForProfile(profile, routes, rng) → route  // same category, or any route as a fallback
+planAgents({ rng, parkDef, count? }) → Array<{ id, profileId, category, routeId, heightScale, hue, wanderLegs }>
+poseKindOf(agent) → "walk"|"idle"|"ladder"|"element"|"zip"
+createAgents({ course, parkDef, terrain, rng, occupancy?, events?, count? }) →
+  { list, count, update(dt, playerPosition), dispose() }
+```
+THREE-free by design (like `js/park/layout-route.js`): `planAgents` is unit-tested under plain node
+(`tests/unit/agents.test.mjs`) for deterministic count/profile/route assignment. The runtime (`create
+Agents`) *does* call into the built course's THREE-backed objects (`element.pointAt`/`tangentAt`,
+`ladder.rail`, `zip.pointAt` via `element.trolleyAt`) but only ever reads `.x/.y/.z` off what it is
+handed and writes through a tiny local `vec3` duck-type (`.set`/`.sub`/`.normalize` – just enough for
+`element.js#tangentAt`'s internals) instead of importing "three" itself.
+
+Per-guest state machine: `wander` (random points near the hub, `NPC.wanderRadius`) → `toEntry` (the
+assigned route's entry deck) → `queue`/`clipIn` (join a `Queue` for the ladder, claim it once at the
+front, a `NPC.clipPauseSeconds` beat before moving – the "visible two-click ritual") → `onRail`
+(ladder at `climb-ladder.js#LADDER_MOVE.speed`, duplicated locally for the same THREE-avoidance reason
+as `layout-route.js#ZIP_HARDWARE`; continuous elements at the element's own `walkSpeed`; discrete ones
+step through `element.steps`/`.planks` every `NPC.elementStepSeconds`; the zip eased over
+`length * NPC.zipSecondsPerMetre`, lightly reusing the real ride via `element.setRider`/`trolleyAt`) →
+`unclip`/`dwell` at the next platform (claims/releases occupancy exactly like the player) → repeat
+until the last step, then `return` to the hub and `pickRouteForProfile` again (same profile/category –
+guests ignore `save.data.unlocks` entirely). While on an element a guest also drives
+`element.occupancy.active/t`, the same hook `js/player/on-element.js` uses – its wobble-deform sways
+under a guest's weight for free. Finishing an element next to the platform the player is standing on
+(`NPC.trustWatchRadius`/`trustWatchHeight`) emits `npc:watched-success` (GDD §3.4/§7 "Zusehen gibt
+Vertrauen"); `js/main.js` turns that into `vitals.nerves.watchSuccess()` (a smaller, quieter
+`completeElement()` – `js/player/nerves.js`, `NERVES.trustPerWatch/watchRelief`).
+
+### `js/npc/guest-rig.js`
+```js
+createGuestRig({ scene, guestCount }) → { group, update(list, playerPosition, dt), dispose() }
+```
+Ten body parts (torso, head, left/right upper arm, left/right forearm, left/right thigh, left/right
+shin), each **one** `THREE.InstancedMesh` shared by every guest – 10 draw calls for the whole crowd
+regardless of count, instead of the player rig's 64 meshes. Geometry proportions reuse `LAYOUT` from
+`js/player/rig-body.js`; a single scratch pose hierarchy (plain `THREE.Object3D`, never added to the
+scene) is reused for every guest in turn – pose it, read joints' matrices into that guest's instance
+slot, pose it again for the next. Torso colour = the guest's category colour (`InstancedMesh
+.setColorAt`, no per-guest textures) – doubles as an at-a-glance "who is headed where" cue matching the
+map/board colour language. Guests farther than `NPC.cullDistance` (90 m) skip the live pose maths and
+reuse one cached rest-pose transform per part combined with just that guest's own root matrix – the
+position still advances every frame, only the limb articulation freezes while far away. No shadows
+(`castShadow = false`, same budget call as `world/ground-detail.js`'s scatter and `park/signs.js`'s
+boards).
+
+`js/main.js` wiring: `?npc=0` disables guests entirely (`agents`/`guestRig` stay `null`); `agents.
+update(dt, player.position)` runs in the gameplay phase (after `interaction.update(dt)`, so the player
+always wins a same-frame tie – see `occupancy.js` above), timed with `performance.now()` into the
+debug panel's `npc ms` row (`npc count` alongside it); `guestRig.update(...)` runs in the render phase
+(variable dt, purely cosmetic). `js/player/interaction.js` gates only catalogue/zip elements for the
+player (`occupancy`, optional) – not the ladder, which is out of this module's stated scope and stays
+guest-vs-guest contention only – refusing a step-on with `notice.waitForClimber` ("Wait for the climber
+ahead") when a guest already holds the element; the claim is released the frame the player's mode next
+reads anything other than `"element"` (a slip into `"fall"` releases it too – documented simplification,
+not a deadlock risk since the cap is 1 either way).

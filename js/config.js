@@ -81,3 +81,41 @@ export const DEFAULTS = Object.freeze({
   locale: "en",
   belayMode: "smart",        // one of BELAY_MODES
 });
+
+/**
+ * NPC guests (ROADMAP M1.6): count/profile/route assignment is deterministic per seed
+ * (js/npc/agents.js#createAgents forks `rng`), occupancy caps come from RULES above.
+ * `profiles` map a guest archetype to the category they head for – GDD §4 "Gäste als Agenten"
+ * simplified to three archetypes for M1 (full profile roster is a Betreiber-era, M3, concern).
+ */
+export const NPC = Object.freeze({
+  countMin: 8,
+  countMax: 14,
+  cullDistance: 90,            // metres from the player beyond which rig pose updates are skipped
+  maxPerPlatformGuests: 2,     // RULES.maxPerPlatform stays 3 total – guests leave the player a slot
+  walkSpeed: 1.35,             // hub wander / approach to the entry deck
+  arriveRange: 0.6,
+  wanderRadius: 16,            // metres around the hub for idle wandering
+  wanderLegs: [1, 3],          // how many wander hops before heading to the assigned route
+  dwellSeconds: [1.5, 4.5],    // idle pause on a platform
+  clipPauseSeconds: 0.9,       // visible "two-click ritual" beat before climbing / after unclipping
+  elementStepSeconds: [0.7, 1.3],  // discrete kinds (planks, stirrups, …): seconds per step incl. swing wait
+  elementSpeedFallback: 0.5,   // m/s, used only if an element has no own walkSpeed
+  zipSecondsPerMetre: 0.22,    // eased traversal duration ≈ length * this (a lazy ~16 km/h average)
+  trustWatchRadius: 2.6,       // metres (flat) – "the player stands on the platform" proxy for the trust hook
+  trustWatchHeight: 2.2,       // metres (vertical) – generous, decks vary a little in height
+  profiles: Object.freeze([
+    { id: "kid", category: "blue", weight: 3, heightScale: [0.76, 0.90] },
+    { id: "teen", category: "red", weight: 2, heightScale: [0.90, 1.00] },
+    { id: "sporty", category: "black", weight: 2, heightScale: [0.96, 1.08] },
+  ]),
+});
+
+/** Course Map overlay + diegetic park board (ROADMAP M1.4). Logic: js/ui/map-render.js. */
+export const MAP = Object.freeze({
+  padding: 34,                 // px margin around the projected park bounds
+  boardTexture: 1024,          // px, board texture width (height = 3/4 of that)
+  reliefGridStep: 3.0,         // metres per relief-sample cell (coarse – it is cached once)
+  hillLightDir: Object.freeze({ x: -0.55, z: -0.4 }),   // relief "sun" comes from the upper-left
+  zoomLevels: Object.freeze([1, 2]),
+});

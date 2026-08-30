@@ -79,10 +79,37 @@
 .stamp-actions { display: flex; gap: 0.6rem; }
 .stamp-actions .btn { flex: 1 1 auto; }
 
-.course-map { position: absolute; inset: 0; background: rgba(8, 10, 9, 0.85); display: grid; grid-template-rows: auto 1fr auto; padding: var(--hud-pad); }
-.course-map .head { display: flex; align-items: center; justify-content: space-between; }
+.course-map { position: absolute; inset: 0; background: rgba(8, 10, 9, 0.85); display: grid; grid-template-rows: auto 1fr auto; gap: 0.8rem; padding: var(--hud-pad); pointer-events: auto; }
+.course-map .head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .course-map .title { font: 700 1.1rem/1 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; }
-.course-map canvas { width: 100%; height: 100%; display: block; }
-.course-map .legend { display: flex; gap: 1.2rem; font: 600 0.75rem/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; }
-.course-map .legend i { display: inline-block; width: 0.7rem; height: 0.7rem; margin-right: 0.35rem; transform: rotate(45deg); background: var(--c); }
+.course-map .filter-chip { padding: 0.35em 0.9em; }
+.course-map .map-wrap { position: relative; min-height: 0; }
+.course-map canvas { width: 100%; height: 100%; display: block; border-radius: var(--radius); cursor: crosshair; }
+.course-map .info {
+  position: absolute; left: 0.8rem; top: 0.8rem; max-width: 16rem;
+  background: var(--hud-bg-strong); border: 1px solid var(--hud-line); border-radius: var(--radius);
+  padding: 0.6rem 0.8rem; color: var(--hud-text);
+}
+.course-map .info-name { font: 700 0.85rem/1.2 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; border-left: 3px solid var(--c, var(--cat-blue)); padding-left: 0.5rem; }
+.course-map .info-locked { margin-top: 0.4rem; font: 500 0.78rem/1.35 var(--font-ui); color: var(--hud-warn); }
+.course-map .info-facts { display: flex; gap: 0.9rem; margin-top: 0.45rem; font-variant-numeric: tabular-nums; }
+.course-map .info-facts b { display: block; font: 700 0.95rem/1 var(--font-display); }
+.course-map .info-facts span { font: 600 0.58rem/1.6 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--hud-muted); }
+.course-map .foot { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.course-map .legend { display: flex; gap: 1.2rem; font: 600 0.75rem/1 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; flex-wrap: wrap; }
+.course-map .legend i { font-style: normal; color: var(--c); }
 .course-map .actions { display: flex; gap: 0.6rem; }
+
+/* The #hud layer keeps rendering underneath (js/main.js does not pause the loop) but its own text
+   sits in the same corners as this screen's title/filter chip – hide it while the map is open. */
+.course-map-open .hud-route, .course-map-open .hud-ticket, .course-map-open .hud-flow,
+.course-map-open .hud-prompt, .course-map-open .hud-vitals, .course-map-open .hud-modes,
+.course-map-open .hud-speed, .course-map-open .hud-tip, .course-map-open .board-prompt { visibility: hidden; }
+
+/* Diegetic park board prompt (M1.4b) – its own bespoke line, same idea as .briefing-panel: no
+   ordering fight with js/player/interaction.js's own hud.setPrompt() call. */
+.board-prompt {
+  position: absolute; left: 50%; bottom: calc(var(--hud-pad) + 4.6rem); transform: translateX(-50%);
+  background: var(--hud-bg); border: 1px solid var(--hud-line); border-radius: var(--radius);
+  padding: 0.4rem 0.9rem; font: 500 0.85rem/1 var(--font-display); letter-spacing: 0.06em; color: var(--hud-text);
+}

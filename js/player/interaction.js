@@ -47,19 +47,27 @@ export const PROMPTS = Object.freeze({
   get briefingRequired() { return t("notice.briefingRequired"); },
   /** Ticket gate (M1.5): no ticket, or the day's ticket has run out (js/game/ticket.js). */
   get noTicket() { return t("notice.noActiveTicket"); },
+  /** Occupancy gate (M1.6): a guest is already on this element (js/game/occupancy.js, cap 1). */
+  get waitForClimber() { return t("notice.waitForClimber"); },
 });
 
+/** The player's own id in js/game/occupancy.js's ledgers – guests are always "guest-<n>" (js/npc/agents.js). */
+const PLAYER_HOLDER_ID = "player";
+
 /**
- * @param {{ player, input, belay, course, hud?, events?, vitals?, save?, ticket? }} options
+ * @param {{ player, input, belay, course, hud?, events?, vitals?, save?, ticket?, occupancy? }} options
  *   `save` gates category entry anchors (GDD §3.12) and the Einschulung practice gate (M1.3) – omit it
  *   (dev harnesses, older tests) and nothing is ever locked. `ticket` gates every anchor once a day is
  *   over (M1.5, js/game/ticket.js) – omit it and clipping is never refused for lack of a ticket.
+ *   `occupancy` (M1.6, js/game/occupancy.js) makes the player take a slot on an element like every
+ *   guest does – omit it and stepping onto an element is never refused for lack of room.
  * @returns {{ update(dt: number): void, prompt: string|null, anchor: object|null,
  *   entry: {element: object, end: string}|null, dispose(): void }}
  */
-export function createInteraction({ player, input, belay, course, hud = null, events = null, vitals = null, save = null, ticket = null }) {
+export function createInteraction({ player, input, belay, course, hud = null, events = null, vitals = null, save = null, ticket = null, occupancy = null }) {
   const chest = new THREE.Vector3();
   let prompt = null;
+  let heldElementId = null;   // the element the player currently occupies, for js/game/occupancy.js
   let anchor = null;
   let entry = null;
 
@@ -78,6 +86,16 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
 
   /** Ticket gate (M1.5): no new clip-in once the day has no active, unexpired ticket. */
   const ticketBlocks = () => !!ticket && !ticket.clippable;
+
+  /** Occupancy gate (M1.6): someone else (a guest) is already on this element – RULES.maxPerElement
+   *  is 1, shared with js/npc/agents.js via js/game/occupancy.js. The ladder is deliberately not
+   *  gated here (see this module's own header note on scope – guests queue for it among themselves,
+   *  but a human is not expected to "wait its turn" behind an NPC on a rail as short as the ladder). */
+  const elementBlockedByGuest = (element) => {
+    if (!occupancy || !element) return false;
+    const holder = occupancy.holderOfElement(element.id);
+    return holder != null && holder !== PLAYER_HOLDER_ID;
+  };
 
   /** The ladder the belay is currently clipped to, whichever of the six routes that is – or null. */
   const clippedLadder = () => course.ladderFor(belay.currentAnchor());
@@ -122,7 +140,10 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
     if (player.mode === "element") return PROMPTS.onElement;
     if (player.mode === "ladder") return PROMPTS.onLadder;
     const next = startable();
-    if (readyToStepOn()) return next.element.enterPrompt || PROMPTS.stepOn(next.element);
+    if (readyToStepOn()) {
+      if (elementBlockedByGuest(next.element)) return PROMPTS.waitForClimber;
+      return next.element.enterPrompt || PROMPTS.stepOn(next.element);
+    }
     if (anchor) {
       const locked = lockedCategoryOf(anchor.id);
       if (locked) return PROMPTS.locked(locked);
@@ -142,6 +163,7 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
    */
   function stepOntoElement() {
     const { element, end } = startable();
+    if (occupancy) { occupancy.claimElement(element.id, PLAYER_HOLDER_ID); heldElementId = element.id; }
     player.setState(element.playerState || "element", { element, fromEnd: end, t: end === "exit" ? 1 : 0 });
     if (events) events.emit("player:interact", { what: element.kind, element: element.id, end });
   }
@@ -158,7 +180,11 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
       return;
     }
     if (!input.pressed("interact") || player.mode !== "ground" || justSwitched()) return;
-    if (readyToStepOn()) { stepOntoElement(); return; }
+    if (readyToStepOn()) {
+      if (elementBlockedByGuest(startable().element)) return;   // refused: a guest already holds this element
+      stepOntoElement();
+      return;
+    }
     const ladder = clippedLadder();
     if (ladder && atLadderBase()) {
       player.climbLadder(ladder);
@@ -174,6 +200,10 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
 
     /** Gameplay phase, once per frame, after the player has moved. */
     update() {
+      // The rail state's own exit() already ran in the physics phase (js/player/on-element.js) by the
+      // time this runs – release the slot exactly one frame later, however the climber left it
+      // (finished, slipped into "fall", …): see js/game/occupancy.js's header for why that is fine.
+      if (occupancy && heldElementId && player.mode !== "element") { occupancy.releaseElement(heldElementId, PLAYER_HOLDER_ID); heldElementId = null; }
       const onFoot = player.mode === "ground";
       chest.copy(player.position);
       chest.y += INTERACTION.chestHeight;
@@ -187,7 +217,10 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
       hud.setPrompt(prompt);
     },
 
-    dispose() { anchor = null; entry = null; prompt = null; },
+    dispose() {
+      if (occupancy && heldElementId) { occupancy.releaseElement(heldElementId, PLAYER_HOLDER_ID); heldElementId = null; }
+      anchor = null; entry = null; prompt = null;
+    },
   };
   return api;
 }

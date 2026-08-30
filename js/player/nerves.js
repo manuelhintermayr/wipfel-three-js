@@ -120,6 +120,15 @@ export function createNerves({ config = NERVES, value = 0, trust = 0 } = {}) {
       return trustValue;
     },
 
+    /** Watching another climber finish an element nearby (GDD §3.4/§7: "Zusehen gibt Vertrauen",
+     *  ROADMAP M1.6's `npc:watched-success`) – a smaller, quieter version of `completeElement()`,
+     *  since the climber did not do it themselves. */
+    watchSuccess() {
+      trustValue = clamp01(trustValue + C.trustPerWatch);
+      level = clamp01(level - C.watchRelief);
+      return trustValue;
+    },
+
     /** Jolt the value (a slip, a gust that catches the bridge). */
     shock(amount) {
       level = clamp01(level + amount);

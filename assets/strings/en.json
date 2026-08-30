@@ -112,5 +112,17 @@
   "stamp.none": "No routes completed today",
   "stamp.obstacles": "Obstacles crossed",
   "stamp.maxSpeed": "Top zip speed",
-  "stamp.rescues": "Rescues"
+  "stamp.rescues": "Rescues",
+  "notice.waitForClimber": "Wait for the climber ahead",
+  "map.title": "Course Map",
+  "map.filter": "Filter",
+  "map.filter.all": "All",
+  "map.filter.blue": "Blue",
+  "map.filter.red": "Red",
+  "map.filter.black": "Black",
+  "map.player": "Player",
+  "map.zoom": "Zoom",
+  "map.exit": "Exit",
+  "parkBoard.title": "Sonnwendberg Ropes Park",
+  "parkBoard.open": "Open the course map [E]"
 }

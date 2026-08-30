@@ -5,8 +5,54 @@
 > `ROADMAP.md`. Eine neue Session muss allein mit dieser Datei + `ROADMAP.md` weiterarbeiten können.
 
 ## Aktueller Meilenstein
-**M1.3 Kassa + Einschulung UND M1.5 Ticket-Uhr + Stempelkarte ABGESCHLOSSEN** (uncommitted, Session 5,
-2026-08-26, oben auf dem ebenfalls noch uncommitteten M1.2): Kassa-Bildschirm (`js/ui/kassa.js`, „ein
+**M1.4 Course Map + Parkplan UND M1.6 NPC-Gäste ABGESCHLOSSEN** (uncommitted, Session 6, 2026-08-26,
+oben auf dem ebenfalls noch uncommitteten M1.1–M1.3/M1.5): Course-Map-Overlay (`js/ui/course-map.js`,
+Tab öffnet/schließt, auch Esc/EXIT) 1:1 nach Mockup – dunkles Relief-Untergrundbild (einmal pro Park
+gebacken, `js/ui/map-render.js#paintBackground`, Hangschattierung aus `terrain.normalAt` + Höhe→Grün-
+Dunkel-Gradient, helle Wege), farbige Routenlinien mit weißen Podest-Punkten, gestrichelter Zip-Linie
+zur Landung und Einstiegsring (jeden Frame neu gezeichnet, billig, `paintRoutes`), Live-Spielerpfeil
+(Chevron mit Blickrichtung) und NPC-Punkte, Legende + FILTER (Alle→Blau→Rot→Schwarz)/PLAYER (zentriert)/
+ZOOM (1×/2× um die aktuelle Bildmitte)/EXIT, Ziehen zum Verschieben nur bei Zoom, Hover/Klick zeigt Name/
+Ziffer/Übungen/Höhe/Länge/Bestzeit/Sperrstatus. Öffnen pausiert die Welt NICHT (Loop läuft weiter hinter
+dem dunklen Overlay), sperrt aber die Spielerbewegung (`input.move` wird in der Input-Phase auf 0
+gesetzt, solange `courseMap.visible`) und hebt die Zeigersperre auf; ein `course-map-open`-Body-Klasse
+blendet die durchscheinenden `#hud`-Texte (Routen-Header, Ticket-Box) aus, die sonst dieselbe Ecke wie
+Titel/Filter-Chip belegten. `?map=1` öffnet sie beim Boot (Screenshots). Die diegetische Parkplan-Tafel
+(`js/park/park-board.js`) steht neben dem Wegweiser-Cluster (`js/park/signs.js#averageBearing/
+findNearPath` wiederverwendet): zwei Rundholzpfosten, Kopfbalken, eine gedruckte Karte (1024×768,
+`map-render.js#paintStaticBoard`, „print"-Stil = helle Grünfläche + dunkelgrüne Waldflecken aus
+seed-Rauschen statt echter Höhe, sechs Routen als farbige Linien mit römischen Ziffern in weißen
+Kreisen, Titel „SONNWENDBERG ROPES PARK"/„WALDSEILPARK SONNWENDBERG", Legende) auf einer eigenen Fläche
+vor einer Rückwand, dünner Kollider davor. **E** in 2 m öffnet die Course Map (eigene `.board-prompt`-
+Zeile, kollidiert nicht mit `hud.setPrompt`).
+
+NPC-Gäste (`js/npc/agents.js` + `js/npc/guest-rig.js`, 8–14 pro Seed, deterministisch aus `rng.fork`):
+laufen vom Hub zum zugewiesenen Routen-Einstieg (Profil kids→blau/teens→rot/sporty→schwarz, ignoriert
+Freigaben), Warteschlange + zwei-Klick-Pause vorm Einstieg, klettern die Leiter, queren jede Übung
+entlang `element.rail` (kontinuierlich mit `element.walkSpeed`, getaktete Arten Schritt für Schritt über
+`element.steps`/`.planks`), fahren den Flying Fox (leichte Wiederverwendung der echten Fahrt über
+`element.setRider`/`trolleyAt`), pausieren auf Podesten, wandern zurück, wählen neu. Regeln geteilt mit
+dem Spieler über `js/game/occupancy.js` (neu, rein): 1 pro Übung/Leiter (`RULES.maxPerElement`), Gäste
+auf max. 2 pro Podest gedeckelt (`NPC.maxPerPlatformGuests`) – der Spieler zählt nie mit und wird nie
+abgewiesen; bei Gleichstand gewinnt der Spieler (Schleifen-Reihenfolge in `main.js`: `interaction.
+update()` vor `agents.update()`). `js/player/interaction.js` verweigert dem Spieler das Aufsteigen auf
+eine von einem Gast belegte Übung mit „Wait for the climber ahead" / „Warte, bis vor dir frei ist"
+(NICHT für die Leiter – bewusst außerhalb des Auftragsumfangs belassen, Gäste queuen dort nur
+untereinander). Sichtbarkeit: `guest-rig.js` – zehn Körperteile (Torso/Kopf/Ober-/Unterarm links+rechts/
+Ober-/Unterschenkel links+rechts), **je EIN** `THREE.InstancedMesh`, geteilt über alle Gäste (10 Draw-
+Calls für die ganze Menge, Proportionen aus `player/rig-body.js#LAYOUT`), Torso-Farbe = Kategorie-Farbe
+(Instanz-Farbe, keine Texturen), Entfernungsausblendung > 90 m überspringt nur die Pose-Berechnung
+(Position bewegt sich weiter). Vertrauens-Haken (GDD „Zusehen gibt Vertrauen"): schließt ein Gast eine
+Übung neben dem Podest ab, auf dem der Spieler steht, feuert `npc:watched-success` →
+`vitals.nerves.watchSuccess()` (neue, kleine Methode, `NERVES.trustPerWatch`/`watchRelief`).
+`?npc=0` deaktiviert Gäste komplett. Neue Tests `tests/unit/agents.test.mjs` (15, rein: Occupancy,
+Warteschlange, Routen-Zuweisung determiniert). Screenshots `docs/screenshots/m1-coursemap.png`,
+`m1-parkboard.png`. **Bekannte Einschränkung:** Tarzansprung/Skateboard haben keine eigene Gast-Animation
+– Gäste queren sie wie eine normale kontinuierliche Übung (Fallback-Tempo), sehen also nicht wie ein
+Sprung/Schub aus; die Routen auf der Tafel sind Linien/Ketten, keine geschlossenen Schleifen wie im
+Vorbildfoto (unsere Routen sind Einbahn-Ketten zum Flying Fox, keine Rundwege).
+
+M1.3/M1.5 (Vorsession, weiterhin gültig): Kassa-Bildschirm (`js/ui/kassa.js`, „ein
 Blatt Papier" auf dem dunkel-transparenten App-Rahmen) mit Ticketart/Größenklasse/Sicherungsmodus als
 anklickbare Kartenreihen; Confirm startet den Tag (`js/main.js#startDay`: `save.startTicket`,
 `ticket.reset`, `sky.setTimeOfDay(9:00)`, `belay.setMode`, Größenklasse → `player.states.get("zipline")
@@ -76,6 +122,31 @@ alle drei Gruppen + Auswahl sichtbar), `m1-briefing.png` (Trainer-Dialog + Ticke
 Übungsstand im Hintergrund), `m1-stampcard.png` (Stempelkarte, „No routes completed today" da in diesem
 Testlauf keine Route beendet wurde, bevor die Uhr erzwungen abgelaufen ist) – alle < 300 KB (PIL:
 720 px Kantenlänge, 96-Farben-Palette).
+
+M1.4/M1.6 (diese Session, 2026-08-26) geprüft, echter Chromium via Playwright MCP, `?debug=1` frischer
+Lauf: **0 Konsolenfehler/-warnungen, 0 externe Requests** (Kassa+Briefing per `confirmDefaults()`/
+`completeForBot()` bootstrapped). Gäste: `agents.count` 9 (im 8–14-Fenster), zwei Positions-Snapshots
+5 s auseinander unterscheiden sich bei allen neun (Bewegung bestätigt); über einen `?fast=1`-Lauf von
+~65 s real (≈ 4× simuliert) durchliefen mehrere Gäste den **kompletten Zyklus**: `wander → toEntry →
+queue → clipIn → onRail/ladder → dwell → onRail/element (mehrfach) → onRail/zip → return → wander →
+toEntry` (neue Routenwahl) – **0 Fehler über die gesamte Beobachtung**, Warteschlangen-Konkurrenz um
+dieselbe Leiter beobachtet (mehrere Gäste gleichzeitig in `queue`, während einer `onRail` war). Occupancy-
+Gate isoliert verifiziert: `occupancy.claimElement('burma-1','guest-test')` lässt `interaction.prompt`
+auf **„Wait for the climber ahead"** springen und ein echter `KeyE`-Tastendruck bleibt wirkungslos
+(`player.mode` bleibt `"ground"`); `releaseElement` gibt sofort wieder **„Step onto the Burma bridge [E]"**
+frei und derselbe `KeyE`-Druck schaltet dann korrekt auf `player.mode === "element"`. Draw-Calls am
+Spawn **438–439** (Ziel ≤ 480 – erreicht; vorher 434 mit Schildern, +13 durch Parkplan-Tafel [3 Meshes]
+und Gäste-Rig [10 InstancedMesh]), Dreiecke **~898 k** (Ziel ≤ 1,05 M – erreicht), **`npc ms` = 0,10 ms**
+im F1-Panel (Ziel ≤ 1 ms – deutlich erreicht). `?autoplay=1&fast=1` mit aktiven Gästen: **„route
+completed in 341.04 s · falls 0 · best true"**, 0 Konsolenfehler, 0 externe Requests, Bot toleriert die
+vorhandenen „stuck"/„shortcut"-Selbsthilfen unverändert (kein neuer Deadlock durch Occupancy in diesem
+Lauf beobachtet – die Wartezeile kann in einem gegebenen Lauf auch schlicht nie ausgelöst werden, s.
+Auftragstext „mindestens null Mal"). `check-all` **128/128**, `node --test` **134/134** (119 + 15 neue
+Gast-Tests). Screenshots `docs/screenshots/m1-coursemap.png` (dunkles Relief, farbige Routen, weiße
+Podest-Punkte, gestrichelte Zip-Linien, Spieler-Chevron, Legende+Buttons), `m1-parkboard.png`
+(Nahaufnahme der Tafel: Titel, grüner Druck mit Waldflecken, Routen mit Ziffernkreisen, Legende,
+„Open the course map [E]"-Prompt, Wegweiser-Cluster im Hintergrund) – beide < 300 KB (97 KB / 223 KB,
+PIL: 900 px Kantenlänge, 128–160-Farben-Palette).
 
 ## Was funktioniert
 - **Kern:** `js/main.js` (Boot + Loop-Verdrahtung), `core/{loop,input,rng,params,errors,events,renderer,physics}.js`,
@@ -231,8 +302,41 @@ Testlauf keine Route beendet wurde, bevor die Uhr erzwungen abgelaufen ist) – 
   Verlängerungsfenster `[E]`, dann `stampCard.show`); `ui/hud-route.js#setTicket` zeigt die
   `.hud-ticket`-Box oben rechts; `game/autoplay.js` bootstrapped Kassa+Einschulung einmalig auf dem
   ersten `update()`. Debug: `WIPFEL.debug.endTicket()`.
+- **Course Map + Parkplan-Tafel (M1.4):** `js/ui/map-render.js` (geteilter Renderer, THREE erlaubt –
+  reine Browser-Canvas-Logik: `computeBounds`/`createProjector` aus `parkDef`+Terrain-Sampler,
+  `paintBackground` bäckt einmal ein kleines Offscreen-Relief/„print"-Bild und skaliert es hoch,
+  `paintRoutes` zeichnet Routenlinien+Podest-Punkte+Zip-Strichlinie+Ziffernkreise günstig jeden Frame,
+  `paintStaticBoard` kombiniert beides + Titel + Legende zu einem Schuss für die Tafel; `mapColourOf`
+  ersetzt die echte fast-schwarze „schwarz"-Kategoriefarbe nur auf der dunklen Kartenfläche durch ein
+  helles Grau – auf der hellen Tafel bleibt die echte Farbe). `js/ui/course-map.js` (Tab-Overlay,
+  Kartencache + Live-Overlay, Filter/Player/Zoom/Exit, Hover-Info aus `game/route.js#routesFromPark` +
+  `save`, `course-map-open`-Body-Klasse blendet `#hud` aus, sperrt Bewegung ohne den Loop zu pausieren).
+  `js/park/park-board.js` (zwei Pfosten + Kopfbalken aus dem Timber-Builder, eigene Print-Textur-Mesh,
+  Platzierung neben `park/signs.js`s Wegweiser-Cluster über dessen exportierte `averageBearing`/
+  `findNearPath`, dünner Kollider, eigene `.board-prompt`-Zeile, **E** in 2 m öffnet die Course Map).
+- **NPC-Gäste (M1.6):** `js/game/occupancy.js` (rein, geteilt mit dem Spieler: `createOccupancy`
+  Element-/Podest-Kapazität, `createQueue`/`createQueueRegistry` FIFO-Warteschlangen). `js/npc/agents.js`
+  (THREE-frei: `planAgents` deterministische Profil-/Routen-/Look-Zuweisung je Seed, `createAgents` der
+  Laufzeit-Zustandsautomat `wander→toEntry→queue→clipIn→onRail→dwell/unclip→return`, ruft `element.
+  pointAt/tangentAt`/`ladder.rail`/`element.setRider` über einen winzigen lokalen `vec3`-Duck-Type ohne
+  selbst `three` zu importieren). `js/npc/guest-rig.js` (zehn geteilte `THREE.InstancedMesh`, eine
+  Pose-Skeleton-Instanz für alle Gäste nacheinander wiederverwendet, Torso-Farbe = Kategorie-Farbe,
+  Entfernungsausblendung > 90 m). `js/player/interaction.js` (`occupancy`-Parameter, optional: verweigert
+  dem Spieler eine von einem Gast belegte Übung mit `notice.waitForClimber`, beansprucht/gibt selbst
+  einen Element-Slot als `"player"` frei). `js/player/nerves.js#watchSuccess()` (neu, kleine
+  Vertrauens-/Nerven-Anpassung für `npc:watched-success`). `?npc=0` deaktiviert Gäste, `?map=1` öffnet
+  die Course Map beim Boot. Tests `tests/unit/agents.test.mjs` (15, rein).
 
 ## Was halb fertig ist
+- **M1.4/M1.6:** Gäste behandeln Tarzansprung und Skateboard wie eine normale kontinuierliche Übung
+  (Fallback-Tempo `NPC.elementSpeedFallback`, `element.pointAt` statt der echten Sprung-/Schub-Mechanik)
+  – sieht aus wie ein gewöhnliches Queren, nicht wie ein Sprung; eigene Gast-Posen für diese zwei Arten
+  wären ein eigener Schritt. Die Occupancy-Sperre gilt für den Spieler nur auf Übungen/Flying Fox, nicht
+  auf die Leiter (bewusst außerhalb des Auftragstexts „stepping onto an element" belassen – Gäste queuen
+  dort nur untereinander); ein Sturz (`"fall"`-Zustand) gibt den Element-Slot sofort frei statt ihn zu
+  halten, bis der Kletterer zurück auf ein Podest ist – dokumentierte Vereinfachung, kein Absturzrisiko,
+  weil die Kapazität ohnehin 1 bleibt. Die Parkplan-Tafel zeigt Routen als Linien/Ketten (unsere Routen
+  enden am Flying Fox, sind keine Rundwege) statt echter geschlossener Schleifen wie im Vorbildfoto.
 - Route-Header/Banner/Countdown zeigen nur die Route, die der Spieler gerade angeht (nächstes
   Einstiegsdeck in 6 m oder laufender Run) – das steht seit M1.2, Schilder und Freigaben ebenso.
   **Offen bleibt aus der ursprünglichen M1.2-Liste in `ROADMAP.md`:** eigene Podest-*Typen*
@@ -255,7 +359,20 @@ wegnehmen, nie hinzufügen (`asked`-Klemme).
 
 ## Dateien, an denen gerade gearbeitet wird
 – keine offene Baustelle, aber **alles seit Tag `m0` (`d20789e`) ist uncommitted**, inklusive M1.8
-(bereits HEAD `43993bb`, s. u.), M1.1, M1.2 und M1.3/M1.5 (diese Session).
+(bereits HEAD `43993bb`, s. u.), M1.1, M1.2, M1.3/M1.5 und M1.4/M1.6 (diese Session).
+M1.4/M1.6 laut geänderten Dateien: neu
+`js/ui/map-render.js`, `js/ui/course-map.js`, `js/park/park-board.js`, `js/game/occupancy.js`,
+`js/npc/agents.js`, `js/npc/guest-rig.js`, `tests/unit/agents.test.mjs`,
+`docs/screenshots/{m1-coursemap,m1-parkboard}.png`; geändert `js/config.js` (`NPC`, `MAP`),
+`js/core/params.js` (`?npc=`, `?map=`), `js/player/interaction.js` (`occupancy`-Param,
+`elementBlockedByGuest`, `PROMPTS.waitForClimber`, Element-Slot-Beanspruchung als `"player"`),
+`js/player/nerves.js` (`watchSuccess()`), `js/player/tuning.js` (`NERVES.trustPerWatch`/`watchRelief`),
+`js/park/signs.js` (`averageBearing`/`findNearPath` jetzt exportiert, für `park-board.js`), `js/main.js`
+(komplette Course-Map/Parkplan-Tafel/Gäste-Verdrahtung, `course-map-open`-Body-Klasse, `npc ms`/
+`npc count` im F1-Panel, `WIPFEL.{parkBoard,courseMap,occupancy,agents,guestRig}`),
+`css/screens.css` (`.course-map` Feinschliff: `.foot`/`.info`/`.filter-chip`, `.board-prompt`,
+`course-map-open`-Regel), `assets/strings/{en,de}.json` (`notice.waitForClimber`, `map.*`,
+`parkBoard.*`), `docs/architecture.md`, `HANDOVER.md`.
 M1.3/M1.5 laut geänderten Dateien: neu
 `js/game/ticket.js`, `js/ui/kassa.js`, `js/game/briefing.js`, `js/park/practice-stand.js`,
 `js/ui/stamp-card.js`, `tests/unit/ticket.test.mjs`,
@@ -294,21 +411,21 @@ geändert `js/world/{terrain,ground-detail,forest}.js`, `js/world/terrain/materi
 `js/audio/{synth,sfx}.js`, `docs/architecture.md`, `ROADMAP.md`.
 
 ## Wichtige Architekturentscheidungen
-`docs/architecture.md` (Modulverträge – Park/Belay/HUD/Audio seit M0.4 eingetragen),
-`docs/DECISIONS.md` ADR-001…012, 020…027 (Mockup 1:1, UI EN+DE, Kategorien mit Green). Offen: ADR-013
-(Three.js 0.185.1 – faktisch entschieden, eintragen), ADR-014 (Rapier compat 0.20.0 – dito), 015–019.
+`docs/architecture.md` (Modulverträge – Park/Belay/HUD/Audio seit M0.4 eingetragen, Course-Map/Parkplan-
+Tafel/Gäste-Occupancy seit M1.4/M1.6), `docs/DECISIONS.md` ADR-001…012, 020…027 (Mockup 1:1, UI EN+DE,
+Kategorien mit Green). Offen: ADR-013 (Three.js 0.185.1 – faktisch entschieden, eintragen), ADR-014
+(Rapier compat 0.20.0 – dito), 015–019.
 
 ## Bekannte Bugs
 – keine reproduzierten. Zu prüfen: Kamera-Kollision mit Kronen im echten Wald (nur in Dev-Seite getestet).
 
 ## Unmittelbar nächste Aufgabe
-**M1.4 Course Map + Parkplan** (`ROADMAP.md`): Vollbild-Overlay 1:1 nach Mockup (Relief-Untergrund aus
-dem Terrain, farbige Routen mit Podest-Knoten aus `course.graph`, Spielerposition, Legende Green/Blue/
-Red/Black/Legendary, Filter/Player/Zoom/Exit), dazu die diegetische Parkplan-Tafel in der Welt
-(grüne Karte auf Pfosten, Schleifen mit römischen Ziffern) und die Stempelkarte dort zusätzlich
-verlinkt. `css/screens.css#.course-map` hat schon Grundstile (leer); `course.graph.{nodes,edges}` (M1.1)
-ist die Datenquelle. Danach **M1.6 NPC-Gäste**: Agenten auf `course.graph` mit Podest-/Übungsregeln →
-Warteschlangen, Zusehen gibt Vertrauen (`js/player/nerves.js#trustGain` existiert schon).
+**M1.7 Save + Optionen** (`ROADMAP.md`): versioniertes Save-Schema mit Validierung (Schema-Version und
+additive Migration existieren schon in `core/save.js` – prüfen, was für Einstellungen dazukommt, nicht
+neu bauen), Einstellungen-Screen (Lautstärke-Kategorien, reduzierte Bewegung/Shake, Assist-Modus, Farbe +
+Form statt nur Farbe – die Kategorien haben bereits Symbole in `config.js#CATEGORIES`, das ist die
+Grundlage –, Tastenbelegung vorbereiten auch wenn Remapping selbst erst später kommt). M1.8 ist bereits
+HEAD (`43993bb`); danach folgt M2 („Ein Park").
 
 Offene Entscheidung aus M1.3: Größenklasse (`RULES.sizeClasses[].allowed`) ist an der Kassa wählbar und
 persistiert (`save.data.ticket.sizeClassId`), treibt aber **nur** die Zip-Masse
@@ -318,21 +435,41 @@ beides). Noch keine ADR; wenn gewünscht, gehört der Check neben `lockedCategor
 `player/interaction.js`, mit einer eigenen Prompt-Zeile.
 
 ## Nächste fünf Aufgaben
-1. M1.4 Course Map + Parkplan (s. o.).
-2. M1.6 NPC-Gäste (s. o.).
-3. Größenklasse → Kategorie-Zugang entscheiden und ggf. verdrahten (s. o., „Offene Entscheidung aus M1.3").
-4. Podest-Typen nachziehen (Übergang, Kreuzung, Rast, Hub – aus der ursprünglichen M1.2-Liste
+1. M1.7 Save + Optionen (s. o.).
+2. Größenklasse → Kategorie-Zugang entscheiden und ggf. verdrahten (s. o., „Offene Entscheidung aus M1.3").
+3. Podest-Typen nachziehen (Übergang, Kreuzung, Rast, Hub – aus der ursprünglichen M1.2-Liste
    zurückgestellt, s. „Was halb fertig ist"): `platform.js#kind` kennt bisher nur
    „standard"/„transition"; Kreuzungspodeste würden auch verlangen, dass zwei Routen sich einen
    Baum/ein Podest teilen können – das rührt an den Layout-Generator (`layout.js`/`layout-route.js`),
    nicht nur an den Loader.
+4. Eigene Gast-Posen für Tarzansprung/Skateboard (`js/npc/agents.js`/`guest-rig.js` behandeln beide
+   aktuell wie eine normale kontinuierliche Übung, s. „Was halb fertig ist" M1.4/M1.6) – bräuchte je
+   eine kleine Sonderbehandlung in `advanceElement`/`poseFor`, kein neues Grundgerüst.
 5. Draw-Calls am Spawn weiter drücken (das ältere M1.1-Ziel ≤ 420 ohne Schilder bleibt offen, s.
-   „Offen"): die Podest-Merge-Optimierung ist am Deckungsgrad der statischen Geometrie ausgereizt; als
-   Nächstes käme nur noch dynamische Geometrie in Frage (Zip-Netz/Trolley, Element-Wobble-Meshes) –
-   dafür müsste `element.js`/`zipline.js` eigene LOD- oder Batch-Strategien bekommen, kein reiner
-   Loader-Fix mehr.
+   „Offen"; seit M1.4/M1.6 bei 438–439, weiter innerhalb des jetzt gültigen ≤ 480-Ziels): die
+   Podest-Merge-Optimierung ist am Deckungsgrad der statischen Geometrie ausgereizt; als Nächstes käme
+   nur noch dynamische Geometrie in Frage (Zip-Netz/Trolley, Element-Wobble-Meshes) – dafür müsste
+   `element.js`/`zipline.js` eigene LOD- oder Batch-Strategien bekommen, kein reiner Loader-Fix mehr.
 
 ## Offen / Provisorisch
+- **M1.4:** Routenlinien auf Course Map und Parkplan-Tafel zu blass (Kategorie-Farben kaum
+  erkennbar, Weg-Linie dominiert) – im M2-Politur-Pass sättigen/glühen lassen wie im Mockup.
+- **M1.4/M1.6:** Tarzansprung/Skateboard haben keine eigene Gast-Animation (s. „Nächste fünf Aufgaben").
+  Die Spieler-Occupancy-Sperre gilt nicht für die Leiter (bewusst, s. `docs/architecture.md`); ein Sturz
+  gibt den Element-Slot sofort frei statt ihn bis zur Rettung/Podest-Rückkehr zu halten (dokumentierte
+  Vereinfachung, unkritisch bei Kapazität 1). Gäste navigieren am Boden geradlinig zum Ziel (keine
+  Wegfindung um Bäume/Streudetail) – dieselbe ehrliche Grenze wie `game/autoplay.js`s Bot; auf dem im
+  Test beobachteten Seed unauffällig, weil Hub und Einstiegsdecks recht offen liegen. Die Parkplan-Tafel
+  zeigt Routen als farbige Ketten, keine geschlossenen Schleifen wie das Vorbildfoto (unsere Routen sind
+  Einbahn zum Flying Fox). Der Kartencache (`course-map.js`) wird einmal beim ersten Öffnen gebacken und
+  danach nie erneuert – unkritisch, weil sich Terrain/Routen zur Laufzeit nie ändern, aber ein künftiges
+  Feature „Parcours im laufenden Spiel entdecken/aufdecken" (aus der M1.4-ROADMAP-Zeile „entdeckte
+  Abschnitte") würde eine erneute Bake-Möglichkeit brauchen – nicht gebaut, weil nicht Teil dieses
+  Auftrags (der Auftragstext nannte nur Overlay/Tafel/Gäste, nicht Progressive Discovery). Kein Zoom-Pan-
+  Momentum/Trägheit (Ziehen folgt der Maus 1:1, kein Ausklingen) – Politur-Kandidat. NPC-Wanderung nutzt
+  pro Gast einen eigenen `Rng`-Fork, ist also über die Session deterministisch fortsetzbar, aber die
+  Bewegung selbst wird nicht bit-für-bit reproduzierbar getestet (nur `planAgents`, die Zuweisung, ist
+  das) – für Hintergrundfiguren als ausreichend eingestuft.
 - **M1.3/M1.5:** Größenklasse gated nur die Zip-Masse, nicht den Kategorie-Zugang – s. „Unmittelbar
   nächste Aufgabe". Die Tages-Statistik (`session.js#day`) ist **nicht** Teil von `save.data.ticket` –
   ein Reload mitten im Tag stellt Uhr/Belay/Größenklasse korrekt wieder her (`resumeDay`), aber die
@@ -472,7 +609,9 @@ programmatisch ab). `?kassa=1` erzwingt die Kassa auch bei einem laufenden Ticke
 fortzusetzen); `?briefing=0` überspringt die Einschulung dauerhaft (setzt `save.data.briefingDone` sofort).
 Browser-Pane in Claude Code: `.claude/launch.json` → „wipfel”. Steuerung: WASD, Maus (Klick = Pointer-Lock),
 Shift Sprint, Leertaste Sprung, **F einhängen/umhängen** (classic zusätzlich X für Karabiner B),
-**E klettern / auf die Übung steigen**, T Kamera, F1 Debug, F2 Physik-Wireframe, Esc Pause.
+**E klettern / auf die Übung steigen / Course Map an der Parkplan-Tafel öffnen**, **Tab Course Map**
+(auch Esc/EXIT-Button schließt sie; öffnet nicht pausiert, sperrt nur die Bewegung), T Kamera, F1 Debug,
+F2 Physik-Wireframe, Esc Pause (bzw. Course-Map-schließen, wenn sie offen ist).
 **Auf einer Übung:** W/S vor und zurück (auf den Planken **ein Druck = eine Planke**), A/D lehnen,
 **Q** linke Hand, **rechte Maustaste** rechte Hand, **R** atmen (nur im Stehen).
 **Im Gurt:** Leertaste hochziehen, W/S am Seil zum Podest hangeln, E Retter rufen.
@@ -482,6 +621,8 @@ stehenbleibt · E lange halten, um vom Startgatter wieder aufzustehen · nach de
 Anker `landing` und über die Rampe zurück.
 Der erste Kurs steht auf der Hero-Kiefer-Kette am Spawn – hinlaufen oder
 `WIPFEL.player.teleport(x, y, z)` mit `WIPFEL.course.entryDeck.group.position` benutzen.
+NPC-Gäste laufen ab Boot von selbst (`?npc=0` schaltet sie ab); die Parkplan-Tafel steht neben dem
+Wegweiser-Cluster am Hub-Rand (`WIPFEL.parkBoard.standPosition`).
 
 ## Wie testen
 ```
@@ -496,9 +637,11 @@ Manuelle Smoke-Checkliste: `docs/testing.md`.
 `?debug=1`/F1 Stats · `?physics=1`/F2 Rapier-Wireframe · `?seed=<n>` · `?fast=1` · `?locale=de` ·
 `?belay=continuous|smart|classic` (wirkt; ungültige Werte fallen auf `smart` zurück) ·
 `?kassa=1` (Kassa erzwingen trotz laufendem Ticket) · `?briefing=0` (Einschulung dauerhaft überspringen) ·
+**`?npc=0`** (Gäste komplett deaktivieren, M1.6) · **`?map=1`** (Course Map beim Boot öffnen, M1.4,
+für Screenshots) ·
 `window.WIPFEL` = {loop, physics, scene, camera, renderer, rng, input, events, terrain, forest, sky,
 wind, player, parkDef, course, **signs**, belay, hud, interaction, vitals, session, save, autoplay,
-**kassa, briefing, stampCard, ticket**, debug}.
+kassa, briefing, stampCard, ticket, **parkBoard, courseMap, occupancy, agents, guestRig**, debug}.
 Skripten/Testen: `WIPFEL.player.teleport(x, y, z)`, `WIPFEL.player.setState("ground")`,
 `WIPFEL.course.{anchors, elements, platforms, graph, zipline, zipLanding, zipPlan}`,
 `WIPFEL.course.elements[i].getEntryAnchor().stand`,
@@ -516,8 +659,16 @@ stehenbleiben), **`WIPFEL.debug.setRiderMass(kg)`** (Größenklasse für die nä
 über die Kassa gesetzt) und **`WIPFEL.debug.endTicket()`** (M1.5: erschöpft die Restzeit und ruft
 `session.forceDayEnd()` – überspringt die 8-s-Erweiterungs-Gnadenfrist, landet direkt auf der
 Stempelkarte; No-op ohne laufendes Ticket).
+**M1.4/M1.6:** **`WIPFEL.courseMap.{visible,open(),close(),toggle()}`**, **`WIPFEL.parkBoard.
+standPosition`** (zum Hinteleportieren), **`WIPFEL.agents.list`** (jeder Eintrag: `id, category,
+routeId, phase, pos, heading, t, distanceToPlayer, …` – `phase` ∈ wander/toEntry/queue/clipIn/onRail/
+unclip/dwell/return), **`WIPFEL.occupancy.{holderOfElement(id), claimElement(id,holder),
+releaseElement(id,holder), guestsOnPlatform(id)}`** (dieselbe Instanz, die Spieler und Gäste teilen –
+zum Erzwingen der Wartezeile von Hand: `claimElement('burma-1','test')`, dann `interaction.prompt`
+prüfen), **`WIPFEL.guestRig.group`** (zehn `InstancedMesh`-Kinder).
 F1-Zeilen seit M0.5: `element` (id + t), `balance`, `stamina`, `nerves` (Wert + Stufe),
-`heart bpm`, `trust`, `air below`; seit M0.P `terrain lod` (Chunks je LOD, Summe 36).
+`heart bpm`, `trust`, `air below`; seit M0.P `terrain lod` (Chunks je LOD, Summe 36); seit M1.6
+**`npc count`**, **`npc ms`**.
 **Achtung headless:** In Chromium tickt `requestAnimationFrame` nur, wenn der Compositor Frames
 liefert – für scriptgesteuerte Läufe `loop.stop()`, `requestAnimationFrame` neutralisieren und
 `loop._tick(t)` mit festen 60-Hz-Zeitstempeln selbst aufrufen (siehe Session-Log). Screenshots zeigen
