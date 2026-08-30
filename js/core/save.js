@@ -7,7 +7,9 @@ const DEFAULTS = Object.freeze({
   routes: {},               // routeId → { bestSeconds, completions, cleanRuns }
   // Category gates (GDD §3.12: "Farben sind Tore" – Blue → Red → Black). Blue is always open; a
   // category unlocks once any route of the *previous* colour has been completed (js/game/session.js).
-  unlocks: Object.freeze({ blue: true, red: false, black: false }),
+  // `legendary` (M2a) is the one exception – it needs *every* black route completed, not just one, so
+  // js/game/session.js checks that directly instead of going through `nextGateCategory`.
+  unlocks: Object.freeze({ blue: true, red: false, black: false, legendary: false }),
   locale: null,             // null = use DEFAULTS.locale / ?locale=
   // Einschulung (M1.3, GDD §3.7): once true the practice-anchor gate never shows again
   // (js/game/briefing.js, js/player/interaction.js).
@@ -25,6 +27,14 @@ const DEFAULTS = Object.freeze({
     reducedMotion: false,         // HUD pulse animations (body class, css/base.css)
     assist: false,                // js/player/assist.js – gentler balance disturbance, wider slip window
   }),
+  // M2a (ROADMAP): time trials, per-route best time only ever set by a trial run (js/game/route.js#isTrial).
+  trials: {},               // routeId → bestSeconds
+  // M2a (ROADMAP, GDD §3.12): four booleans per route, `MASTERY.tierOrder` order – a tier once earned
+  // is never taken away (js/game/mastery.js#mergeTiers), even if a later run misses it.
+  mastery: {},               // routeId → { tiers: [completed, noFalls, underPar, inFlow] }
+  // M2a (ROADMAP, GDD §3.12 "Ausrüstung als Sidegrade") – null until unlocked *and* chosen at the kassa;
+  // js/player/sidegrade.js reads this only through js/main.js's own setSidegrade() call, never directly.
+  equipmentId: null,
 });
 
 const SETTINGS_BOOLEANS = Object.freeze(["invertY", "reducedCameraMotion", "reducedMotion", "assist"]);
@@ -36,7 +46,9 @@ export function nextGateCategory(category) {
 }
 
 /** @returns {{ data, routeBest(id), recordRun(id, {seconds, falls}), isUnlocked(category),
- *   unlockCategory(category), setLocale(l), flush() }} */
+ *   unlockCategory(category), setLocale(l), flush(),
+ *   hasCompletedAnyRoute(), trialBest(id), recordTrial(id, seconds),
+ *   masteryOf(id), recordMastery(id, tiers), setEquipment(id) }} */
 export function createSave(storage = defaultStorage()) {
   const data = load(storage);
 
@@ -61,6 +73,36 @@ export function createSave(storage = defaultStorage()) {
       flush();
       return isBest;
     },
+    /** @returns {boolean} true once any route has ever been completed – js/game/flow.js's HUD gate. */
+    hasCompletedAnyRoute() { return Object.values(data.routes).some((r) => r.completions > 0); },
+
+    /** M2a time trials: separate best-time bucket, only ever written by a trial run. */
+    trialBest(routeId) {
+      const seconds = data.trials[routeId];
+      return Number.isFinite(seconds) ? seconds : null;
+    },
+    /** @returns {boolean} true when this trial set a new best */
+    recordTrial(routeId, seconds) {
+      const best = data.trials[routeId];
+      const isBest = Number.isFinite(seconds) && (!Number.isFinite(best) || seconds < best);
+      if (isBest) data.trials[routeId] = seconds;
+      flush();
+      return isBest;
+    },
+
+    /** M2a mastery tiers (GDD §3.12): read-only accessor, `[completed, noFalls, underPar, inFlow]|null`. */
+    masteryOf(routeId) { return data.mastery[routeId] ? data.mastery[routeId].tiers.slice() : null; },
+    /** Merge a freshly evaluated tier set in – a tier once earned is kept even if a later run misses it. */
+    recordMastery(routeId, tiers) {
+      const previous = data.mastery[routeId] ? data.mastery[routeId].tiers : tiers.map(() => false);
+      data.mastery[routeId] = { tiers: previous.map((was, i) => was || tiers[i]) };
+      flush();
+      return data.mastery[routeId].tiers.slice();
+    },
+
+    /** M2a sidegrade (GDD §3.12): `id` one of js/config.js#SIDEGRADES' keys, or null for none. */
+    setEquipment(id) { data.equipmentId = id; flush(); },
+
     /** Categories not tracked in `unlocks` (green, legendary – no gate yet) default to open. */
     isUnlocked(category) { return data.unlocks[category] !== false; },
     /** @returns {boolean} true the first time this category is unlocked, false if it already was */
@@ -186,6 +228,18 @@ function normalize(parsed) {
     if (s.lookSensitivity === null || Number.isFinite(s.lookSensitivity)) data.settings.lookSensitivity = s.lookSensitivity;
     for (const key of SETTINGS_BOOLEANS) if (typeof s[key] === "boolean") data.settings[key] = s[key];
   }
+  // M2a: trials/mastery per route id, additive – an unknown/malformed entry is simply dropped, never
+  // collapses the whole map back to defaults (same philosophy as `data.routes` above).
+  if (parsed.trials && typeof parsed.trials === "object") {
+    for (const [id, seconds] of Object.entries(parsed.trials)) if (Number.isFinite(seconds)) data.trials[id] = seconds;
+  }
+  if (parsed.mastery && typeof parsed.mastery === "object") {
+    for (const [id, m] of Object.entries(parsed.mastery)) {
+      if (!m || !Array.isArray(m.tiers) || m.tiers.length !== 4) continue;
+      data.mastery[id] = { tiers: m.tiers.map((v) => v === true) };
+    }
+  }
+  if (typeof parsed.equipmentId === "string" || parsed.equipmentId === null) data.equipmentId = parsed.equipmentId ?? null;
   return data;
 }
 

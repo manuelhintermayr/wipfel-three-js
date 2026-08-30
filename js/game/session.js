@@ -12,25 +12,34 @@
 // and owns the `day` stats (routes completed, obstacles crossed, rescues, top zip speed) the stamp
 // card reads. Passing `ticket`/`input`/`stampCard` is optional – omit them and the ticket HUD/day-end
 // sequence simply never runs (older tests, dev harnesses).
+//
+// M2a: also reads (never advances) the optional `flow` module for the HUD/mastery/score, evaluates
+// mastery tiers and records time trials at `zip:finished`, and offers `[G]` time trials from a
+// completed route's revisited start banner. `flow` advancing itself (js/game/flow.js#update) is
+// js/main.js's job, alongside vitals – this module only resets the running average per attempt and
+// reads the live value, exactly like it only *reads* `ticket`.
 import { t, formatTime } from "../core/i18n.js";
 import { nextGateCategory } from "../core/save.js";
-import { TICKET } from "../config.js";
+import { TICKET, TRIALS } from "../config.js";
 import { createRouteRun, routesFromPark } from "./route.js";
 import { createRouteHud } from "../ui/hud-route.js";
+import { evaluateMastery } from "./mastery.js";
+import { computeFlowScore } from "./flow.js";
 
 const SESSION = Object.freeze({
   bannerRange: 6,            // metres from an entry deck within which the start banner shows
   tipSeconds: 6,
+  trialArmedSeconds: 3,
 });
 
 const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /**
  * @param {{ player, course, parkDef, events, hud, save, root: HTMLElement,
- *   ticket?, input?, stampCard? }} o
+ *   ticket?, input?, stampCard?, flow? }} o
  * @returns {{ run, day: object, beginDay(): void, update(dt): void, dispose(): void }}
  */
-export function createSession({ player, course, parkDef, events, hud, save, root, ticket = null, input = null, stampCard = null }) {
+export function createSession({ player, course, parkDef, events, hud, save, root, ticket = null, input = null, stampCard = null, flow = null }) {
   const runs = new Map(routesFromPark(parkDef).map((def) => [def.id, createRouteRun(def)]));
   const routeHud = createRouteHud(root);
 
@@ -70,7 +79,10 @@ export function createSession({ player, course, parkDef, events, hud, save, root
     // for a category the save says is still locked.
     if (!route || !save.isUnlocked(route.category)) return;
     const run = runs.get(route.id);
-    if (run && (run.state === "idle" || run.state === "armed")) run.beginCountdown();
+    if (run && (run.state === "idle" || run.state === "armed")) {
+      run.beginCountdown();
+      if (flow) flow.resetRun();   // M2a: the flow average (mastery's "in flow" tier, the score) is per attempt
+    }
   });
   on("belay:click", () => {
     if (!tipShown) { tipShown = true; routeHud.showSafetyTip(SESSION.tipSeconds); }
@@ -93,19 +105,44 @@ export function createSession({ player, course, parkDef, events, hud, save, root
       day.maxZipKmh = Math.max(day.maxZipKmh, maxKmh);
       const summary = run.finish();
       const isBest = save.recordRun(summary.routeId, summary);
-      day.routes.push({ category: run.def.category, numeral: run.def.numeral, nameKey: run.def.nameKey, seconds: summary.seconds, falls: summary.falls });
+      // M2a: mastery (GDD §3.12) is evaluated once, right here, from this run's own numbers plus the
+      // flow module's running average since it was last reset (the ladder-climb handler above).
+      const averageFlow = flow ? flow.averageThisRun : 1;
+      const tiers = evaluateMastery({ falls: summary.falls, seconds: summary.seconds, parS: run.def.parS, averageFlow });
+      const mastery = save.recordMastery(summary.routeId, tiers);
+      const flowScore = computeFlowScore(summary.progress, averageFlow);
+      const isBestTrial = summary.isTrial ? save.recordTrial(summary.routeId, summary.seconds) : false;
+      if (flow) flow.resetRun();
+      day.routes.push({
+        category: run.def.category, numeral: run.def.numeral, nameKey: run.def.nameKey,
+        seconds: summary.seconds, falls: summary.falls, isTrial: summary.isTrial, mastery, flowScore,
+      });
       const name = t(run.def.nameKey);
-      let line = t("notice.routeDone", { name, time: formatTime(summary.seconds), falls: summary.falls });
-      if (isBest) line += ` · ${t("notice.newBest", { time: formatTime(summary.seconds) })}`;
+      let line;
+      if (summary.isTrial) {
+        line = t("notice.trialDone", { name, time: formatTime(summary.seconds) });
+        if (isBestTrial) line += ` · ${t("notice.trialNewBest", { time: formatTime(summary.seconds) })}`;
+      } else {
+        line = t("notice.routeDone", { name, time: formatTime(summary.seconds), falls: summary.falls });
+        if (isBest) line += ` · ${t("notice.newBest", { time: formatTime(summary.seconds) })}`;
+      }
       // Category gate (GDD §3.12): completing any route of one colour opens the next – one combined
       // notice, never two competing ones on the same frame (setNotice replaces, it does not queue).
       const unlocked = nextGateCategory(run.def.category);
       if (unlocked && save.unlockCategory(unlocked)) line += ` · ${t(`notice.unlocked${capitalize(unlocked)}`)}`;
+      // M2a: the legendary finale is the one gate that is not "any route of the previous colour" –
+      // GDD §3.12 wants *every* black route done first, so this checks the actual black run set
+      // instead of going through nextGateCategory (which stops at black → null, on purpose).
+      if (run.def.category === "black" && runs.has("legendary") && !save.isUnlocked("legendary")) {
+        const blackIds = Array.from(runs.values()).filter((r) => r.def.category === "black").map((r) => r.def.id);
+        const allBlackDone = blackIds.every((id) => save.data.routes[id] && save.data.routes[id].completions > 0);
+        if (allBlackDone && save.unlockCategory("legendary")) line += ` · ${t("notice.unlockedLegendary")}`;
+      }
       // Ticket end note (M1.5): finishing a route with no time left goes straight to the day-end
       // sequence instead of just a toast – "OR after completing a route when no ticket time left".
       if (ticket && ticket.expired) { beginDayEnd(); }
       else hud.setNotice(line, 8);
-      events.emit("route:completed", { ...summary, category: run.def.category, isBest, maxKmh });
+      events.emit("route:completed", { ...summary, category: run.def.category, isBest, maxKmh, mastery, flowScore });
     }
   });
 
@@ -147,22 +184,33 @@ export function createSession({ player, course, parkDef, events, hud, save, root
       routeHud.setCountdown(shown.countdownStep);
       routeHud.refresh(shown, save.routeBest(shown.def.id));
       routeHud.update();
-      // Start banner: visible while idle/armed near the shown route's entry deck, gone once it begins.
+      if (flow) routeHud.setFlow(flow.value, save.hasCompletedAnyRoute());
+      // Start banner: idle/armed near the shown route's entry deck (a fresh attempt), or – M2a – a
+      // *finished* route revisited once it has a best time, offering a time trial instead of START.
       const route = course.routeFor(shown.def.id);
       const nearDeck = route && player.position.distanceTo(route.entryDeck.clipAnchor) <= SESSION.bannerRange;
-      const wantBanner = nearDeck && (shown.state === "idle" || shown.state === "armed");
+      const best = save.routeBest(shown.def.id);
+      const canTrial = best != null && (shown.state === "idle" || shown.state === "armed" || shown.state === "done");
+      const wantBanner = nearDeck && (shown.state === "idle" || shown.state === "armed" || (shown.state === "done" && canTrial));
       if (wantBanner && !bannerShown) {
         const locked = !save.isUnlocked(shown.def.category);
-        routeHud.showBanner(shown.def, save.routeBest(shown.def.id), locked);
+        routeHud.showBanner(shown.def, best, locked, { canTrial: canTrial && !locked, mastery: save.masteryOf(shown.def.id) });
         bannerShown = true;
-        if (!locked) shown.arm();   // a locked route stays idle – there is nothing to arm towards
+        if (!locked && shown.state !== "done") shown.arm();   // a locked/finished route stays as it is
       } else if (!wantBanner && bannerShown) {
         routeHud.hideBanner();
         bannerShown = false;
       }
+      // M2a time trials: `[G]` at a revisited, previously-completed banner re-arms the very same run
+      // (js/game/route.js#markTrial handles the done→idle transition) for a timed re-attempt.
+      if (bannerShown && input && input.pressed(TRIALS.inputAction) && canTrial && save.isUnlocked(shown.def.category)) {
+        shown.markTrial();
+        hud.setNotice(t("notice.trialArmed"), SESSION.trialArmedSeconds);
+      }
 
       if (!ticket) return;
-      routeHud.setTicket(ticket.started && !dayOver ? ticket.remainingGameMinutes : null);
+      // Season pass (M2a): open-ended tickets never show the countdown box – there is nothing counting.
+      routeHud.setTicket(ticket.started && !dayOver && !ticket.isOpenEnded ? ticket.remainingGameMinutes : null);
       if (dayOver) return;
       if (dayEnding) {
         if (input && input.pressed("interact") && ticket.extensionsLeft > 0) {

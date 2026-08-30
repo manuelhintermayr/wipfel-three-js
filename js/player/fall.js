@@ -16,6 +16,7 @@ import { GROUP, groups } from "../core/physics.js";
 import { FALL } from "./tuning.js";
 import { fallPose } from "./rig-poses.js";
 import { assistScale } from "./assist.js";
+import { sidegradeEffects } from "./sidegrade.js";
 
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const NO_CONTACTS = groups(GROUP.DYNAMIC, 0);
@@ -155,7 +156,7 @@ export function createFallState({ physics, input, scene = null, events = null, b
       const pulling = input.down("jump") && state.canPullUp;
       pullTimer = pulling ? pullTimer + dt : Math.max(0, pullTimer - dt * 2);
 
-      stamina.update(dt, { hanging: true, hauling: hauling > 0, pullingUp: pulling });
+      stamina.update(dt, { hanging: true, hauling: hauling > 0, pullingUp: pulling, pullUpDrainScale: sidegradeEffects().pullUpDrainScale });
       const groundY = element.groundY == null ? player.position.y - 6 : element.groundY;
       nerves.update(dt, {
         height: player.position.y - groundY,

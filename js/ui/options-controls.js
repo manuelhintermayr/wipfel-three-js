@@ -17,6 +17,7 @@ const ROWS = Object.freeze([
   { action: "breathe", labelKey: "options.controls.breathe" },
   { action: "map", labelKey: "options.controls.map" },
   { action: "camera", labelKey: "options.controls.camera" },
+  { action: "trial", labelKey: "options.controls.trial" },
   { action: "pause", labelKey: "options.controls.pause" },
   { action: "photo", labelKey: "options.controls.photo" },
 ]);

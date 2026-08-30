@@ -15,11 +15,13 @@
 
 import * as THREE from "three";
 import { ZIP_RIDE } from "./tuning.js";
+import { ZIP_PHYSICS } from "../zipline/physics.js";
 import { createWobble } from "../elements/element.js";
 import { ziplinePose } from "./rig-poses.js";
 import { lookDownAmount } from "./vitals.js";
 import { sfxTrolley, sfxWindRush, sfxZipArrive } from "../audio/sfx.js";
 import { t } from "../core/i18n.js";
+import { sidegradeEffects } from "./sidegrade.js";
 
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const clampSigned = (v) => (v < -1 ? -1 : v > 1 ? 1 : v);
@@ -95,7 +97,7 @@ export function createZiplineState({ input, events = null, camera = null, hud = 
     get prompt() {
       if (phase === "seated") return ZIP_PROMPTS.seated;
       if (zip && zip.stalled) return ZIP_PROMPTS.stalled;
-      if (brake && brake.inZone(zip.s)) return ZIP_PROMPTS.zone;
+      if (brake && brake.inZone(zip.s, sidegradeEffects().zipBrakeZoneScale)) return ZIP_PROMPTS.zone;
       return ZIP_PROMPTS.riding;
     },
     pose(out) { return ziplinePose(out, params); },
@@ -122,7 +124,10 @@ export function createZiplineState({ input, events = null, camera = null, hud = 
       if (!element || !element.zip) return;
       zip = element.zip;
       brake = element.brake;
-      zip.reset({ massKg: riderMass, windAlong: 0 });
+      // "Fast trolley" sidegrade (M2a): a lower effective drag coefficient for this ride only – the
+      // cable/trolley geometry (built once in js/elements/zipline.js) never changes, only the physics
+      // model's own drag term does, exactly like a heavier rider already changes `massKg` per ride.
+      zip.reset({ massKg: riderMass, windAlong: 0, dragCoeff: ZIP_PHYSICS.dragCoeff * sidegradeEffects().zipDragScale });
       zip.setWindAlong(windAlong());
       brake.reset();
       bounce.reset();
@@ -203,9 +208,10 @@ export function createZiplineState({ input, events = null, camera = null, hud = 
   function ride(dt) {
     zip.setWindAlong(windAlong());
     zip.update(dt, { tuck });
-    if (brake.inZone(zip.s)) {
+    const zoneScale = sidegradeEffects().zipBrakeZoneScale;
+    if (brake.inZone(zip.s, zoneScale)) {
       if (!braked) { braked = true; bounce.excite(0, ZIP_RIDE.brakeBounce); }
-      zip.setSpeed(brake.apply(dt, zip.s, zip.v, tuck > 0.5));
+      zip.setSpeed(brake.apply(dt, zip.s, zip.v, tuck > 0.5, zoneScale));
     }
     // Stalled: hand over hand to the end. Per RESEARCH-DATA §6 the hands must stay off the cable in
     // front of the trolley, so the rider reaches *behind* the roller and pulls – slow, and it hurts.

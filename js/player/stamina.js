@@ -21,15 +21,19 @@ export function createStamina({ config = STAMINA, value = 1 } = {}) {
   let reserve = clamp01(value);
   let exhausted = reserve <= 0;      // starting empty means starting with the hands open
 
-  /** Fraction per second the current load costs (negative = the reserve fills). */
+  /**
+   * Fraction per second the current load costs (negative = the reserve fills). `gripDrainScale`/
+   * `pullUpDrainScale` (M2a sidegrades, js/player/sidegrade.js) default to 1 – every existing call
+   * site is unaffected unless it explicitly passes one.
+   */
   function rateOf(load) {
     if (load.hanging) {
-      return C.hangDrain + (load.hauling ? C.haulDrain : 0) + (load.pullingUp ? C.pullUpDrain : 0);
+      return C.hangDrain + (load.hauling ? C.haulDrain : 0) + (load.pullingUp ? C.pullUpDrain * (load.pullUpDrainScale ?? 1) : 0);
     }
     if (load.onPlatform) return -C.regenPlatform;
     if (load.onElement) {
       const hands = exhausted ? 0 : Math.max(0, load.hands || 0);
-      const cost = C.elementDrain + C.gripDrain * hands + (load.extraDrain || 0);
+      const cost = C.elementDrain + C.gripDrain * hands * (load.gripDrainScale ?? 1) + (load.extraDrain || 0);
       const rest = load.moving ? C.regenMoving : C.regenStanding;
       return cost - (hands > 0 ? 0 : rest);
     }
@@ -48,7 +52,9 @@ export function createStamina({ config = STAMINA, value = 1 } = {}) {
      * One fixed step.
      * @param {number} dt seconds
      * @param {{ onPlatform?: boolean, onElement?: boolean, hanging?: boolean, hauling?: boolean,
-     *   pullingUp?: boolean, moving?: boolean, hands?: number, extraDrain?: number }} [load]
+     *   pullingUp?: boolean, moving?: boolean, hands?: number, extraDrain?: number,
+     *   gripDrainScale?: number, pullUpDrainScale?: number }} [load] the last two are M2a sidegrade
+     *   hooks (js/player/sidegrade.js) – omit them and the rate is exactly what it always was.
      *   `extraDrain` is the element's own cost (a cargo net is hard work, a wire bridge is not).
      * @returns {number} the reserve after the step
      */

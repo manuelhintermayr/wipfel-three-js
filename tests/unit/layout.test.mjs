@@ -1,17 +1,22 @@
-// M1.1 layout generator: every constraint js/park/layout-validate.js enforces, checked explicitly for
+// M2a layout generator: every constraint js/park/layout-validate.js enforces, checked explicitly for
 // seeds 1..8 against the headless terrain sampler (tools/headless-terrain.mjs); determinism; per-route
-// graph connectivity entry -> zip; and the pure route-run defs js/game/route.js#routesFromPark builds
-// from a park definition.
+// graph connectivity entry -> zip; junctions (shared platforms between two same-category routes); and
+// the pure route-run defs js/game/route.js#routesFromPark builds from a park definition. Extended from
+// M1.1's six-route park to the M2a default: 15 secured routes (blue I-V, red I-VI, black I-IV) across
+// four hubs plus the hidden legendary finale, with two junctions (red-3 ⨝ red-2, black-2 ⨝ black-1).
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHeadlessTerrain } from "../../tools/headless-terrain.mjs";
-import { generateParkLayout, PARK_CONFIG } from "../../js/park/layout.js";
+import { generateParkLayout, PARK_CONFIG, PARK_CONFIG_SMALL } from "../../js/park/layout.js";
 import { CATEGORY_RULES, LAYOUT_LIMITS, spanOk, farFromHubs, farFromPath, zipLandingOk, metricSum } from "../../js/park/layout-validate.js";
 import { catalogueEntry } from "../../js/elements/catalogue-data.js";
 import { routesFromPark } from "../../js/game/route.js";
 
 const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8];
-const EXPECTED_PLATFORM_TOTAL = PARK_CONFIG.routes.reduce((sum, r) => sum + r.chainLength, 0);
+const JUNCTIONS = PARK_CONFIG.routes.filter((r) => r.join);
+// Every junction reuses one existing platform instead of placing a new tree, so the *distinct*
+// hero-tree/platform count is the naive per-route sum minus one tree per junction (js/park/layout.js).
+const EXPECTED_PLATFORM_TOTAL = PARK_CONFIG.routes.reduce((sum, r) => sum + r.chainLength, 0) - JUNCTIONS.length;
 
 /** Build once per seed and hand every test the same { terrain, parkDef } pair. */
 function forEachSeed(fn) {
@@ -22,7 +27,7 @@ function forEachSeed(fn) {
   }
 }
 
-test("six routes, two per category, platform counts match PARK_CONFIG", () => {
+test("16 routes (15 secured + legendary), platform counts match PARK_CONFIG, junctions share one tree", () => {
   forEachSeed((seed, terrain, parkDef) => {
     assert.equal(parkDef.routes.length, PARK_CONFIG.routes.length, `seed ${seed}: route count`);
     PARK_CONFIG.routes.forEach((plan, i) => {
@@ -31,8 +36,40 @@ test("six routes, two per category, platform counts match PARK_CONFIG", () => {
       assert.equal(route.platforms.length, plan.chainLength, `seed ${seed}: route ${route.id} platform count`);
       assert.equal(route.edges.length, plan.chainLength - 1, `seed ${seed}: route ${route.id} edge count`);
     });
-    assert.equal(parkDef.heroTrees.length, EXPECTED_PLATFORM_TOTAL, `seed ${seed}: total platform/tree count`);
+    assert.equal(parkDef.heroTrees.length, EXPECTED_PLATFORM_TOTAL, `seed ${seed}: total distinct platform/tree count`);
     assert.ok(parkDef.heroTrees.length <= LAYOUT_LIMITS.maxTotalPlatforms, `seed ${seed}: over the ${LAYOUT_LIMITS.maxTotalPlatforms}-platform hard cap`);
+  });
+});
+
+test("secured routes: blue I-V, red I-VI, black I-IV, and exactly one legendary route", () => {
+  forEachSeed((seed, terrain, parkDef) => {
+    const byCategory = { blue: [], red: [], black: [], legendary: [] };
+    for (const route of parkDef.routes) byCategory[route.category].push(route.numeral);
+    assert.deepEqual(byCategory.blue, ["I", "II", "III", "IV", "V"], `seed ${seed}: blue numerals`);
+    assert.deepEqual(byCategory.red, ["I", "II", "III", "IV", "V", "VI"], `seed ${seed}: red numerals`);
+    assert.deepEqual(byCategory.black, ["I", "II", "III", "IV"], `seed ${seed}: black numerals`);
+    assert.equal(byCategory.legendary.length, 1, `seed ${seed}: exactly one legendary route`);
+  });
+});
+
+test("junctions: the guest's first platform IS the host's chosen platform (id, tree, height, category)", () => {
+  forEachSeed((seed, terrain, parkDef) => {
+    const routeById = new Map(parkDef.routes.map((r) => [r.id, r]));
+    for (const plan of JUNCTIONS) {
+      const guestId = `${plan.category}-${{ I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6 }[plan.numeral]}`;
+      const hostId = `${plan.category}-${{ I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6 }[plan.join.hostNumeral]}`;
+      const guest = routeById.get(guestId), host = routeById.get(hostId);
+      assert.ok(guest && host, `seed ${seed}: junction routes "${guestId}"/"${hostId}" exist`);
+      const shared = guest.platforms[0];
+      const hostPlatform = host.platforms[plan.join.hostPlatformIndex];
+      assert.equal(shared.id, hostPlatform.id, `seed ${seed}: ${guestId} platform 0 id === ${hostId} platform ${plan.join.hostPlatformIndex} id`);
+      assert.equal(shared.treeIndex, hostPlatform.treeIndex, `seed ${seed}: ${guestId}/${hostId} share the same hero tree`);
+      assert.equal(shared.deckHeight, hostPlatform.deckHeight, `seed ${seed}: ${guestId}/${hostId} share the same deck height`);
+      assert.equal(shared.kind, "junction", `seed ${seed}: ${guestId} platform 0 kind is "junction"`);
+      assert.equal(guest.category, host.category, `seed ${seed}: junction only joins routes of the same category`);
+      assert.equal(guest.edges[0].from, hostPlatform.id, `seed ${seed}: ${guestId}'s first edge leaves from the shared platform`);
+    }
+    assert.ok(JUNCTIONS.length >= 2, "at least two junctions configured (ROADMAP M2)");
   });
 });
 
@@ -169,6 +206,18 @@ test("routesFromPark: one pure run-def per route, obstacles = ladder + edges (+ 
       assert.deepEqual(def.obstacles, expected, `seed ${seed} ${route.id}: obstacle list`);
       assert.ok(Number.isFinite(def.heightM) && def.heightM > 0, `seed ${seed} ${route.id}: heightM`);
       assert.ok(Number.isFinite(def.lengthM) && def.lengthM > 0, `seed ${seed} ${route.id}: lengthM`);
+      assert.ok(Number.isFinite(def.parS) && def.parS > 0, `seed ${seed} ${route.id}: parS (M2a par time)`);
     });
   });
+});
+
+test("?routes=6 (PARK_CONFIG_SMALL): the old M1 six-route park still generates cleanly through the shared generator", () => {
+  for (const seed of SEEDS) {
+    const terrain = createHeadlessTerrain({ seed });
+    const parkDef = generateParkLayout({ seed, terrain, config: PARK_CONFIG_SMALL });
+    assert.equal(parkDef.routes.length, 6, `seed ${seed}: six routes`);
+    assert.deepEqual(parkDef.routes.map((r) => r.id), ["blue-1", "blue-2", "red-1", "red-2", "black-1", "black-2"], `seed ${seed}: legacy route ids`);
+    assert.equal(parkDef.heroTrees.length, 26, `seed ${seed}: 4+4+4+4+5+5 = 26 platforms, no junctions in the small park`);
+    for (const route of parkDef.routes) assert.ok(route.zip, `seed ${seed} ${route.id}: has a Flying Fox`);
+  }
 });

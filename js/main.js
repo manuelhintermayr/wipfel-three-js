@@ -18,10 +18,11 @@ import { createGroundDetail } from "./world/ground-detail.js";
 import { createForest } from "./world/forest.js";
 import { createPlayer } from "./player/controller.js";
 import { getWoodTextures } from "./procgen/textures/wood.js";
-import { generateParkLayout } from "./park/layout.js";
+import { generateParkLayout, PARK_CONFIG, PARK_CONFIG_SMALL } from "./park/layout.js";
 import { loadPark } from "./park/loader.js";
 import { createSigns } from "./park/signs.js";
 import { createParkBoard } from "./park/park-board.js";
+import { createWichtelCourses } from "./park/wichtel.js";
 import { createOccupancy } from "./game/occupancy.js";
 import { createAgents } from "./npc/agents.js";
 import { createGuestRig } from "./npc/guest-rig.js";
@@ -33,11 +34,14 @@ import { createElementState } from "./player/on-element.js";
 import { createFallState } from "./player/fall.js";
 import { createZiplineState } from "./player/on-zipline.js";
 import { createTarzanState } from "./player/on-tarzan.js";
+import { setSidegrade } from "./player/sidegrade.js";
 import { createHud } from "./ui/hud.js";
 import { armAudio } from "./audio/synth.js";
 import { initI18n, t, formatClock } from "./core/i18n.js";
 import { createSave } from "./core/save.js";
 import { createSession } from "./game/session.js";
+import { createFlow } from "./game/flow.js";
+import { createClipMeter } from "./game/clip-meter.js";
 import { createAutoplay } from "./game/autoplay.js";
 import { createTicketClock } from "./game/ticket.js";
 import { createKassa } from "./ui/kassa.js";
@@ -80,16 +84,22 @@ async function boot() {
   const skyline = createSkyline({ scene, rng: rng.fork("skyline") });
   const terrain = createTerrain({ rng, physics, scene });
   const groundDetail = createGroundDetail({ rng: rng.fork("ground-detail"), scene, terrain, wind });
-  const parkDef = generateParkLayout({ seed: params.seed, terrain });
+  // `?routes=6` (M2a "quick dev"): the old M1 six-route park instead of the 15-route+legendary default.
+  const parkDef = generateParkLayout({ seed: params.seed, terrain, config: params.routes === 6 ? PARK_CONFIG_SMALL : PARK_CONFIG });
   const forest = createForest({ rng: rng.fork("forest"), scene, physics, terrain, wind, heroTrees: parkDef.heroTrees });
 
-  // --- park (M1.1: generated layout → six built routes; M1.2: signage) ------------------------------------
+  // --- park (M1.1: generated layout → routes; M1.2: signage; M2a: 15 routes + legendary + junctions) -----
   const wood = getWoodTextures(params.seed);
   const course = loadPark(parkDef, { scene, physics, terrain, forest, rng: rng.fork("course"), textures: wood });
   const signs = createSigns({ parkDef, scene, terrain, textures: wood, rng: rng.fork("signs") });
+  // The legendary finale has no parkplan entry at all (GDD §3.12) – the park board and course map both
+  // read this filtered copy instead of `parkDef` directly (js/park/signs.js filters internally instead,
+  // since it also needs the un-filtered park for its per-hub route grouping).
+  const publicParkDef = { ...parkDef, routes: parkDef.routes.filter((r) => r.category !== "legendary") };
   const parkBoard = createParkBoard({
-    root: document.getElementById("hud"), scene, physics, parkDef, terrain, rng: rng.fork("park-board"), textures: wood,
+    root: document.getElementById("hud"), scene, physics, parkDef: publicParkDef, terrain, rng: rng.fork("park-board"), textures: wood,
   });
+  const wichtel = createWichtelCourses({ scene, physics, terrain, parkDef, rng: rng.fork("wichtel"), textures: wood });
   const buildMs = Math.round(performance.now() - t0);
   log.info(`world built in ${buildMs} ms · trees ${forest.trees.length} · hubs ${terrain.hubs.length} · routes ${course.routes.length} · course on tree #${course.tree.id}`);
 
@@ -112,11 +122,15 @@ async function boot() {
   player.addState("zipline", createZiplineState({ input, events, camera: player.camera, hud, stamina, nerves, wind }));
   player.addState("tarzan", createTarzanState({ input, events, nerves, stamina }));
 
+  // --- flow (M2a, GDD §3.10): advanced here (next to vitals), read by js/game/session.js's HUD/mastery ---
+  const flow = createFlow();
+  events.on("player:fell", () => flow.onFall());
+
   // --- kassa + Einschulung + ticket clock + stamp card (M1.3/M1.5) --------------------------------------
   const overlay = document.getElementById("overlay");
   const ticket = createTicketClock();
   const interaction = createInteraction({ player, input, belay, course, hud, events, vitals, save, ticket, occupancy });
-  const courseMap = createCourseMap({ root: overlay, parkDef, terrain, save, player, getAgents: () => (agents ? agents.list : []) });
+  const courseMap = createCourseMap({ root: overlay, parkDef: publicParkDef, terrain, save, player, getAgents: () => (agents ? agents.list : []) });
   if (params.map) courseMap.open();
 
   const ticketHoursFor = (typeId) => (TICKET_TYPES.find((tt) => tt.id === typeId) || TICKET_TYPES[0]).hours;
@@ -124,6 +138,11 @@ async function boot() {
   function applyChoice(choice) {
     belay.setMode(choice.belayMode);
     player.states.get("zipline").setRiderMass(massForSizeClass(choice.sizeClassId));
+    // M2a sidegrade (GDD §3.12): a kassa-level choice like belay/size, not part of the ticket itself –
+    // js/player/sidegrade.js is the live-read switch every call site (stamina, on-element, on-zipline) uses.
+    const equipmentId = choice.equipmentId ?? null;
+    setSidegrade(equipmentId);
+    save.setEquipment(equipmentId);
   }
   /** Kassa confirm: applies the choice, opens the day, then the Einschulung unless already done. */
   function startDay(choice) {
@@ -142,7 +161,7 @@ async function boot() {
     ticket.reset({ ticketHours: ticketHoursFor(tk.type) });
     ticket.update(tk.elapsedReal);
     sky.setTimeOfDay(ticket.timeOfDay);
-    applyChoice({ belayMode: tk.belayMode || params.belayMode, sizeClassId: tk.sizeClassId });
+    applyChoice({ belayMode: tk.belayMode || params.belayMode, sizeClassId: tk.sizeClassId, equipmentId: save.data.equipmentId });
     session.beginDay();
   }
 
@@ -151,23 +170,29 @@ async function boot() {
     onNewDay() { save.endTicket(); kassa.show(); },
     onContinue() { ticket.end(); save.endTicket(); },
   });
-  const session = createSession({ player, course, parkDef, events, hud, save, root: document.getElementById("hud"), ticket, input, stampCard });
+  const session = createSession({ player, course, parkDef, events, hud, save, root: document.getElementById("hud"), ticket, input, stampCard, flow });
   const briefing = createBriefing({
     root: document.getElementById("hud"), scene, physics, terrain, parkDef, textures: wood,
     rng: rng.fork("briefing"), belay, player, input, save, events,
   });
   const kassa = createKassa({
-    root: overlay,
-    defaultChoice: { type: TICKET_TYPES[0].id, sizeClassId: "adult", belayMode: params.belayMode },
+    root: overlay, save,
+    defaultChoice: { type: TICKET_TYPES[0].id, sizeClassId: "adult", belayMode: params.belayMode, equipmentId: save.data.equipmentId },
     onConfirm: startDay,
   });
+  // Re-clip feedback (M2a, ROADMAP "Umhäng-Feedback"): purely event-driven, suppressed while the
+  // Einschulung dialogue/practice ritual is still running (a beginner's first fumble is not "clean").
+  const clipMeter = createClipMeter({ belay, events, hud, flow, isSuppressed: () => briefing.active });
 
   // --- pause/options screen (M1.7) --------------------------------------------------------------------
   /** Shared by the options screen's official "End day" button and the WIPFEL.debug.endTicket() dev hook
-   * (M1.5) – exhausts the ticket's remaining game minutes and skips the extend-grace window. */
+   * (M1.5) – exhausts the ticket's remaining game minutes and skips the extend-grace window. Guards
+   * against the season pass's `Infinity` remaining time (M2a) – there is nothing to "exhaust" there,
+   * `session.forceDayEnd()` already shows the stamp card on demand regardless of the ticket's own state. */
   function endTicketNow() {
     if (!ticket.started) return false;
-    ticket.update(ticket.remainingGameMinutes * TIME.gameHourMinutes + 1);
+    const bump = Number.isFinite(ticket.remainingGameMinutes) ? ticket.remainingGameMinutes * TIME.gameHourMinutes + 1 : TIME.gameHourMinutes;
+    ticket.update(bump);
     session.forceDayEnd();
     return true;
   }
@@ -217,6 +242,8 @@ async function boot() {
     "npc count": agents ? agents.count : 0,
     "npc ms": npcMs.toFixed(3),
     "world ms": buildMs,
+    flow: flow.value.toFixed(2),
+    routes: course.routes.length,
   }));
   if (params.debug) debug.toggle(true);
   if (params.physics) physics.setDebug(scene, true);
@@ -250,8 +277,12 @@ async function boot() {
     player.update(dt);
     ticket.update(dt);
     session.update(dt);
-    course.update(dt, elapsed);
+    course.update(dt, elapsed, player.position);
     vitals.update(dt);
+    // Flow (M2a, GDD §3.10): "progressing" = actually crossing an obstacle, not just standing on one –
+    // js/game/flow.js#update also pauses (not resets) on the ladder and on a platform between elements.
+    const onElement = player.mode === "element" || player.mode === "zipline" || player.mode === "tarzan";
+    flow.update(dt, { progressing: onElement, frozen: vitals.nerves.frozen, nervesValue: vitals.nerves.value });
     interaction.update(dt);       // the player's own occupancy claim/release happens here first –
     if (agents) {                 // guests below only ever see a slot the player has already taken.
       const t0 = performance.now();
@@ -287,6 +318,8 @@ async function boot() {
     terrain, forest, sky, wind, player, parkDef, course, signs, belay, hud, interaction, vitals, session, save, autoplay,
     kassa, briefing, stampCard, ticket, options,
     parkBoard, courseMap, occupancy, agents, guestRig,
+    // M2a
+    flow, clipMeter, wichtel,
     debug: {
       /** Force the slip a play-test needs on demand (screenshots, smoke runs). */
       forceSlip(angle = 1) {

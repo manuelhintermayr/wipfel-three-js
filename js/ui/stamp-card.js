@@ -2,13 +2,18 @@
 // numeral, name, time, falls), unlock progress, and the day's totals. Shown only at ticket end or
 // right after finishing a route with no ticket time left (js/game/session.js decides when). Pure DOM;
 // `save` is read-only here (unlock progress), never written.
+//
+// M2a: each stamp grows a mastery-pip row and, for a time trial, a "TRIAL" tag plus its own flow
+// score (GDD §3.12/§3.10) – js/game/session.js already folds `mastery`/`isTrial`/`flowScore` into
+// every `day.routes` entry, so this module only has to render whatever is there.
 import { t, formatTime } from "../core/i18n.js";
-import { CATEGORY_BY_ID } from "../config.js";
+import { CATEGORY_BY_ID, MASTERY } from "../config.js";
 
 /**
  * @param {{ root: HTMLElement, save, onNewDay: () => void, onContinue: () => void }} options
  * @returns {{ visible: boolean, show(summary): void, hide(): void, dispose(): void }}
- *   `summary` = { routes: [{category,numeral,nameKey,seconds,falls}], obstaclesTotal, maxZipKmh, rescues }
+ *   `summary` = { routes: [{category,numeral,nameKey,seconds,falls,isTrial?,mastery?,flowScore?}],
+ *   obstaclesTotal, maxZipKmh, rescues }
  */
 export function createStampCard({ root, save, onNewDay, onContinue }) {
   const screen = el("div", "screen stamp-screen");
@@ -40,12 +45,15 @@ export function createStampCard({ root, save, onNewDay, onContinue }) {
       const stamp = el("div", "stamp");
       stamp.style.setProperty("--cat-color", category ? category.css : "var(--cat-blue)");
       // Colour is never the only cue (GDD §5) – the category symbol rides along with the numeral.
+      const numeralText = `${category ? category.symbol : ""} ${route.numeral}`.trim();
       stamp.append(
-        el("div", "numeral", `${category ? category.symbol : ""} ${route.numeral}`.trim()),
+        el("div", "numeral", route.isTrial ? `${numeralText} · ${t("stamp.trialTag")}` : numeralText),
         el("div", "name", t(route.nameKey)),
         el("div", "time", formatTime(route.seconds)),
         el("div", "falls", t("stamp.falls", { falls: route.falls })),
       );
+      if (route.mastery) stamp.appendChild(masteryPips(route.mastery));
+      if (Number.isFinite(route.flowScore)) stamp.appendChild(el("div", "flow-score", t("stamp.flowScore", { score: route.flowScore })));
       stampsRow.appendChild(stamp);
     }
     if (!summary.routes.length) stampsRow.appendChild(el("div", "stamp-empty", t("stamp.none")));
@@ -71,6 +79,17 @@ function fact(value, labelKey) {
   const cell = el("div", "stamp-fact");
   cell.append(el("b", "", value), el("span", "", t(labelKey).toUpperCase()));
   return cell;
+}
+
+/** Four tier pips (● earned / ○ not yet) – same rendering as js/ui/hud-route.js's start banner. */
+function masteryPips(tiers) {
+  const row = el("div", "mastery-pips");
+  MASTERY.tierOrder.forEach((tier, i) => {
+    const pip = el("span", `pip${tiers[i] ? " earned" : ""}`, tiers[i] ? "●" : "○");
+    pip.title = t(`mastery.${tier}`);
+    row.appendChild(pip);
+  });
+  return row;
 }
 
 function unlockChip(category, unlocked) {

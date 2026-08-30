@@ -885,3 +885,188 @@ Audited and completed as part of this milestone: the start banner (`js/ui/hud-ro
 the stamp card (`js/ui/stamp-card.js`) were missing the category symbol next to their colour – both now
 prefix it, matching the route header, the signage, the course map legend and the map's route info panel,
 which already had it.
+
+## Park scale-up, junctions, Wichtel courses (M2a – contracts)
+
+### `js/park/layout.js` (extended)
+```js
+export const PARK_CONFIG        // default: 15 secured routes (blue I-V, red I-VI, black I-IV) across
+                                 // four hubs + the hidden "legendary" finale, plus two junctions
+export const PARK_CONFIG_SMALL  // `?routes=6`: the old M1 six-route park, unchanged, all at hub 0
+generateParkLayout({ seed, terrain, config? }) → parkDef   // same shape as M1.1, each route now also
+                                                            // carries `hub` (index into terrain.hubs)
+```
+Each `PARK_CONFIG` route entry gained two optional fields: `hub` (0 spawn / 1 hut / 2 deck-east / 3
+deck-top – `js/world/terrain.js`'s hub order) so routes fan out from four separate trailheads instead of
+cramming sixteen entries around one 35°-gap budget (16 × 22.5° < 35°, the M1.1 hub could never have held
+this many), and `join: { hostNumeral, hostPlatformIndex }` for a junction guest. Chain lengths are
+short and mostly flat (2–4 platforms) rather than literally 15 × GDD's "4/4–5/5–6" prose, which would be
+60–90 platforms against the ≤ 52 total-platform performance budget below – the same kind of trade-off
+M1.1's own `PARK_CONFIG` comment already made at 6-route scale, documented in `layout.js`'s header.
+Category feel keeps coming from the deck-height window and excluded/heavier catalogue kinds
+(`layout-validate.js#CATEGORY_RULES`, `legendary` added there too: 14–20 m, nothing excluded), not from
+raw platform count.
+
+**Junctions** (GDD §3.9 "Kreuzungspodeste"): a guest route's *first* platform is an existing interior
+platform of an earlier, same-category host route – not a freshly walked-to tree. `layout-route.js
+#buildRouteCandidate`'s new `join` option feeds `buildChain`/`assignDeckHeights` a `startTree`/
+`startHeight` instead of a fresh hub-relative placement, and `buildEdges` a `firstPlatformId` override so
+the guest's first edge leaves *from* the host's platform id. `layout.js#resolveJoin` looks the host route
+up (already fully built earlier in the same `generateParkLayout` call) and the platform keeps the host's
+`id`/`treeIndex`/`deckHeight` verbatim – so the guest route never allocates a new hero tree for it, which
+is a net *saving* against the platform budget, not a cost. Default park: `red-3 ⨝ red-2` and
+`black-2 ⨝ black-1`, both platform `kind: "junction"`.
+
+`js/park/loader.js#loadPark` builds a junction's shared platform exactly once: a park-wide
+`sharedPlatforms` Map (id → built platform) threaded through every `buildRoute()` call – a route whose
+platform id is already in the map reuses the object instead of calling `createPlatform` again (and skips
+it in that route's own static merge/dispose list, tracked separately as `route.ownPlatforms`). The
+course-level anchor list and graph (`buildGraph`) both de-duplicate by id for the same reason (a
+junction's ring anchor/node would otherwise appear once per route that lists it); a junction's graph node
+carries a `routes: [hostId, guestId]` array instead of a single `route` field. Player-side: nothing
+special – `js/player/interaction.js#reachableAnchor` already finds *any* anchor within range regardless
+of which route(s) list it, so standing on a junction offers both continuations' lifelines as F targets
+exactly like any other platform, and `js/game/session.js`'s per-run `completeObstacle` already ignores
+edge ids that are not its own, so whichever edge the player actually clips into and crosses is the one
+(and only one) route that advances. `js/park/signs.js#buildJunctionSigns` adds one small board standing
+on the shared deck itself (not a ground post) showing both routes' numerals, reusing the hub cluster's
+own category-board painter at a smaller scale (`SIGNS.junction`).
+
+**Legendary route** (GDD §3.12 "Legendäre Routen ohne Parkplan-Eintrag"): just another `PARK_CONFIG`
+entry (`category: "legendary"`, 6 platforms, hub 1/hut), generated through the exact same pipeline as
+every secured route – what makes it hidden is purely a *rendering* filter, not a generation-time secret:
+`js/park/signs.js` filters it out of both the hub-cluster grouping and the per-route entry-sign loop, and
+`js/main.js` builds a `publicParkDef` (parkDef with `routes` filtered to `category !== "legendary"`) that
+`js/park/park-board.js` and `js/ui/course-map.js` receive instead of the real `parkDef` – `js/game/route.js
+#routesFromPark` and `js/game/session.js` still get the *real* `parkDef`, so the route is fully playable
+(its own HUD header/banner/stamp card work normally), just absent from every map/signage surface. Unlock:
+`js/core/save.js#unlockCategory("legendary")`/`isUnlocked("legendary")` follow the same additive
+`data.unlocks` shape as red/black; `js/game/session.js`'s category-gate check
+(`nextGateCategory`/`save.unlockCategory`) is extended so completing the *fourth* black route – not just
+"a" black route – is what unlocks it (`js/core/save.js#unlockCategory` is only called once all four
+`black-*` route ids have a completion recorded).
+
+**Budget check**: 15 secured routes → 43 distinct platforms (46 "as listed" minus the 3 platforms two
+junctions save), + legendary's 6 = 49 total, under the `LAYOUT_LIMITS.maxTotalPlatforms` (52) cap; draw
+calls/triangles are the measured acceptance numbers in `HANDOVER.md`.
+
+### `js/park/wichtel.js` (new)
+```js
+createWichtelCourses({ scene, physics, terrain, parkDef, rng, textures }) → { group, courses, dispose() }
+```
+Two tiny ground-level (`WICHTEL.deckHeight` = 0.35 m) log-and-plank parcours near the spawn hub
+(RESEARCH-DATA §1) – pure flavour, entirely outside the routes/generator/loader/belay pipeline: no
+anchors, no lifeline, no `element.js` interface, not part of `parkDef.routes` and not counted against the
+platform budget. Built directly with `js/park/timber.js`, walkable by anyone because the character
+controller's own autostep (`PLAYER.kcc.autostepHeight` 0.44 m) already clears 35 cm without a ramp. Each
+of the `WICHTEL.logCount` segments (every third one a short plank instead of a log) gets its own thin
+static box collider, the same "slab under the visible surface" trick `js/park/platform.js`'s deck uses.
+Placement is a bounded random search near the spawn hub, clear of every real route's hero trees
+(`layout-validate.js#farFromOtherRoutes`, reused) and best-effort off any mapped path – no hard failure
+if the search runs out, since this is decoration, not a validated route. Verified via
+`WIPFEL.wichtel.group`'s meshes, not a route count (guests are not wired to wander them yet – see
+`HANDOVER.md`'s Offen list).
+
+## Season pass, time trials, flow, mastery, re-clip feedback, sidegrades (M2a – contracts)
+
+### `js/game/ticket.js` (extended)
+The season pass (GDD §3.8, `TICKET_TYPES` "season") is `hours: Infinity` and nothing else – every
+comparison the clock already does (`remainingGameMinutes`, `expired`, `clippable`) is ordinary
+finite-vs-`Infinity` maths, so an infinite ticket simply never runs out; the only change was letting
+`reset({ ticketHours })` accept `Infinity` (`Number.isFinite` rejected it, `typeof … === "number" && … > 0`
+does not). `get isOpenEnded()` (`!Number.isFinite(totalGameMinutes)`) is the one new getter, read by
+`js/game/session.js` to hide `.hud-ticket` and by nothing else – the day-end sequence (30-min toast,
+extend prompt) simply never triggers on its own for the same underlying reason. "Stamp card on demand
+only" (GDD §3.8) is already what the options screen's "End day" / `WIPFEL.debug.endTicket()` do for every
+ticket type; `js/main.js#endTicketNow` guards its own "exhaust the remaining minutes" math against a
+non-finite `remainingGameMinutes` (adds one game hour instead of `Infinity`, which would otherwise poison
+`elapsedReal` permanently).
+
+### `js/game/route.js` (extended) + `js/game/mastery.js` (new)
+```js
+createRouteRun(def) → { …, isTrial, markTrial() }             // def now also carries `parS`
+routesFromPark(parkDef) → [{ …, parS }]                        // par time estimate, MASTERY.parScale
+evaluateMastery({ falls, seconds, parS, averageFlow }) → boolean[4]   // MASTERY.tierOrder order
+mergeTiers(previous, current) → boolean[4]                      // OR – a tier earned once is never lost
+```
+`parS` (GDD §3.12 "unter Richtzeit") is `MASTERY.parScale` (1.6, a documented design assumption – no
+real-world "average crossing time" exists to calibrate against) times the sum of each edge's own
+length ÷ a per-kind speed estimate; rather than duplicate a 12-entry walk-speed table into the THREE-free
+`catalogue-data.js` just for this, it reuses the two speed constants `js/npc/agents.js` already needs for
+the same estimation problem (`NPC.elementSpeedFallback` for continuous kinds, a fixed slower rate for
+`discrete` ones via `catalogue-data.js#discrete`, `NPC.zipSecondsPerMetre` inverted for the zip leg).
+
+Time trials (GDD §3.8 "Zeitläufe"): `markTrial()` flags the *next* attempt, and – if the run is currently
+`"done"` (a route revisited after completing it once) – re-arms it back to `"idle"` in the same call, so
+the existing ladder-climb → `beginCountdown()` → 3-2-1-GO → zip machinery is completely unchanged; only
+`finish()`'s returned `isTrial` tells `js/game/session.js` which save bucket the time goes into.
+`js/game/session.js`'s banner logic offers the trial (`[G]`, `TRIALS.inputAction` – `core/input.js`'s
+`KeyT` was already "camera", so trials bind `KeyG` instead, documented in both files) once
+`save.routeBest(id) != null`; pressing it calls `run.markTrial()` and shows a toast. Mastery is evaluated
+once, at `zip:finished`, from that run's own numbers plus the flow module's running average since the
+ladder-climb handler last called `flow.resetRun()`; `js/core/save.js#recordMastery`/`recordTrial` are
+both additive (`data.mastery[routeId] = { tiers: bool[4] }`, `data.trials[routeId] = bestSeconds`),
+independent of the normal `data.routes` best-time bucket. `js/ui/hud-route.js`'s start banner and
+`js/ui/stamp-card.js`'s per-route stamp both render the four tiers as pips (`● earned / ○ not yet`,
+`MASTERY.tierOrder` labels from `mastery.*` i18n keys) via the same small `masteryPips()` helper,
+duplicated in each file rather than shared – two ~10-line DOM builders were not worth a third module.
+
+### `js/game/flow.js` (new)
+```js
+createFlow() → { value, averageThisRun, resetRun(), onFall(), creditCleanClip(),
+  update(dt, { progressing, frozen, nervesValue }) → number }
+computeFlowScore(obstaclesCrossed, averageFlow) → number   // per-run score, stamp card
+```
+Pure, unit-tested (`tests/unit/flow.test.mjs`) exactly like `js/player/nerves.js`. Builds only while
+`progressing` (on an element/zipline/tarzan swing – `js/main.js`'s gameplay phase derives this from
+`player.mode`) has held for `FLOW.cleanHoldSeconds` unbroken *and* `nervesValue < FLOW.nervesCeiling`;
+`frozen` or `onFall()` (wired to the `player:fell` event) snap it straight back to `FLOW.min`. Not
+progressing (ground, ladder, standing on a platform) *pauses* it for `FLOW.pauseGraceSeconds` before it
+starts decaying back towards `min` over `FLOW.decaySeconds` – a breather does not erase a run, dawdling
+does. `resetRun()` (called by `js/game/session.js` when a route's countdown begins) is what scopes
+`averageThisRun` (a time-weighted mean) to one attempt, for both the mastery "in flow" tier and
+`computeFlowScore`. `js/ui/hud-route.js#setFlow(value, unlocked)` drives the mockup's `.hud-flow` bar;
+`unlocked` is `save.hasCompletedAnyRoute()` (GDD §3.10 "erst nach der ersten sauberen Begehung" –
+simplified to "ever completed one route", documented in the HUD module's own header) and the bar is
+additionally only shown while a run is actually `"running"`.
+
+### `js/game/clip-meter.js` (new)
+```js
+createClipMeter({ belay, events, hud?, flow, isSuppressed? }) → { dispose() }
+```
+Pure event wiring (ROADMAP "Umhäng-Feedback"): times the real-world gap between the first
+`belay:open`/`belay:click` after arriving at a *new* anchor and the moment `belay.bothOnSameAnchor()`
+settles there – working unmodified across all three belay modes (continuous fires one click and settles
+immediately, near-zero elapsed = always clean; smart's press-1/press-2 both land inside the same window;
+classic's up-to-four open/clip presses are timed end to end). Under `CLIP_METER.cleanSeconds` (+ the
+gloves sidegrade's `reclipSecondsPenalty`, added to the measured duration rather than changing the
+threshold) triggers `flow.creditCleanClip()` and, unless `isSuppressed()` (the Einschulung practice
+ritual, `js/game/briefing.js#active`), a small toast.
+
+### `js/player/sidegrade.js` (new)
+```js
+setSidegrade(id|null)   getSidegrade() → id|null   sidegradeEffects() → { gripDrainScale,
+  reclipSecondsPenalty, balanceDisturbanceScale, pullUpDrainScale, zipDragScale, zipBrakeZoneScale }
+```
+Exactly the `js/player/assist.js`/`belay.js#setMode` shape – a closure variable behind a getter, read
+fresh at every call site, never a rebuilt state. `SIDEGRADES` (`js/config.js`) documents each of the
+three kassa options and exactly which effect(s) and call site(s) they touch:
+- **gloves** – `js/player/stamina.js#rateOf`'s new optional `gripDrainScale` load field (default 1,
+  every other caller unaffected) scales `STAMINA.gripDrain`; `js/game/clip-meter.js` adds
+  `reclipSecondsPenalty` to the measured ritual duration before comparing it to `CLIP_METER.cleanSeconds`.
+- **light shoes** – `js/player/on-element.js`'s own `disturbanceScale()` (already multiplying every
+  wobble excitation by `assistScale().disturbance`) multiplies in `balanceDisturbanceScale` too, so
+  assist mode and this sidegrade compose instead of one overriding the other; `js/player/fall.js`'s
+  `stamina.update` passes the new `pullUpDrainScale` load field, scaling `STAMINA.pullUpDrain`.
+- **fast trolley** – `js/player/on-zipline.js#enter()` resets the ride's `dragCoeff` to
+  `ZIP_PHYSICS.dragCoeff × zipDragScale` for that ride only (the cable/trolley mesh never changes, same
+  pattern as a heavier rider already changing `massKg` per ride) – `zipDragScale` is derived by
+  dimensional analysis (drag ∝ 1/v² at a fixed slope, so 1/1.1² for "+10% top speed", documented in
+  `config.js`). `js/zipline/brakes.js#createNetBrake`'s `inZone`/`apply` both gained an optional
+  `zoneScale` parameter (default 1): the brake's *decision point* moves up to 20% closer to the cable's
+  end without moving the built marker-sleeve mesh – a small, documented seam between what the rider sees
+  coming and where the ride actually latches, acceptable at a few metres out of a much longer ride.
+Selection: the kassa's `Equipment` row (`js/ui/kassa.js`, unlocked once `save.hasCompletedAnyRoute()`,
+re-checked on every `show()` so it appears without a screen rebuild), persisted as
+`save.data.equipmentId` (`js/core/save.js#setEquipment`, additive, `null` = none) and applied in
+`js/main.js#applyChoice` alongside belay mode and rider mass.

@@ -127,3 +127,29 @@ test("reset after end starts a brand new day at full time", () => {
   assert.equal(clock.remainingGameMinutes, 240);
   assert.equal(clock.extensionsUsed, 0, "a new day resets the extension count");
 });
+
+// --- M2a: season pass (TICKET_TYPES "season", hours: Infinity) ---------------------------------------
+
+test("a normal ticket is not open-ended", () => {
+  const clock = createTicketClock({ ticketHours: 4 });
+  clock.reset();
+  assert.equal(clock.isOpenEnded, false);
+});
+
+test("season pass: never expires, always clippable, however much real time passes", () => {
+  const clock = createTicketClock();
+  clock.reset({ ticketHours: Infinity });
+  assert.equal(clock.isOpenEnded, true);
+  assert.equal(clock.clippable, true);
+  clock.update(REAL_SECONDS_PER_GAME_HOUR * 1000);
+  assert.equal(clock.expired, false);
+  assert.equal(clock.clippable, true);
+  assert.equal(clock.remainingGameMinutes, Infinity);
+});
+
+test("season pass: timeOfDay still advances normally (the sky clock keeps ticking)", () => {
+  const clock = createTicketClock();
+  clock.reset({ ticketHours: Infinity });
+  clock.update(REAL_SECONDS_PER_GAME_HOUR * 4);
+  assert.equal(clock.timeOfDay, timeOfDayFor(4, TICKET.openingHour));
+});

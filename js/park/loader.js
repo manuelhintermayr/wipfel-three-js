@@ -37,6 +37,10 @@ export const LOADER = Object.freeze({
   ringRange: 2.1,          // the platform ring circles the trunk, so anywhere on the deck counts
   elementRange: 1.9,       // reach of an exercise lifeline, measured from its two cable ends
   deckStubRange: 2.3,
+  // M2a (ROADMAP "≤ 640 draw calls at spawn", 16 routes across four hubs): a route whose entry deck is
+  // further than this from the player never needs its static mesh drawn – physics colliders are
+  // untouched, `mesh.visible` is a render-only flag, so this cannot affect standing on a far platform.
+  staticCullDistance: 140,
 });
 
 /**
@@ -57,10 +61,18 @@ export function loadPark(parkDef, { scene, physics, terrain, forest, rng, textur
   const signMap = createZipPictogram();
   const timber = createTimberBuilder({ textures: wood, signMap });
 
-  const routes = parkDef.routes.map((routeDef) => buildRoute(routeDef, { scene, physics, terrain, forest, wind, timber, wood, rng: rng.fork(`route-${routeDef.id}`) }));
+  // Junction platforms (M2a, GDD §3.9) are listed by two routes but must be built exactly once –
+  // shared across every buildRoute() call by id, so the second route to reach it reuses the object
+  // instead of laying a duplicate platform (and colliders) on the same tree.
+  const sharedPlatforms = new Map();   // platform id -> built platform
+  const routes = parkDef.routes.map((routeDef) => buildRoute(routeDef, { scene, physics, terrain, forest, wind, timber, wood, sharedPlatforms, rng: rng.fork(`route-${routeDef.id}`) }));
 
-  const anchors = routes.flatMap((r) => r.anchors);
-  const anchorById = new Map(anchors.map((a) => [a.id, a]));
+  // A junction's platform ring anchor is listed by both routes (same id) – keep one entry (the host's,
+  // seen first) so nearestAnchor()'s linear scan never checks the same physical ring position twice.
+  const anchorsSeen = new Map();
+  for (const r of routes) for (const a of r.anchors) if (!anchorsSeen.has(a.id)) anchorsSeen.set(a.id, a);
+  const anchors = Array.from(anchorsSeen.values());
+  const anchorById = anchorsSeen;
   const elementByAnchor = new Map(routes.flatMap((r) => r.elements).map((e) => [e.lifeline.anchorId, e]));
   const ladderByAnchor = new Map(routes.map((r) => [r.ladderAnchorId, r.ladder]));
   const routeById = new Map(routes.map((r) => [r.id, r]));
@@ -125,7 +137,19 @@ export function loadPark(parkDef, { scene, physics, terrain, forest, rng, textur
       return null;
     },
 
-    update(dt, elapsed) { for (const route of routes) for (const element of route.elements) element.update(dt, elapsed); },
+    /**
+     * `focusPos` (M2a, optional – omit it and every route's static mesh just stays visible, the M1
+     * behaviour): distance-culls each route's merged static mesh (platforms/ladder/entry-deck/zip
+     * hardware) from `focusPos`, measured to the route's entry deck. Rendering only – Rapier colliders
+     * are never touched, so a route far from the player is invisible but still fully solid underfoot
+     * for anyone (a guest, a returning player) who *is* there.
+     */
+    update(dt, elapsed, focusPos = null) {
+      for (const route of routes) {
+        for (const element of route.elements) element.update(dt, elapsed);
+        if (focusPos) route.staticGroup.visible = route.entryDeck.group.position.distanceTo(focusPos) < LOADER.staticCullDistance;
+      }
+    },
 
     dispose() {
       for (const route of routes) {
@@ -137,7 +161,9 @@ export function loadPark(parkDef, { scene, physics, terrain, forest, rng, textur
         if (route.zipLanding) route.zipLanding.dispose();
         route.ladder.dispose();
         route.entryDeck.dispose();
-        for (const platform of route.platforms) platform.dispose();
+        // Only this route's *own* platforms (never a junction's shared, reused one – js/park/layout.js
+        // §"Kreuzungspodeste" – which belongs to whichever route built it first and is disposed there).
+        for (const platform of route.ownPlatforms) platform.dispose();
       }
       timber.dispose();
       signMap.dispose();
@@ -146,8 +172,14 @@ export function loadPark(parkDef, { scene, physics, terrain, forest, rng, textur
   return course;
 }
 
-/** Build one route's geometry: platforms on its hero trees, entry deck + ladder, elements, Flying Fox. */
-function buildRoute(routeDef, { scene, physics, terrain, forest, wind, timber, wood, rng }) {
+/**
+ * Build one route's geometry: platforms on its hero trees, entry deck + ladder, elements, Flying Fox.
+ * `sharedPlatforms` (M2a junctions, GDD §3.9) is one Map for the whole park – a platform id already
+ * built by an earlier route (the junction's host) is reused verbatim instead of built a second time;
+ * `ownPlatforms` (only this route's newly built ones) is what the static merge and course-level
+ * dispose() below actually own, so a shared platform's mesh/collider is only ever merged/disposed once.
+ */
+function buildRoute(routeDef, { scene, physics, terrain, forest, wind, timber, wood, sharedPlatforms, rng }) {
   const routeId = routeDef.id;
   const trees = routeDef.platforms.map((p) => {
     const tree = forest.trees[p.treeIndex];
@@ -155,11 +187,20 @@ function buildRoute(routeDef, { scene, physics, terrain, forest, wind, timber, w
     return tree;
   });
 
-  const platforms = routeDef.platforms.map((p, i) => createPlatform({
-    scene, physics, tree: trees[i], height: p.deckHeight, radius: p.radius, kind: p.kind,
-    facing: platformFacing(trees, i, routeDef.entry.facing), rng: rng.fork(`platform-${i}`), textures: wood,
-  }));
-  platforms.forEach((platform, i) => { platform.id = routeDef.platforms[i].id; });
+  const platforms = [];
+  const ownPlatforms = [];
+  routeDef.platforms.forEach((p, i) => {
+    const existing = sharedPlatforms.get(p.id);
+    if (existing) { platforms.push(existing); return; }
+    const built = createPlatform({
+      scene, physics, tree: trees[i], height: p.deckHeight, radius: p.radius, kind: p.kind,
+      facing: platformFacing(trees, i, routeDef.entry.facing), rng: rng.fork(`platform-${i}`), textures: wood,
+    });
+    built.id = p.id;
+    sharedPlatforms.set(p.id, built);
+    platforms.push(built);
+    ownPlatforms.push(built);
+  });
 
   const entryPos = { x: routeDef.entry.x, y: terrain.heightAt(routeDef.entry.x, routeDef.entry.z), z: routeDef.entry.z };
   const entryDeck = createEntryDeck({
@@ -181,7 +222,7 @@ function buildRoute(routeDef, { scene, physics, terrain, forest, wind, timber, w
   // terminations, marker sleeve – js/elements/zipline.js's header comment: "the fixed hardware …
   // does not move", unlike its cable/net/trolley siblings) never move again once built – fold their
   // already-positioned meshes into one mesh per material for the whole route (SCALE CHECK).
-  const staticGroups = [entryDeck.group, ladder.group, ...platforms.map((p) => p.group)];
+  const staticGroups = [entryDeck.group, ladder.group, ...ownPlatforms.map((p) => p.group)];
   if (zip) {
     staticGroups.push(zip.landing.group);
     const fixed = zip.element.group.children.find((g) => g.name === `${zip.element.id}-fixed`);
@@ -196,7 +237,7 @@ function buildRoute(routeDef, { scene, physics, terrain, forest, wind, timber, w
   return {
     id: routeId, category: routeDef.category, numeral: routeDef.numeral, nameKey: routeDef.nameKey,
     tree: trees[0], trees, facing: routeDef.entry.facing,
-    platform: platforms[0], platforms, ladder, entryDeck, elements,
+    platform: platforms[0], platforms, ownPlatforms, ladder, entryDeck, elements,
     zipline: zip ? zip.element : null, zipLanding: zip ? zip.landing : null,
     ladderAnchorId, topAnchorId: `${platforms[0].id}-ring`,
     anchors, staticGroup,
@@ -288,12 +329,21 @@ function buildRouteAnchors(routeId, ladderAnchorId, entryDeck, platforms, elemen
   return anchors;
 }
 
-/** The park as nodes and edges, across every route – js/ui's future map overlay (M1.4) reads this. */
+/**
+ * The park as nodes and edges, across every route – js/ui's future map overlay (M1.4) reads this.
+ * A junction platform (M2a) is listed by two routes; it becomes one node with a two-entry `routes`
+ * array (`route` still holds the first/host route id, for callers that only expect one).
+ */
 function buildGraph(routes) {
   const nodes = [], edges = [];
+  const nodeById = new Map();
   for (const route of routes) {
     route.platforms.forEach((platform, i) => {
-      nodes.push({ id: platform.id, route: route.id, kind: platform.kind, index: i, position: platform.anchorPoints.deck.clone(), capacity: platform.capacity });
+      const existing = nodeById.get(platform.id);
+      if (existing) { existing.routes.push(route.id); return; }
+      const node = { id: platform.id, route: route.id, routes: [route.id], kind: platform.kind, index: i, position: platform.anchorPoints.deck.clone(), capacity: platform.capacity };
+      nodeById.set(platform.id, node);
+      nodes.push(node);
     });
     if (route.zipLanding) {
       nodes.push({ id: `${route.id}-zip-landing`, route: route.id, kind: "zip-arrival", index: route.platforms.length, position: route.zipLanding.stand.clone(), capacity: 1 });

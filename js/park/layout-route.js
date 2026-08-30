@@ -40,29 +40,35 @@ const LEGACY_BLUE_1 = Object.freeze({
 });
 
 /**
- * @param {{ routeId: string, category: "blue"|"red"|"black", chainLength: number, bearing: number,
+ * @param {{ routeId: string, category: "blue"|"red"|"black"|"legendary", chainLength: number, bearing: number,
  *   terrain: { heightAt, isPath, slopeAt, hubs }, rng: import("../core/rng.js").Rng,
- *   otherTrees: Array<{x,z}>, spawnHub: {x,z,radius}, homePoint: {x,z} }} options
+ *   otherTrees: Array<{x,z}>, spawnHub: {x,z,radius}, homePoint: {x,z},
+ *   join?: { hostTree: object, hostTreeIndex: number, hostPlatformId: string, hostDeckHeight: number } }} options
+ *   `join` (M2a, GDD §3.9 "Kreuzungspodeste"): this route's first platform is an existing platform of
+ *   an earlier route of the *same* category instead of a freshly placed tree – see js/park/layout.js#JUNCTIONS.
  * @returns {{ trees: Array<{x,z,species,height,y}>, entry: {x,z,facing},
  *   platforms: Array<{id,treeIndex,deckHeight,kind,radius}>, edges: Array<{id,kind,from,to}>,
- *   zip: object }|null}
+ *   zip: object, joinTreeIndex: number|null }|null}
  */
-export function buildRouteCandidate({ routeId, category, chainLength, bearing, terrain, rng, otherTrees, spawnHub, homePoint }) {
-  const trees = buildChain({ chainLength, bearing, terrain, rng, otherTrees, spawnHub });
+export function buildRouteCandidate({ routeId, category, chainLength, bearing, terrain, rng, otherTrees, spawnHub, homePoint, join = null }) {
+  const trees = buildChain({
+    chainLength, bearing, terrain, rng, otherTrees, spawnHub,
+    startTree: join ? join.hostTree : null,
+  });
   if (!trees) { if (typeof process !== "undefined" && process.env && process.env.LAYOUT_DEBUG) console.error("  chain failed"); return null; }
 
-  const heights = assignDeckHeights({ category, chainLength, rng });
+  const heights = assignDeckHeights({ category, chainLength, rng, startHeight: join ? join.hostDeckHeight : null });
   const entry = buildEntry(trees[0], spawnHub);
 
   const platforms = trees.map((tree, i) => ({
-    id: `${routeId}-p${i + 1}`,
+    id: i === 0 && join ? join.hostPlatformId : `${routeId}-p${i + 1}`,
     treeIndex: -1,                                       // js/park/layout.js fills in the global heroTrees index
     deckHeight: heights[i],
-    kind: i === 0 || i === trees.length - 1 ? "standard" : "transition",
+    kind: i === 0 ? (join ? "junction" : "standard") : (i === trees.length - 1 ? "standard" : "transition"),
     radius: i === 0 || i === trees.length - 1 ? PLATFORM_RADIUS.standard : PLATFORM_RADIUS.transition,
   }));
 
-  const edges = buildEdges(routeId, category, trees.length - 1, rng);
+  const edges = buildEdges(routeId, category, trees.length - 1, rng, join ? platforms[0].id : null);
 
   const lastTree = trees[trees.length - 1];
   const platformTop = lastTree.y + heights[heights.length - 1];
@@ -71,14 +77,19 @@ export function buildRouteCandidate({ routeId, category, chainLength, bearing, t
   if (!zip) { if (typeof process !== "undefined" && process.env && process.env.LAYOUT_DEBUG) console.error("  zip failed, platformTop", platformTop); return null; }
   zip.fromPlatformId = platforms[platforms.length - 1].id;
 
-  return { trees, entry, platforms, edges, zip };
+  return { trees, entry, platforms, edges, zip, joinTreeIndex: join ? join.hostTreeIndex : null };
 }
 
-/** Random-walk chain of trees: span 6–13.5 m apart, clear of hubs/paths/other routes. */
-function buildChain({ chainLength, bearing, terrain, rng, otherTrees, spawnHub }) {
-  const trees = [];
+/**
+ * Random-walk chain of trees: span 6–13.5 m apart, clear of hubs/paths/other routes. With `startTree`
+ * (a junction, M2a) the chain begins at that *existing* tree instead of fanning out from the hub, and
+ * only the remaining `chainLength - 1` trees are freshly placed.
+ */
+function buildChain({ chainLength, bearing, terrain, rng, otherTrees, spawnHub, startTree = null }) {
+  const trees = startTree ? [startTree] : [];
   let heading = bearing;
-  for (let i = 0; i < chainLength; i++) {
+  const beginAt = startTree ? 1 : 0;
+  for (let i = beginAt; i < chainLength; i++) {
     let placed = false;
     for (let attempt = 0; attempt < MAX_TREE_ATTEMPTS && !placed; attempt++) {
       let cx, cz, tryHeading;
@@ -111,10 +122,12 @@ function buildChain({ chainLength, bearing, terrain, rng, otherTrees, spawnHub }
  * Bounded random walk in *local* height-above-own-trunk-foot: clamping a step already inside the
  * category range can only shrink the step, never grow it (1-D interval clamp is non-expansive), so
  * this always satisfies both the [minDeck, maxDeck] range and the riseLimit step bound in one pass.
+ * `startHeight` (a junction, M2a): the first entry is the *existing* shared platform's own deck height
+ * (not a fresh random draw), so the guest route's deck keeps meeting the host's platform exactly.
  */
-function assignDeckHeights({ category, chainLength, rng }) {
+function assignDeckHeights({ category, chainLength, rng, startHeight = null }) {
   const rule = CATEGORY_RULES[category];
-  const heights = [rng.float(rule.minDeck, rule.maxDeck)];
+  const heights = [startHeight != null ? startHeight : rng.float(rule.minDeck, rule.maxDeck)];
   for (let i = 1; i < chainLength; i++) {
     const proposed = heights[i - 1] + rng.float(-rule.riseLimit, rule.riseLimit);
     heights.push(Math.min(rule.maxDeck, Math.max(rule.minDeck, proposed)));
@@ -132,8 +145,12 @@ function buildEntry(firstTree, spawnHub) {
   };
 }
 
-/** Catalogue kind per edge: within the category's difficulty budget, never the same kind twice running. */
-function buildEdges(routeId, category, edgeCount, rng) {
+/**
+ * Catalogue kind per edge: within the category's difficulty budget, never the same kind twice running.
+ * `firstPlatformId` (a junction, M2a): the first edge leaves from the host route's shared platform id
+ * instead of this route's own `${routeId}-p1`, which was never built (see `buildRouteCandidate`).
+ */
+function buildEdges(routeId, category, edgeCount, rng, firstPlatformId = null) {
   if (routeId === LEGACY_BLUE_1.routeId) {
     return LEGACY_BLUE_1.ids.slice(0, edgeCount).map((id, i) => ({
       id, kind: LEGACY_BLUE_1.kinds[i], from: `${routeId}-p${i + 1}`, to: `${routeId}-p${i + 2}`,
@@ -147,7 +164,8 @@ function buildEdges(routeId, category, edgeCount, rng) {
     const choices = pool.filter((e) => e.kind !== previousKind);
     const chosen = rng.pick(choices.length ? choices : pool);
     previousKind = chosen.kind;
-    edges.push({ id: `${routeId}-e${i + 1}`, kind: chosen.kind, from: `${routeId}-p${i + 1}`, to: `${routeId}-p${i + 2}` });
+    const from = i === 0 && firstPlatformId ? firstPlatformId : `${routeId}-p${i + 1}`;
+    edges.push({ id: `${routeId}-e${i + 1}`, kind: chosen.kind, from, to: `${routeId}-p${i + 2}` });
   }
   return edges;
 }

@@ -1,4 +1,5 @@
-// URL parameters → runtime flags. ?debug=1 ?autoplay=1 ?seed=42 ?fast=1 ?locale=de ?kassa=1 ?briefing=0 ?npc=0 ?map=1 ?options=1
+// URL parameters → runtime flags. ?debug=1 ?autoplay=1 ?seed=42 ?fast=1 ?locale=de ?kassa=1 ?briefing=0
+// ?npc=0 ?map=1 ?options=1 ?routes=6
 import { BELAY_MODES, DEFAULTS } from "../config.js";
 
 export function readParams(search = location.search) {
@@ -22,5 +23,9 @@ export function readParams(search = location.search) {
     npc: flagOff("npc"),        // ?npc=0 disables guest agents entirely (M1.6)
     map: flag("map"),           // ?map=1 opens the Course Map overlay at boot (screenshots, M1.4)
     options: flag("options"),   // ?options=1 opens the pause/options screen at boot (screenshots, M1.7)
+    // M2a: `?routes=6` swaps js/park/layout.js's 15-route+legendary default for the old M1 six-route
+    // park (js/park/layout.js#PARK_CONFIG_SMALL) – quick dev iteration on anything that is not the
+    // M2a content itself. Any other value (or none) keeps the new default.
+    routes: q.get("routes") === "6" ? 6 : null,
   });
 }

@@ -103,8 +103,8 @@ an als Blau (Höhe, Bewegung, Kraft), nicht nur schwerer.
 
 ## M2 · „Ein Park“
 
-- [ ] 15 Parcours + 2 Wichtel, Kreuzungspodeste, Legendäre Route
-- [ ] Saisonpass-Modus (offen), Zeitläufe (3-2-1), Flow-Multiplikator (nur bei ruhigen Nerven),
+- [x] 15 Parcours + 2 Wichtel, Kreuzungspodeste, Legendäre Route
+- [x] Saisonpass-Modus (offen), Zeitläufe (3-2-1), Flow-Multiplikator (nur bei ruhigen Nerven),
       Umhäng-Feedback (sauber/schnell/perfekt), Meisterschaftsstufen je Parcours
 - [ ] Nachtklettern (Stirnlampe), drei Sicherungsmodi, Fotos, Sidegrades
 - [ ] Übungskatalog auf 20–25 Familien/Varianten, Umsetzstationen

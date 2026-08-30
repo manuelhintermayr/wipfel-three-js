@@ -35,12 +35,13 @@ test("corrupt or foreign-schema data collapses to defaults", () => {
   assert.equal(save.data.routes["blue-1"].completions, 0);
 });
 
-test("blue is always unlocked; red and black start locked", () => {
+test("blue is always unlocked; red, black and legendary start locked", () => {
   const save = createSave(memoryStorage());
-  assert.deepEqual(save.data.unlocks, { blue: true, red: false, black: false });
+  assert.deepEqual(save.data.unlocks, { blue: true, red: false, black: false, legendary: false });
   assert.equal(save.isUnlocked("blue"), true);
   assert.equal(save.isUnlocked("red"), false);
   assert.equal(save.isUnlocked("black"), false);
+  assert.equal(save.isUnlocked("legendary"), false, "M2a: the hidden finale starts locked too");
   assert.equal(save.isUnlocked("green"), true, "categories without a gate default to open");
 });
 
@@ -65,7 +66,7 @@ test("an older save without unlocks migrates to the default gate, blue forced op
   const storage = memoryStorage();
   storage.setItem(GAME.saveKey, JSON.stringify({ schema: GAME.saveSchema, routes: {} }));
   const save = createSave(storage);
-  assert.deepEqual(save.data.unlocks, { blue: true, red: false, black: false });
+  assert.deepEqual(save.data.unlocks, { blue: true, red: false, black: false, legendary: false });
 
   storage.setItem(GAME.saveKey, JSON.stringify({ schema: GAME.saveSchema, routes: {}, unlocks: { blue: false, red: "yes", black: true } }));
   const corrupt = createSave(storage);
@@ -147,4 +148,76 @@ test("import refuses malformed JSON or a foreign schema, leaving the existing sa
   assert.equal(save.import("{not json"), false);
   assert.equal(save.import(JSON.stringify({ schema: 999, routes: {} })), false);
   assert.equal(save.routeBest("blue-1"), 50, "untouched by the refused imports");
+});
+
+// --- M2a: trials, mastery, equipment (additive fields) ------------------------------------------------
+
+test("hasCompletedAnyRoute is false until the first recordRun, ever", () => {
+  const save = createSave(memoryStorage());
+  assert.equal(save.hasCompletedAnyRoute(), false);
+  save.recordRun("blue-1", { seconds: 100, falls: 2 });
+  assert.equal(save.hasCompletedAnyRoute(), true);
+});
+
+test("time trials: separate best-time bucket, faster trials replace slower ones", () => {
+  const save = createSave(memoryStorage());
+  assert.equal(save.trialBest("blue-1"), null);
+  assert.equal(save.recordTrial("blue-1", 60), true);
+  assert.equal(save.recordTrial("blue-1", 90), false);
+  assert.equal(save.recordTrial("blue-1", 45), true);
+  assert.equal(save.trialBest("blue-1"), 45);
+  assert.equal(save.routeBest("blue-1"), null, "trials never touch the normal best-time bucket");
+});
+
+test("trials persist and reload independently of normal runs", () => {
+  const storage = memoryStorage();
+  const save = createSave(storage);
+  save.recordRun("blue-1", { seconds: 200, falls: 0 });
+  save.recordTrial("blue-1", 70);
+  const reloaded = createSave(storage);
+  assert.equal(reloaded.routeBest("blue-1"), 200);
+  assert.equal(reloaded.trialBest("blue-1"), 70);
+});
+
+test("mastery tiers merge with OR – a tier earned once is never lost", () => {
+  const save = createSave(memoryStorage());
+  assert.equal(save.masteryOf("blue-1"), null);
+  assert.deepEqual(save.recordMastery("blue-1", [true, true, false, false]), [true, true, false, false]);
+  assert.deepEqual(save.recordMastery("blue-1", [true, false, true, false]), [true, true, true, false]);
+  assert.deepEqual(save.masteryOf("blue-1"), [true, true, true, false]);
+});
+
+test("mastery persists and reloads, additive on an older save with no mastery field at all", () => {
+  const storage = memoryStorage();
+  storage.setItem(GAME.saveKey, JSON.stringify({ schema: GAME.saveSchema, routes: {} }));
+  const save = createSave(storage);
+  assert.deepEqual(save.data.mastery, {}, "additive default: empty, not missing/undefined");
+  save.recordMastery("red-1", [true, true, true, true]);
+  const reloaded = createSave(storage);
+  assert.deepEqual(reloaded.masteryOf("red-1"), [true, true, true, true]);
+});
+
+test("a malformed mastery entry (wrong tier count, not an object) is dropped, not the whole map", () => {
+  const storage = memoryStorage();
+  storage.setItem(GAME.saveKey, JSON.stringify({
+    schema: GAME.saveSchema, routes: {},
+    mastery: { "blue-1": { tiers: [true, false] }, "red-1": "nope", "black-1": { tiers: [true, true, false, true] } },
+  }));
+  const save = createSave(storage);
+  assert.equal(save.masteryOf("blue-1"), null, "wrong tier length dropped");
+  assert.equal(save.masteryOf("red-1"), null, "not an object dropped");
+  assert.deepEqual(save.masteryOf("black-1"), [true, true, false, true], "valid sibling entry kept");
+});
+
+test("equipment: null by default, persists a chosen id, additive on an older save", () => {
+  const storage = memoryStorage();
+  storage.setItem(GAME.saveKey, JSON.stringify({ schema: GAME.saveSchema, routes: {} }));
+  const save = createSave(storage);
+  assert.equal(save.data.equipmentId, null);
+  save.setEquipment("gloves");
+  assert.equal(save.data.equipmentId, "gloves");
+  const reloaded = createSave(storage);
+  assert.equal(reloaded.data.equipmentId, "gloves");
+  save.setEquipment(null);
+  assert.equal(save.data.equipmentId, null);
 });

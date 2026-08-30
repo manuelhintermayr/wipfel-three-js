@@ -28,11 +28,95 @@ export const TICKET = Object.freeze({
   extendPromptSeconds: 8,      // real seconds the "extend?" prompt stays up before the day ends anyway
 });
 
-/** Ticket types sold at the kassa (GDD §3.7/§3.8). scoreMultiplier is a placeholder – applied in M2 (Flow). */
+/**
+ * Ticket types sold at the kassa (GDD §3.7/§3.8). scoreMultiplier is a placeholder – applied in M2 (Flow).
+ * "season" (M2a, GDD §3.8 "Saisonpass"): `hours: Infinity` is the whole trick – js/game/ticket.js's
+ * clock only ever compares *finite* numbers, so an infinite total simply never goes non-positive,
+ * `expired`/`clippable` fall out already correct (never expires, always clippable) with no separate
+ * "mode" flag anywhere in the clock. `js/game/session.js` hides the `.hud-ticket` box whenever
+ * `!Number.isFinite(ticket.totalGameMinutes)`, and the day-end sequence (30-min toast, extend prompt)
+ * simply never triggers for the same reason – "stamp card on demand only" is already what the options
+ * screen's/`WIPFEL.debug.endTicket()`'s "End day" does for every mode.
+ */
 export const TICKET_TYPES = Object.freeze([
   { id: "standard", hours: TIME.ticketHours, labelKey: "kassa.ticket.standard.name", descKey: "kassa.ticket.standard.desc", scoreMultiplier: 1 },
   { id: "happyHour", hours: TIME.ticketHours / 2, labelKey: "kassa.ticket.happyHour.name", descKey: "kassa.ticket.happyHour.desc", scoreMultiplier: 1.25 },
+  { id: "season", hours: Infinity, labelKey: "kassa.ticket.season.name", descKey: "kassa.ticket.season.desc", scoreMultiplier: 1 },
 ]);
+
+/** Time trials (ROADMAP M2a, GDD §3.8 "Zeitläufe"). Logic: js/game/route.js, js/game/session.js. */
+export const TRIALS = Object.freeze({
+  inputAction: "trial",     // core/input.js – bound to KeyG (KeyT is already "camera")
+});
+
+/**
+ * Flow – the counterforce to nerves (ROADMAP M2a, GDD §3.10). Pure logic: js/game/flow.js.
+ * Builds only while the climber is *progressing* on an element/zipline/tarzan swing, has held that for
+ * `cleanHoldSeconds` without a break, and nerves stay under `nervesCeiling`; any fall or freeze snaps
+ * it back to `min`. Standing on a platform pauses it (no reset) for `pauseGraceSeconds`, then it decays
+ * back towards `min`. `buildRate`/`decaySeconds` are tuned so a clean multi-obstacle run can reach `max`
+ * (~40 s of continuous clean crossing) and a paused climber gives it back over ~10 s.
+ */
+export const FLOW = Object.freeze({
+  min: 1.0, max: 4.0,
+  cleanHoldSeconds: 1.5,
+  nervesCeiling: 0.55,
+  buildRate: (4.0 - 1.0) / 40,
+  pauseGraceSeconds: 6.0,
+  decaySeconds: 10.0,
+  cleanClipBonus: 0.1,      // js/game/clip-meter.js: a re-clip under `cleanClipSeconds` feeds this much
+});
+
+/**
+ * Re-clip feedback / "Umhäng-Feedback" (ROADMAP M2a). Logic: js/game/clip-meter.js. Measures the
+ * two-click ritual's real-time duration (belay events → `bothOnSameAnchor()`); under `cleanSeconds` at
+ * a *new* anchor earns the toast + the flow bonus above. Suppressed while the Einschulung dialogue is
+ * still running (a beginner fumbling through the practice-anchor ritual is not "clean or not", it is
+ * still learning).
+ */
+export const CLIP_METER = Object.freeze({
+  cleanSeconds: 1.2,
+});
+
+/**
+ * Mastery tiers per route, evaluated once at `zip:finished` (ROADMAP M2a, GDD §3.12). Pure logic:
+ * js/game/mastery.js. `parScale` turns the generator's own length/kind-speed estimate into a par time
+ * (see js/game/route.js#routesFromPark's `parS`) – RESEARCH-DATA has no real-world "average crossing
+ * time" to calibrate against, so ×1.6 over an idealised non-stop crossing is a documented design
+ * assumption (generous enough that a careful first-timer can still make it, tight enough that dawdling
+ * does not).
+ */
+export const MASTERY = Object.freeze({
+  parScale: 1.6,
+  inFlowAverage: 2.0,        // average flow value across the run that counts as "in flow"
+  tierOrder: Object.freeze(["completed", "noFalls", "underPar", "inFlow"]),
+});
+
+/**
+ * Equipment sidegrades (ROADMAP M2a, GDD §3.12 "Ausrüstung als Sidegrade"). Exactly one may be
+ * selected (or none); each trades one axis for another rather than being a flat upgrade. Logic:
+ * js/player/sidegrade.js; wired at the call sites named in each comment below.
+ */
+export const SIDEGRADES = Object.freeze({
+  gloves: Object.freeze({
+    id: "gloves", labelKey: "kassa.gear.gloves.name", descKey: "kassa.gear.gloves.desc",
+    gripDrainScale: 0.75,      // js/player/stamina.js: STAMINA.gripDrain × this while a hand is on a hold
+    reclipSecondsPenalty: 0.3, // js/game/clip-meter.js: added to the measured ritual duration
+  }),
+  shoes: Object.freeze({
+    id: "shoes", labelKey: "kassa.gear.shoes.name", descKey: "kassa.gear.shoes.desc",
+    balanceDisturbanceScale: 0.85,  // js/player/on-element.js: on top of assist's own disturbance scale
+    pullUpDrainScale: 1.10,         // js/player/stamina.js: STAMINA.pullUpDrain × this while pulling up
+  }),
+  trolley: Object.freeze({
+    id: "trolley", labelKey: "kassa.gear.trolley.name", descKey: "kassa.gear.trolley.desc",
+    // +10% top speed ⇒ terminal-velocity drag scales with 1/v² at a fixed slope/mass (ZIP_PHYSICS'
+    // dv/dt balance ignores rollResist's small contribution here), so ×(1/1.1²) ≈ 0.826 on dragCoeff
+    // is the dimensional-analysis answer for "10% faster", applied per-ride in js/player/on-zipline.js.
+    zipDragScale: 1 / (1.1 * 1.1),
+    zipBrakeZoneScale: 0.80,   // js/zipline/brakes.js: the net's latch point moves 20% closer to the end
+  }),
+});
 
 export const RENDER = Object.freeze({
   maxPixelRatio: 1.75,
@@ -126,4 +210,21 @@ export const OPTIONS = Object.freeze({
   // The look-sensitivity slider (0–100) maps linearly onto core/input.js's raw sensitivity units.
   lookSensitivityMin: 0.0008,
   lookSensitivityMax: 0.0060,
+});
+
+/**
+ * Wichtel courses (ROADMAP M2a, RESEARCH-DATA §1: "2 Wichtelparcours (35 cm hoch, ohne Sicherung, für
+ * Kleinkinder)"). Ground-level flavour only – no belay, no anchors, walkable by anyone; built directly
+ * with js/park/timber.js next to the spawn hub, not through the routes/generator/loader pipeline at
+ * all (they are not routes and never appear in `parkDef.routes`). Logic: js/park/wichtel.js.
+ */
+export const WICHTEL = Object.freeze({
+  count: 2,
+  deckHeight: 0.35,
+  logCount: 5,            // stepping logs per course
+  logSpan: 0.55,           // metres between log centres
+  logRadius: 0.11,
+  plankSpan: 1.0,          // one short plank bridge segment inside the course
+  clearance: 6.0,          // outside the hub rim, clear of the fingerpost/park-board trailhead cluster
+  spacing: 3.5,            // between the two courses
 });

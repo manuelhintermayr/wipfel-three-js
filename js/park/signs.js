@@ -46,6 +46,17 @@ export const SIGNS = Object.freeze({
     length: 0.58, height: 0.26, headLength: 0.16,
     texSize: 512,
   }),
+  // M2a (ROADMAP: "Kreuzungspodeste … mini fingerpost"): a small board standing directly on a junction
+  // platform's deck (postHeight/boardTop are measured *from the deck*, not the ground) instead of the
+  // hub/entry boards' own ground posts.
+  junction: Object.freeze({
+    offset: 0.55,            // out from the trunk centre, clear of the safety-cable standoffs
+    postRadius: 0.035,
+    postHeight: 0.85,
+    boardTop: 0.72,
+    length: 0.40, height: 0.18, headLength: 0.11,
+    texSize: 384,
+  }),
 });
 
 const FONT = '"Bahnschrift","Barlow Condensed","Roboto Condensed","Arial Narrow","Segoe UI",sans-serif';
@@ -64,10 +75,15 @@ export function createSigns({ parkDef, scene, terrain, textures, rng }) {
   group.name = "park-signs";
   const backer = { parts: new Map(), sources: [] };   // category id -> [{geometry, matrix}] + raw geometries to dispose
 
-  buildHubCluster({ parkDef, terrain, builder, group, backer, rng: rng.fork("hub-cluster") });
-  for (const route of parkDef.routes) {
+  // The legendary finale has no parkplan entry at all (GDD §3.12: "Legendäre Routen ohne Parkplan-
+  // Eintrag") – it gets neither a hub-cluster fingerpost nor its own entry board; its ladder cable is
+  // only ever found by whoever already knows to look behind the hut hub.
+  const securedRoutes = parkDef.routes.filter((r) => r.category !== "legendary");
+  buildHubCluster({ parkDef: { ...parkDef, routes: securedRoutes }, terrain, builder, group, backer, rng: rng.fork("hub-cluster") });
+  for (const route of securedRoutes) {
     buildEntrySign({ route, terrain, builder, group, backer, rng: rng.fork(`entry-${route.id}`) });
   }
+  buildJunctionSigns({ parkDef: { ...parkDef, routes: securedRoutes }, terrain, builder, group, backer, rng: rng.fork("junctions") });
   for (const [categoryId, parts] of backer.parts) group.add(buildBackerMesh(categoryId, parts));
   for (const geometry of backer.sources) geometry.dispose();
 
@@ -93,15 +109,32 @@ export function createSigns({ parkDef, scene, terrain, textures, rng }) {
   };
 }
 
-/** Fingerpost cluster at the spawn hub's edge: one post + arrow board per category present in the park. */
+/**
+ * Fingerpost cluster at each used hub's edge (M2a: four hubs, not just spawn – js/park/layout.js's
+ * `hub` index per route): one post + arrow board per category present *at that hub*, so the M1.1
+ * single-cluster look repeats itself once per trailhead instead of trying to cram every category from
+ * every hub onto the spawn hub's rim.
+ */
 function buildHubCluster({ parkDef, terrain, builder, group, backer, rng }) {
+  const byHub = new Map();     // hubIndex -> routes[]
+  for (const route of parkDef.routes) {
+    const hubIndex = route.hub || 0;
+    if (!byHub.has(hubIndex)) byHub.set(hubIndex, []);
+    byHub.get(hubIndex).push(route);
+  }
+  for (const [hubIndex, hubRoutes] of byHub) {
+    buildOneHubCluster({ hub: terrain.hubs[hubIndex] || terrain.hubs[0], routes: hubRoutes, terrain, builder, group, backer, rng: rng.fork(`hub-${hubIndex}`) });
+  }
+}
+
+/** One hub's own fingerpost row: one post + arrow board per category present at *this* hub. */
+function buildOneHubCluster({ hub, routes, terrain, builder, group, backer, rng }) {
   const S = SIGNS.hub;
-  const hub = terrain.hubs[0];
-  const byCategory = groupByCategory(parkDef.routes);
+  const byCategory = groupByCategory(routes);
   const categories = Object.keys(byCategory);
   if (!categories.length) return;
 
-  const overall = averageBearing(parkDef.routes.map((r) => r.entry), hub);
+  const overall = averageBearing(routes.map((r) => r.entry), hub);
   const base = findNearPath(terrain, hub, hub.radius + S.clearance, overall, rng, S.searchTries);
   const rightAxis = overall + Math.PI / 2;             // lay the posts out sideways, across the approach
 
@@ -115,15 +148,51 @@ function buildHubCluster({ parkDef, terrain, builder, group, backer, rng }) {
       radius: S.postRadius, segments: 9,
     });
 
-    const routes = byCategory[categoryId];
-    const bearing = averageBearing(routes.map((r) => r.entry), { x: postX, z: postZ });
-    const texture = paintCategoryBoard({ size: S.texSize, categoryId, numerals: routes.map((r) => r.numeral) });
+    const catRoutes = byCategory[categoryId];
+    const bearing = averageBearing(catRoutes.map((r) => r.entry), { x: postX, z: postZ });
+    const texture = paintCategoryBoard({ size: S.texSize, categoryId, numerals: catRoutes.map((r) => r.numeral) });
     mountBoard({
       group, backer, categoryId, texture,
       position: { x: postX, y: postY + S.boardTop, z: postZ }, yaw: bearing,
       length: S.length, height: S.height, headLength: S.headLength,
     });
   });
+}
+
+/**
+ * A small board standing on each junction platform's own deck (M2a, GDD §3.9): reuses the hub
+ * cluster's category-board painter, showing the symbol/word plus both routes' numerals that meet there.
+ */
+function buildJunctionSigns({ parkDef, terrain, builder, group, backer, rng }) {
+  const S = SIGNS.junction;
+  const refsByPlatform = new Map();   // platform id -> [{ route, platform }]
+  for (const route of parkDef.routes) {
+    for (const platform of route.platforms) {
+      if (platform.kind !== "junction") continue;
+      if (!refsByPlatform.has(platform.id)) refsByPlatform.set(platform.id, []);
+      refsByPlatform.get(platform.id).push({ route, platform });
+    }
+  }
+  const hub = terrain.hubs[0];
+  for (const refs of refsByPlatform.values()) {
+    if (refs.length < 2) continue;   // defensive: a "junction" kind with only one owner is not one
+    const { route, platform } = refs[0];
+    const tree = parkDef.heroTrees[platform.treeIndex];
+    const deckY = tree ? terrain.heightAt(tree.x, tree.z) + platform.deckHeight : 0;
+    if (!tree) continue;
+    const yaw = Math.atan2(hub.x - tree.x, hub.z - tree.z);   // faces roughly back towards the hub
+    const postX = tree.x + Math.sin(yaw) * S.offset, postZ = tree.z + Math.cos(yaw) * S.offset;
+    builder.cylinderBetween({
+      from: { x: postX, y: deckY, z: postZ }, to: { x: postX, y: deckY + S.postHeight, z: postZ },
+      radius: S.postRadius, segments: 7,
+    });
+    const texture = paintCategoryBoard({ size: S.texSize, categoryId: route.category, numerals: refs.map((r) => r.route.numeral) });
+    mountBoard({
+      group, backer, categoryId: route.category, texture,
+      position: { x: postX, y: deckY + S.boardTop, z: postZ }, yaw,
+      length: S.length, height: S.height, headLength: S.headLength,
+    });
+  }
 }
 
 /** Route nameplate beside its entry deck: numeral + localised name, category colour + symbol. */

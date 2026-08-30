@@ -1,6 +1,6 @@
 // Keyboard + mouse (pointer lock) + gamepad → abstract actions. Remappable via `bindings`.
 // Actions: move (x,y), look (x,y), sprint, jump, handL, handR, clip, breathe, map, interact,
-// pause, camera, debug, photo. Query with `input.down(name)`, `input.pressed(name)` (edge).
+// pause, camera, debug, photo, trial. Query with `input.down(name)`, `input.pressed(name)` (edge).
 
 const DEFAULT_BINDINGS = {
   keys: {
@@ -10,6 +10,10 @@ const DEFAULT_BINDINGS = {
     Space: "jump", KeyF: "clip", KeyQ: "handL", KeyE: "interact", KeyR: "breathe",
     Tab: "map", Escape: "pause", KeyT: "camera", F1: "debug", F2: "physdebug", KeyP: "photo",
     KeyX: "clip2", // classic belay mode: second carabiner
+    // M2a time trials (ROADMAP): GDD's own key suggestion "[T]" is already "camera" here (HANDOVER's
+    // control list, since M0.7) – KeyG is the nearest free key instead of overloading T with a second,
+    // unrelated meaning.
+    KeyG: "trial",
   },
   // right hand on keyboard: E is interact per GDD; hands are Q (left) and mouse right button (right)
   mouse: { 0: "handR", 2: "handR" },

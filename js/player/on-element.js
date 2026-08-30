@@ -14,6 +14,7 @@ import { ELEMENT_MOVE } from "./tuning.js";
 import { elementPose } from "./rig-poses.js";
 import { lookDownAmount } from "./vitals.js";
 import { assistScale } from "./assist.js";
+import { sidegradeEffects } from "./sidegrade.js";
 
 const TWO_PI = Math.PI * 2;
 const wrapAngle = (a) => a - TWO_PI * Math.floor((a + Math.PI) / TWO_PI);
@@ -46,6 +47,10 @@ export function createElementState({ input, events = null, balance, stamina, ner
     return wantL + wantR;
   }
 
+  /** Assist mode (M1.7) and the "light shoes" sidegrade (M2a) both scale the climber's own wobble
+   *  excitation the same way – neither touches BALANCE.topple/slipAngle itself, only what feeds it. */
+  function disturbanceScale() { return assistScale().disturbance * sidegradeEffects().balanceDisturbanceScale; }
+
   /** Each footfall kicks the element; a plank that has swung away kicks back much harder. */
   function stepImpulse(dt, drive) {
     const before = stepPhase;
@@ -53,7 +58,7 @@ export function createElementState({ input, events = null, balance, stamina, ner
     if (Math.floor(stepPhase) === Math.floor(before)) return 0;
     const foot = Math.floor(stepPhase) % 2 === 0 ? 1 : -1;
     const hurry = Math.abs(railSpeed) / Math.max(0.1, element.walkSpeed);
-    element.wobble.excite(foot * ELEMENT_MOVE.stepExcite * (0.4 + hurry) * assistScale().disturbance);
+    element.wobble.excite(foot * ELEMENT_MOVE.stepExcite * (0.4 + hurry) * disturbanceScale());
     const hold = element.footholdAt(t);
     if (hold.discrete && element.stepOn) element.stepOn(hold.index, 0.6 + 0.6 * hurry, drive >= 0 ? 1 : -1);
     // stepping onto something that is not where it should be is what throws you
@@ -100,7 +105,7 @@ export function createElementState({ input, events = null, balance, stamina, ner
     const step = steps[stepIndex];
     const hold = element.footholdAt((step.x + step.offset) / element.length);
     element.stepOn(stepIndex, 1, direction);
-    element.wobble.excite(direction * ELEMENT_MOVE.stepExcite * 0.5 * assistScale().disturbance);
+    element.wobble.excite(direction * ELEMENT_MOVE.stepExcite * 0.5 * disturbanceScale());
     return (1 - clamp01(hold.ready)) * ELEMENT_MOVE.missStepKick * (stepIndex % 2 === 0 ? 1 : -1);
   }
 
@@ -175,13 +180,14 @@ export function createElementState({ input, events = null, balance, stamina, ner
       element.occupancy.t = t;
 
       // --- what the element does about it -------------------------------------------------------
+      const gear = sidegradeEffects();   // M2a equipment (kassa "Equipment" row) – neutral (all 1) when none equipped
       const lean = frozen ? 0 : clampSigned(input.move.x);
       element.wobble.excite((lean * ELEMENT_MOVE.leanExcite * dt
-        + (railSpeed - previous) * ELEMENT_MOVE.hurryExcite * Math.sign(lean || 1) * 0.5) * assist.disturbance);
+        + (railSpeed - previous) * ELEMENT_MOVE.hurryExcite * Math.sign(lean || 1) * 0.5) * assist.disturbance * gear.balanceDisturbanceScale);
 
       noisePhase += dt * (3.1 + 7.0 * nerves.value);
       const tremor = nerves.tremor * Math.sin(noisePhase);
-      const drivenBy = element.wobble.lateralVelocity * ELEMENT_MOVE.wobbleDrive + misStep * 2.6 * assist.disturbance;
+      const drivenBy = element.wobble.lateralVelocity * ELEMENT_MOVE.wobbleDrive + misStep * 2.6 * assist.disturbance * gear.balanceDisturbanceScale;
       const result = balance.update(dt, {
         lean, hands, drive: drivenBy, noise: tremor,
         speed: Math.abs(railSpeed) / Math.max(0.1, element.walkSpeed),
@@ -191,7 +197,7 @@ export function createElementState({ input, events = null, balance, stamina, ner
       // --- resources ----------------------------------------------------------------------------
       stamina.update(dt, {
         onElement: true, hands, moving: Math.abs(railSpeed) > 0.05,
-        extraDrain: element.staminaDrain,
+        extraDrain: element.staminaDrain, gripDrainScale: gear.gripDrainScale,
       });
       const groundY = element.groundY == null ? player.position.y - 6 : element.groundY;
       nerves.update(dt, {

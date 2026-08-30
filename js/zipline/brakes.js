@@ -29,7 +29,8 @@ export const ZIP_BRAKE = Object.freeze({
  * @param {{ length: number, zoneLength?: number, arriveSpeed?: number, maxDecel?: number,
  *   messyDecel?: number, messyJolt?: number }} options `length` = arc length of the cable
  * @returns {{ zoneStart: number, netAt: number, outcome: "clean"|"messy"|null, legsUpAtEntry: boolean,
- *   inZone(s: number): boolean, apply(dt: number, s: number, v: number, legsUp: boolean): number,
+ *   inZone(s: number, zoneScale?: number): boolean,
+ *   apply(dt: number, s: number, v: number, legsUp: boolean, zoneScale?: number): number,
  *   reset(): void }}
  */
 export function createNetBrake({ length, ...config }) {
@@ -38,8 +39,18 @@ export function createNetBrake({ length, ...config }) {
   let outcome = null;
   let jolted = false;
 
+  /**
+   * The "fast trolley" sidegrade (M2a, js/player/sidegrade.js#SIDEGRADES.trolley) makes the brake
+   * window 20% narrower – the *decision* point (where legs-up-or-not gets latched) moves closer to the
+   * end of the cable, giving less cable to shed the sidegrade's own extra speed on. The net panel's own
+   * rest position/geometry (`netAt`, built once in js/elements/zipline.js) is left exactly where it
+   * is – a small, documented seam between "how far the marker sleeve visually sits" and "where the
+   * ride actually decides", acceptable because the zone is only ever a few metres of a much longer ride.
+   */
+  function effectiveZoneStart(zoneScale = 1) { return length - (length - zoneStart) * zoneScale; }
+
   const brake = {
-    /** Arc position where the marker sleeve sits and where the decision is latched. */
+    /** Arc position where the marker sleeve sits and where the decision is latched (`zoneScale` 1). */
     zoneStart,
     /** Arc position of the net panel itself – what the rider actually sees coming. */
     netAt: Math.min(length, zoneStart + C.netOffset),
@@ -47,15 +58,16 @@ export function createNetBrake({ length, ...config }) {
     get outcome() { return outcome; },
     get legsUpAtEntry() { return outcome === "clean"; },
 
-    inZone(s) { return s >= zoneStart; },
+    inZone(s, zoneScale = 1) { return s >= effectiveZoneStart(zoneScale); },
 
     /**
      * Speed after `dt` seconds of braking. Outside the zone the speed is handed straight back, so
      * the caller can call this every step without asking where it is.
      * @returns {number} the new speed in m/s
      */
-    apply(dt, s, v, legsUp) {
-      if (s < zoneStart || !(dt > 0)) return v;
+    apply(dt, s, v, legsUp, zoneScale = 1) {
+      const start = effectiveZoneStart(zoneScale);
+      if (s < start || !(dt > 0)) return v;
       if (outcome === null) outcome = legsUp ? "clean" : "messy";
       let speed = v;
       if (outcome === "messy") {

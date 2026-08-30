@@ -13,6 +13,11 @@ export const CATEGORY_RULES = Object.freeze({
   blue: Object.freeze({ minDeck: 3.5, maxDeck: 7, riseLimit: 1.2, maxMetricSum: 11, exclude: Object.freeze(["tarzan", "rings", "skate"]) }),
   red: Object.freeze({ minDeck: 3.5, maxDeck: 10, riseLimit: 1.2, maxMetricSum: 15, exclude: Object.freeze(["tarzan"]) }),
   black: Object.freeze({ minDeck: 10, maxDeck: 20, riseLimit: 2.5, maxMetricSum: Infinity, exclude: Object.freeze([]) }),
+  // M2a (ROADMAP): the hidden finale, unlocked only once every black route is done (js/core/save.js).
+  // Kept inside the same 10-20 m ceiling black already uses (CLAUDE.md: "keine Höhen über 20 m vor M2",
+  // and M2 itself does not ask to raise it) – "high metrics kinds" is delivered by allowing every
+  // catalogue kind (nothing excluded) rather than by exceeding black's own height window.
+  legendary: Object.freeze({ minDeck: 14, maxDeck: 20, riseLimit: 2.5, maxMetricSum: Infinity, exclude: Object.freeze([]) }),
 });
 
 export const LAYOUT_LIMITS = Object.freeze({
@@ -24,7 +29,10 @@ export const LAYOUT_LIMITS = Object.freeze({
   entryBearingGap: (35 * Math.PI) / 180,
   zipLandingSlopeMax: (15 * Math.PI) / 180,
   zipLandingTreeClearance: 6.0, // a zip landing stays this far from every course tree
-  maxTotalPlatforms: 26,
+  // M2a: scaled from M1.1's 26 (6 routes) for 15 secured routes + the legendary finale (ROADMAP M2,
+  // "Keep total platforms ≤ 52"). A junction platform is listed by two routes but built once, so it
+  // only ever *helps* this budget (see js/park/layout.js#JUNCTIONS).
+  maxTotalPlatforms: 52,
 });
 
 /** Horizontal span between two points is inside the rule that governs every rope/rail crossing. */

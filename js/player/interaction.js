@@ -42,7 +42,7 @@ export const PROMPTS = Object.freeze({
   get rescue() { return t("prompt.rescue"); },
   stepOn: (element) => t("prompt.stepOn", { label: t(ELEMENT_LABEL_KEYS[element.kind] || "element.burma") }),
   /** Category gate (GDD §3.12): shown instead of the clip prompt at a locked route's entry anchor. */
-  locked: (category) => t(category === "black" ? "notice.lockedBlack" : "notice.lockedRed"),
+  locked: (category) => t(category === "legendary" ? "notice.lockedLegendary" : category === "black" ? "notice.lockedBlack" : "notice.lockedRed"),
   /** Einschulung gate (M1.3): shown instead of the clip prompt until the practice gate is done. */
   get briefingRequired() { return t("notice.briefingRequired"); },
   /** Ticket gate (M1.5): no ticket, or the day's ticket has run out (js/game/ticket.js). */

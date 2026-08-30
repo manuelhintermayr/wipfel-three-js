@@ -18,7 +18,7 @@ export function timeOfDayFor(hoursElapsed, openingHour = TICKET.openingHour) {
  * @param {{ ticketHours?: number, openingHour?: number, extendGameMinutes?: number,
  *   maxExtensions?: number }} [options]
  * @returns {{ elapsedReal: number, totalGameMinutes: number, remainingGameMinutes: number,
- *   timeOfDay: number, started: boolean, expired: boolean, clippable: boolean,
+ *   timeOfDay: number, started: boolean, expired: boolean, clippable: boolean, isOpenEnded: boolean,
  *   extensionsUsed: number, extensionsLeft: number,
  *   update(dtSeconds: number): void, extend(): boolean, reset(next?: {ticketHours?: number}): void,
  *   end(): void }}
@@ -49,6 +49,8 @@ export function createTicketClock(options = {}) {
     get clippable() { return started && remaining() > 0; },
     get extensionsUsed() { return extensionsUsed; },
     get extensionsLeft() { return Math.max(0, maxExtensions - extensionsUsed); },
+    /** The season pass (M2a): no clock to show, no extension prompts – `js/game/session.js`/`hud-route.js` read this once instead of re-deriving it from `totalGameMinutes` at every call site. */
+    get isOpenEnded() { return !Number.isFinite(totalGameMinutes); },
 
     /** Advance the clock by `dtSeconds` of real time. No-op before the first `reset()`. */
     update(dtSeconds) {
@@ -67,9 +69,14 @@ export function createTicketClock(options = {}) {
       return true;
     },
 
-    /** Start (or restart) a ticket – kassa confirm, or restoring a resumed day from the save. */
+    /**
+     * Start (or restart) a ticket – kassa confirm, or restoring a resumed day from the save.
+     * `next.ticketHours` may be `Infinity` (the season pass, M2a, `TICKET_TYPES` "season") – every
+     * comparison below (`remaining`, `expired`, `clippable`) already works on ordinary finite maths, so
+     * an infinite total simply never runs out; only the guard here needs to let it through.
+     */
     reset(next = {}) {
-      if (Number.isFinite(next.ticketHours)) ticketHours = next.ticketHours;
+      if (typeof next.ticketHours === "number" && next.ticketHours > 0) ticketHours = next.ticketHours;
       totalGameMinutes = ticketHours * 60;
       elapsedReal = 0;
       extensionsUsed = 0;

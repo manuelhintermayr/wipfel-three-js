@@ -1,15 +1,25 @@
-// Route layer of the HUD (mockup 1:1): route header top left, flow placeholder bottom centre,
-// start banner with key figures + countdown discs, and the one-time safety tooltip. Pure DOM;
-// driven by js/game/session.js. Category colours come from css tokens (--cat-*).
+// Route layer of the HUD (mockup 1:1): route header top left, flow bar bottom centre, start banner
+// with key figures + countdown discs, and the one-time safety tooltip. Pure DOM; driven by
+// js/game/session.js. Category colours come from css tokens (--cat-*).
+//
+// M2a: the flow bar goes from a static "x1,0" placeholder to a live value + fill (js/game/flow.js),
+// hidden until `save.hasCompletedAnyRoute()` – GDD §3.10 only promises it "after the first clean
+// crossing", and the simplest honest reading of that is "once you have ever finished a route, ever"
+// rather than tracking a separate in-run "was this crossing clean" flag just for a visibility gate.
+// The start banner also grows a mastery-pip row (GDD §3.12) and, once a route has a best time, a
+// `[G]` time-trial hint instead of START; the header shows a small "TIME TRIAL" tag while `run.isTrial`.
 import { t, formatTime } from "../core/i18n.js";
-import { CATEGORY_BY_ID } from "../config.js";
+import { CATEGORY_BY_ID, FLOW, MASTERY, TRIALS } from "../config.js";
 
-/** Which lock notice a gated category shows on the start banner (GDD §3.12: Blue → Red → Black). */
-const LOCK_NOTICE_KEY = Object.freeze({ red: "notice.lockedRed", black: "notice.lockedBlack" });
+/** Which lock notice a gated category shows on the start banner (GDD §3.12: Blue → Red → Black → the
+ *  legendary finale, which needs every black route done rather than "any route of the previous colour"). */
+const LOCK_NOTICE_KEY = Object.freeze({ red: "notice.lockedRed", black: "notice.lockedBlack", legendary: "notice.lockedLegendary" });
+const TRIAL_KEY_LABEL = "G";   // core/input.js: TRIALS.inputAction is bound to KeyG
 
 /**
  * @param {HTMLElement} root the `#hud` container (shared with createHud's layer)
- * @returns {{ setRoute(run|null): void, refresh(run): void, showBanner(def, best, locked?): void,
+ * @returns {{ setRoute(run|null): void, refresh(run): void, setFlow(value, unlocked): void,
+ *   showBanner(def, best, locked?, extra?: {canTrial?, mastery?}): void,
  *   hideBanner(): void, setCountdown(step|null): void, showSafetyTip(seconds?): void,
  *   dispose(): void }}
  */
@@ -20,9 +30,13 @@ export function createRouteHud(root) {
   const body = el("div", "body");
   const cat = el("div", "cat");
   const name = el("div", "name");
+  const nameText = el("span", "");
+  const trialTag = el("span", "trial-tag", t("hud.trialTag"));
+  trialTag.hidden = true;
+  name.append(nameText, trialTag);
   const stats = el("div", "stats");
   const progressRow = el("div", "row");
-  const timeRow = el("div", "row");
+  const timeRow = el("div", "row time");   // M2a: a distinct class so a trial run can style just this row
   const bestRow = el("div", "row");
   stats.append(progressRow, timeRow, bestRow);
   body.append(cat, name, stats);
@@ -56,6 +70,15 @@ export function createRouteHud(root) {
   let shown = { progress: -1, time: "", best: "", step: undefined };
   let tipUntil = 0;
   let shownTicketMinutes;
+  let flowUnlocked = false;    // save.hasCompletedAnyRoute() – "ever", not per-run
+  let runningNow = false;
+
+  /** `${symbol} ${numeral} · ${name}` – the legendary route has no numeral, so drop the extra dot/space. */
+  const routeLabel = (def, category) => {
+    const bits = [category ? category.symbol : ""];
+    if (def.numeral) bits.push(def.numeral);
+    return `${bits.join(" ")}${def.numeral ? " · " : " "}${t(def.nameKey)}`.trim();
+  };
 
   return {
     /** Bind the header to a run (or hide it with null). */
@@ -64,9 +87,9 @@ export function createRouteHud(root) {
       const category = CATEGORY_BY_ID[run.def.category];
       header.style.setProperty("--cat-color", category ? category.css : "var(--cat-blue)");
       cat.textContent = t(`cat.${run.def.category}`);
-      name.textContent = `${category ? category.symbol : ""} ${run.def.numeral} · ${t(run.def.nameKey)}`.trim();
+      nameText.textContent = routeLabel(run.def, category);
       header.hidden = false;
-      flow.hidden = false;
+      flow.hidden = true;   // setFlow()/refresh() below decide real visibility on the next tick
       shown = { progress: -1, time: "", best: "", step: undefined };
     },
 
@@ -81,12 +104,32 @@ export function createRouteHud(root) {
       if (time !== shown.time) { shown.time = time; timeRow.textContent = time; }
       const bestText = `${t("hud.best")}: ${best != null ? formatTime(best) : "–:––"}`;
       if (bestText !== shown.best) { shown.best = bestText; bestRow.textContent = bestText; }
-      // Flow is placeholder until M2 (ROADMAP): a quiet x1,0 while the run is live.
-      flow.hidden = !(run.state === "running");
+      trialTag.hidden = !run.isTrial;
+      header.classList.toggle("trial", !!run.isTrial);
+      runningNow = run.state === "running";
+      flow.hidden = !(runningNow && flowUnlocked);
     },
 
-    /** `locked`: the mockup's start banner, but with a lock line instead of stats/best/START. */
-    showBanner(def, best, locked = false) {
+    /**
+     * M2a: the live flow multiplier + fill bar. `unlocked` is `save.hasCompletedAnyRoute()` – shown
+     * from the moment any route has ever been completed once (documented simplification of GDD §3.10's
+     * "counts after the first clean crossing": tracking a separate in-run "was this one clean" flag
+     * just to gate visibility once, ever, was not worth the extra state).
+     */
+    setFlow(value, unlocked) {
+      flowUnlocked = unlocked;
+      flow.hidden = !(runningNow && flowUnlocked);
+      const clamped = Math.max(FLOW.min, Math.min(FLOW.max, value));
+      flowValue.textContent = `x${clamped.toFixed(1).replace(".", ",")}`;
+      flowFill.style.width = `${((clamped - FLOW.min) / (FLOW.max - FLOW.min)) * 100}%`;
+    },
+
+    /**
+     * `locked`: the mockup's start banner, but with a lock line instead of stats/best/START.
+     * `extra.canTrial` (M2a) swaps the START line for a `[G]` time-trial hint once the route already
+     * has a best time; `extra.mastery` (four booleans, `MASTERY.tierOrder` order) draws the pip row.
+     */
+    showBanner(def, best, locked = false, extra = {}) {
       const category = CATEGORY_BY_ID[def.category];
       banner.style.setProperty("--cat-color", category ? category.css : "var(--cat-blue)");
       // Colour is never the only cue (GDD §5) – the category symbol goes wherever the colour does.
@@ -95,12 +138,14 @@ export function createRouteHud(root) {
       if (locked) {
         banner.replaceChildren(...head, el("div", "locked", t(LOCK_NOTICE_KEY[def.category] || "notice.lockedRed")));
       } else {
-        banner.replaceChildren(
+        const children = [
           ...head,
           facts(def),
           (() => { const b = el("div", "best"); b.appendChild(bestBlock(best)); return b; })(),
-          el("div", "go", t("hud.start")),
-        );
+        ];
+        if (extra.mastery) children.push(masteryPips(extra.mastery));
+        children.push(el("div", "go", extra.canTrial ? t("hud.trialHint", { key: TRIAL_KEY_LABEL }) : t("hud.start")));
+        banner.replaceChildren(...children);
       }
       banner.hidden = false;
     },
@@ -167,6 +212,17 @@ export function createRouteHud(root) {
     const wrap = el("span", "");
     wrap.append(el("span", "", t("hud.bestTime").toUpperCase()), el("b", "", best != null ? formatTime(best) : "–:––"));
     return wrap;
+  }
+
+  /** Four tier pips (● earned / ○ not yet), GDD §3.12: completed · no falls · under par · in flow. */
+  function masteryPips(tiers) {
+    const row = el("div", "mastery-pips");
+    MASTERY.tierOrder.forEach((tier, i) => {
+      const pip = el("span", `pip${tiers[i] ? " earned" : ""}`, tiers[i] ? "●" : "○");
+      pip.title = t(`mastery.${tier}`);
+      row.appendChild(pip);
+    });
+    return row;
   }
 }
 

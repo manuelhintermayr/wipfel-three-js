@@ -1,14 +1,34 @@
 // A route run: pure logic, no DOM/THREE – the session module renders it. Lifecycle:
 // idle → armed (standing at the start banner) → countdown (3-2-1-GO while entering) → running
 // (timer live) → done (zip finished). Obstacles complete in any order but each only counts once.
+// M2a (ROADMAP "Zeitläufe"): `markTrial()`/`isTrial` flag the *next* attempt as a time trial – the
+// countdown/timer/obstacle machinery above is completely unchanged, only js/game/session.js reads
+// `isTrial` at `finish()` to decide which save bucket (`recordRun` vs `recordTrial`) the time goes into.
 import { EDGE_OFFSET } from "../park/layout-route.js";
+import { catalogueEntry } from "../elements/catalogue-data.js";
+import { NPC, MASTERY } from "../config.js";
+
+/**
+ * Par-time speed estimate per edge, m/s (M2a "Meisterschaftsstufen", `js/game/mastery.js`'s "under par"
+ * tier). Reuses the two speed constants the NPC guest simulation already needs for the same estimation
+ * problem (js/npc/agents.js, js/config.js#NPC) instead of duplicating a 12-entry walkSpeed table into
+ * the THREE-free catalogue-data.js just for this – a discrete kind's "seconds per step" already implies
+ * a rough m/s once you know the typical foothold spacing, and NPC.elementSpeedFallback is exactly that
+ * fallback for a continuous kind with no better number to hand. The zip line gets its own, much faster,
+ * estimate (`NPC.zipSecondsPerMetre` inverted).
+ */
+function parSpeedFor(kind) {
+  if (kind === "zipline") return 1 / NPC.zipSecondsPerMetre;
+  const entry = catalogueEntry(kind);
+  return entry && entry.discrete ? 0.35 : NPC.elementSpeedFallback;
+}
 
 /**
  * @param {{ id: string, category: string, numeral: string, nameKey: string,
- *   obstacles: string[], heightM: number, lengthM: number }} def
- * @returns {{ def, state, progress, total, elapsed, falls, update(dt), arm(), beginCountdown(),
- *   countdownStep, start(), completeObstacle(id): boolean, recordFall(), finish(): summary,
- *   reset() }}
+ *   obstacles: string[], heightM: number, lengthM: number, parS: number|null }} def
+ * @returns {{ def, state, progress, total, elapsed, falls, isTrial, update(dt), arm(), markTrial(),
+ *   beginCountdown(), countdownStep, start(), completeObstacle(id): boolean, recordFall(),
+ *   finish(): summary, reset() }}
  */
 export function createRouteRun(def) {
   const total = def.obstacles.length;
@@ -17,6 +37,7 @@ export function createRouteRun(def) {
   let countdown = 0;            // seconds remaining; steps 3→2→1→GO
   const completed = new Set();
   let falls = 0;
+  let isTrial = false;
 
   return {
     def,
@@ -25,6 +46,7 @@ export function createRouteRun(def) {
     get total() { return total; },
     get elapsed() { return elapsed; },
     get falls() { return falls; },
+    get isTrial() { return isTrial; },
     get completedIds() { return Array.from(completed); },
     /** 3, 2, 1 while counting, 0 = "GO" flash, null = no countdown showing. */
     get countdownStep() {
@@ -43,6 +65,14 @@ export function createRouteRun(def) {
     },
 
     arm() { if (state === "idle") state = "armed"; },
+    /** Re-arm a route that is "done" for a time trial (js/game/session.js, `[G]` at the start banner):
+     *  a route must be replayable once completed even though `finish()` otherwise leaves it there for
+     *  the rest of the day. Only ever allowed once a normal completion already exists (session's own
+     *  `save.routeBest(id) != null` check) – this method itself does not gate that. */
+    markTrial() {
+      if (state === "done") { state = "idle"; elapsed = 0; countdown = 0; falls = 0; completed.clear(); }
+      isTrial = true;
+    },
     beginCountdown() {
       if (state !== "idle" && state !== "armed") return;
       state = "countdown";
@@ -62,10 +92,10 @@ export function createRouteRun(def) {
 
     finish() {
       state = "done";
-      return { routeId: def.id, seconds: elapsed, falls, progress: completed.size, total, clean: falls === 0 };
+      return { routeId: def.id, seconds: elapsed, falls, progress: completed.size, total, clean: falls === 0, isTrial };
     },
 
-    reset() { state = "idle"; elapsed = 0; countdown = 0; falls = 0; completed.clear(); },
+    reset() { state = "idle"; elapsed = 0; countdown = 0; falls = 0; isTrial = false; completed.clear(); },
   };
 }
 
@@ -79,6 +109,7 @@ export const BLUE_I = Object.freeze({
   obstacles: Object.freeze(["ladder", "burma-1", "planks-1", "net-1", "zip-1"]),
   heightM: 5,
   lengthM: 90,
+  parS: 220,   // hand-picked for this fixture only – the real game always reads routesFromPark's own parS
 });
 
 /**
@@ -100,16 +131,25 @@ export function routesFromPark(parkDef) {
     const deckHeights = route.platforms.map((p) => p.deckHeight);
     // Sum of edge lengths + zip length (sanity rule M1.2): each edge leaves the deck EDGE_OFFSET short
     // of the trunk axis at *both* ends (js/park/loader.js#buildRouteElement), so the walkable span is
-    // the tree-to-tree distance minus twice that lead-in/out – not the raw hero-tree spacing.
-    let lengthM = route.zip ? route.zip.length : 0;
+    // the tree-to-tree distance minus twice that lead-in/out – not the raw hero-tree spacing. Also
+    // feeds `parS` (M2a): sum of (edge length ÷ its kind's speed estimate) × MASTERY.parScale.
+    let lengthM = 0;
+    let parSeconds = 0;
     for (let i = 1; i < route.platforms.length; i++) {
       const a = parkDef.heroTrees[route.platforms[i - 1].treeIndex];
       const b = parkDef.heroTrees[route.platforms[i].treeIndex];
-      lengthM += Math.max(0, Math.hypot(b.x - a.x, b.z - a.z) - 2 * EDGE_OFFSET);
+      const edgeLength = Math.max(0, Math.hypot(b.x - a.x, b.z - a.z) - 2 * EDGE_OFFSET);
+      lengthM += edgeLength;
+      parSeconds += edgeLength / parSpeedFor(route.edges[i - 1].kind);
+    }
+    if (route.zip) {
+      lengthM += route.zip.length;
+      parSeconds += route.zip.length / parSpeedFor("zipline");
     }
     return {
       id: route.id, category: route.category, numeral: route.numeral, nameKey: route.nameKey,
       obstacles, heightM: Math.round(Math.max(...deckHeights)), lengthM: Math.round(lengthM),
+      parS: Math.round(parSeconds * MASTERY.parScale),
     };
   });
 }
