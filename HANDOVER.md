@@ -5,7 +5,78 @@
 > `ROADMAP.md`. Eine neue Session muss allein mit dieser Datei + `ROADMAP.md` weiterarbeiten können.
 
 ## Aktueller Meilenstein
-**M1.7 Save + Optionen ABGESCHLOSSEN – damit ist M1 „Ein Ticket" komplett** (uncommitted, Session 7,
+**M2b ABGESCHLOSSEN – damit ist M2 „Ein Park" komplett** (uncommitted, oben auf dem ebenfalls noch
+uncommitteten M2a: 15 gesicherte Routen + legendäre Route, Kreuzungspodeste, Wichtel-Parcours,
+Saisonpass, Zeitläufe, Flow, Meisterschaftsstufen, Sidegrades – Verträge in `docs/architecture.md`
+unter „Park scale-up, junctions, Wichtel courses (M2a)" und „Season pass, time trials, flow, mastery,
+re-clip feedback, sidegrades (M2a)"; diese HANDOVER-Datei wurde für M2a nie aktualisiert, daher hier
+nachgetragen). M2b liefert die restlichen sieben ROADMAP-M2-Punkte:
+
+1. **Sicherungsmodi fertig** (GDD §3.3): Continuous hängt ab dem ersten echten Klick jede weitere
+   Übung derselben Route automatisch ein (`interaction.js#autoAdvanceContinuous`, einmaliger i18n-
+   Hinweis `notice.continuousBelay`), Classic bestraft „beide Karabiner offen" jetzt wirklich – neuer
+   Spielerzustand `player/accident.js` (kinematischer Sturz) + `ui/accident-report.js` (trockener
+   Unfallbericht: Route/Hindernis/Ursache/Zeit, zwei Sprachen), `save.recordAccident()`
+   (`stats.accidents`), `session.abandonActiveRun()`. Klassischer Flying-Fox-Ritt bekommt eine eigene
+   12-m-Handbremszone (`zipline/brakes.js#HAND_BRAKE`, `profile: "hand"`) statt der Netzbremse –
+   zu wenig bremsen = „messy", zu früh voll zugreifen = permanent verhärtet und Strandung vor dem
+   Podest (Handaufziehen wie bei der Netzbremse). 8 neue Tests `tests/unit/brakes-hand.test.mjs`.
+2. **Nachtklettern** (GDD §3.7): Nachtticket ab der ersten geschafften Route an der Kassa wählbar
+   (`openingHour 20.5`), Stirnlampe (`player/headlamp.js`, neuer `THREE.SpotLight`, 14 m/27°),
+   Lampions an den beiden blauen Routen (`park/lampions.js`, rein emissiv, keine echten Lichter),
+   Gäste tragen einen winzigen leuchtenden Punkt (`npc/guest-rig.js`, ebenfalls kein echtes Licht),
+   Nerven-Höhenkomponente ×0,6 nachts + pauschaler Unbekannt-Zuschlag (`player/nerves.js`).
+   `WIPFEL.debug.setNight(on=true)` erzwingt die Nacht ohne echtes Ticket.
+3. **Foto-Modus** (`game/photo-mode.js`, neu): **P** pausiert wie Optionen, gibt die Kamera frei
+   (WASD-Dolly + Maus-Look + Q/E-Höhe), blendet das gesamte HUD aus, **Leertaste** speichert einen
+   PNG-Schnappschuss; `?autoplay=1` löst die Aktion nie aus.
+4. **Katalog-Varianten + Umsetzstationen** (ROADMAP „20–25 Familien/Varianten"): 8 reine
+   Parameter-Varianten der 12 Grundarten (`elements/catalogue-data.js#CATALOGUE_VARIANTS`,
+   `element.js#registerElementVariant` – nie eine neue Mechanik), ab Rot-II/Schwarz/Legendär in den
+   Generator gemischt (`layout-route.js#variantsAllowedFor`). Schwarze Routen mit einem Gesamt-Zip-
+   Potential über 70 m bekommen eine **Umsetzstation**: eine zweite, komplett unabhängig geplante
+   Zip-Etappe ab der Landung der ersten (`layout-route.js#buildZip`, `loader.js#buildOneZipLeg`) – kein
+   gestrecktes Doppel-Seil, zwei echte, je für sich validierte Fahrten mit eigenem Umhäng-Ritual auf
+   der Zwischenplattform. Empirisch bestätigt: **Schwarz-I in Seed 1 hat eine** (Etappe A 56 m, Etappe
+   B 56 m).
+5. **Politur:** gesättigte Routenfarben + Glüh-Effekt auf Kartenoverlay/Parkplan-Tafel (`ui/map-
+   render.js#PATH_BLEND`), dünnere Linien, Überschriften-Kontrast auf Kassa-/Briefing-/Optionen-Panels
+   (`css/screens.css`) – Routenbanner-Kategorieform und kategoriefarbene Stempel waren bereits vorhanden.
+6. **Grafikoptionen** (`js/config.js#GRAPHICS`, drei Presets High/Medium/Low): Pixel-Ratio-Deckel,
+   Schattenkarten-Größe (`world/sky.js#setShadowQuality`), Wald-Impostor-Distanz
+   (`world/forest.js#setLodDistances`), Bodendetail-Radius (`world/ground-detail.js#setDetailScale`) –
+   live angewendet, persistiert in `save.data.settings.graphics`.
+7. **Touch-Steuerung** (`ui/touch-controls.js`, neu, bewusst einfach): virtueller Stick + Look-Drag-
+   Fläche + drei Knöpfe auf `pointer: coarse`-Geräten oder `?touch=1`, füttert das bestehende
+   Input-Aktionsmodell über `input.js#setVirtualState/addVirtualLook` – kein Remapping, keine Haptik.
+
+**Zwei echte Bugs beim Verifizieren gefunden und behoben** (Details unten unter „Gefunden und behoben
+in M2b"): die Stirnlampe zeigte durch einen three.js-Standardwert-Fallstrick ~46° in den Boden statt
+nach vorne, und `world/forest.js` gab am öffentlichen `.lod`-Feld für immer die eingefrorenen
+High-Standardwerte zurück statt der von `setLodDistances` tatsächlich gesetzten Werte (die LOD-
+Umschaltung selbst funktionierte, nur die Introspektion log).
+
+**Geprüft:** `node tools/check-all.mjs` **144/144**, `node --test --test-concurrency=1
+"tests/unit/**/*.test.mjs"` **186/186** (grün, inkl. der neuen 8 Handbremse- + 6 Katalog-Varianten- +
+5 Save-Tests und einer Korrektur an `layout.test.mjs`s Hindernisliste für die neue Umsetzstation).
+Frischer `?debug=1`-Boot (echter Chromium via Playwright MCP): **0 Konsolenfehler/-warnungen, 0 externe
+Requests** (129 Ressourcen, alle `127.0.0.1:8200`), **272 Draw-Calls / 718 888 Dreiecke** (Ziel ≤ 640 /
+≤ 1,3 M – deutlich erreicht). Foto-Modus, Grafikoptionen (Klick auf Medium/Low, live + persistiert nach
+Reload) und Touch-Steuerung (echter `pointerdown`/`pointerup` auf den virtuellen Knopf, `input.down
+("clip")` schaltet korrekt) einzeln im Browser gegengeprüft, je 0 Konsolenfehler. Screenshots
+`docs/screenshots/m2-accident.png` (Unfallbericht, klassischer Modus), `m2-night.png` (Nachtszene,
+Sterne + Stirnlampen-Aufhellung sichtbar, 111 KB), `m2-coursemap2.png` (gesättigte Routenfarben +
+Glüh-Effekt, 70 KB) – alle < 300 KB (PIL: 720 px Kantenlänge, 160-Farben-Palette). **Nicht erneut
+verifiziert in dieser Session:** der volle `?autoplay=1&fast=1`-Durchlauf bis „blue-1 completed" – ein
+eigener Versuch, den headless-`requestAnimationFrame` durch manuelles `loop._tick()`-Pumpen zu
+umgehen (s. „Achtung headless" weiter unten), hat die Playwright-MCP-Browserverbindung in dieser
+Session unwiederbringlich blockiert (zwei Aufrufe liefen je 1800 s in einen Timeout); keine M2b-
+Änderung berührt Blue-Is eigenen Codepfad (Varianten sind ab Rot-II gattert, die Umsetzstation nur für
+Schwarz), und der Mechanismus selbst ist in früheren Sessions dieser Datei wiederholt grün verifiziert.
+Kein Git-Commit in dieser Session (Auftrag: der Lead prüft/committet/taggt `m2`); `ROADMAP.md` bewusst
+unangetastet gelassen (Auftrag: „Tick NOTHING in ROADMAP", der Lead hakt ab).
+
+**M1.7 Save + Optionen** (frühere Session, weiterhin gültig): Pause-/Optionen-Bildschirm (`js/ui/
 2026-08-26, oben auf dem ebenfalls noch uncommitteten M1.1–M1.6): Pause-/Optionen-Bildschirm
 (`js/ui/options.js` + `js/ui/options-controls.js`, neu) – **Esc** öffnet ihn jetzt statt des früheren
 blanken `loop.paused`-Umschaltens (der Screen selbst setzt `loop.paused` beim Öffnen/Schließen, der Rest
@@ -380,6 +451,23 @@ PIL: 900 px Kantenlänge, 128–160-Farben-Palette).
   (Kategorie-Gain-Busse `sfx`/`ambience`/`ui` neben `master`), `core/input.js#invertY`. `?options=1`
   öffnet beim Boot. Details/Prüfnachweis: oben unter „Aktueller Meilenstein“, Verträge in
   `docs/architecture.md#Options + settings (M1.7 – contracts)`.
+- **Park-Skalierung, Kreuzungspodeste, Wichtel, Saisonpass/Zeitläufe/Flow/Meisterschaft/Sidegrades
+  (M2a):** 15 gesicherte Routen + legendäre Route über vier Hubs (`park/layout.js#PARK_CONFIG`),
+  Kreuzungspodeste (`layout-route.js`s `join`-Option, geteilte Podeste in `loader.js`), zwei
+  Wichtel-Bodenparcours (`park/wichtel.js`, reine Deko), Saisonpass (`ticket.js`, `hours: Infinity`),
+  Zeitläufe (`route.js#markTrial`), Flow (`game/flow.js`), Meisterschaftsstufen (`game/mastery.js`),
+  Umhäng-Feedback (`game/clip-meter.js`), Sidegrades (`player/sidegrade.js`, drei Kassa-Optionen).
+  Details/Verträge: `docs/architecture.md`, Abschnitte „Park scale-up, junctions, Wichtel courses (M2a)"
+  und „Season pass, time trials, flow, mastery, re-clip feedback, sidegrades (M2a)" (diese Datei wurde
+  für M2a nie eigens aktualisiert – siehe „Aktueller Meilenstein" oben für den Nachtrag).
+- **Sicherungsmodi fertig, Nachtklettern, Foto-Modus, Katalog-Varianten + Umsetzstationen, Politur,
+  Grafikoptionen, Touch-Steuerung (M2b):** `player/accident.js` + `ui/accident-report.js` (klassischer
+  Unfall), `zipline/brakes.js#HAND_BRAKE` (Handbremse), `player/headlamp.js` + `park/lampions.js`
+  (Nachtklettern), `game/photo-mode.js`, `elements/catalogue-data.js#CATALOGUE_VARIANTS` +
+  `layout-route.js`s Umsetzstation, `js/config.js#GRAPHICS` + `ui/options.js`s Grafik-Sektion,
+  `ui/touch-controls.js`. Details/Prüfnachweis: oben unter „Aktueller Meilenstein“, Verträge in
+  `docs/architecture.md#Belay modes complete, night climbing, photo mode, catalogue variants, graphics
+  options, touch (M2b)`.
 
 ## Was halb fertig ist
 - **M1.4/M1.6:** Gäste behandeln Tarzansprung und Skateboard wie eine normale kontinuierliche Übung
@@ -407,6 +495,28 @@ PIL: 900 px Kantenlänge, 128–160-Farben-Palette).
 ## Was kaputt ist
 – nichts Bekanntes. Beobachtungen: siehe „Offen / Provisorisch“.
 
+**Gefunden und behoben in M2b:**
+- `player/headlamp.js`: `THREE.SpotLight` (wie `DirectionalLight`) setzt seine `position` im Konstruktor
+  standardmäßig auf `Object3D.DEFAULT_UP` = `(0, 1, 0)`, nicht auf den Ursprung – damit der Licht-zu-Ziel-
+  Vektor nie entartet ist. Ungesetzt (erster Wurf) saß das Licht 1 m über dem Kopfanker, während sein
+  Ziel nur ~0,04 m darunter lag: die ganze Lichtkeule zeigte ~46° in den Boden statt „leicht nach unten,
+  geradeaus" wie im Kommentar behauptet – ein Screenshot in Kopfhöhe zeigte keinerlei sichtbaren Kegel,
+  weil er nie auf etwas vor dem Spieler zeigte. Behoben mit einem expliziten
+  `light.position.set(0, 0, 0)`; bestätigt über die live `matrixWorld`-Translation von Licht und Ziel
+  (annähernd horizontaler Vektor, deckungsgleich mit der Blickrichtung des Spielers). `headlampIntensity`
+  gleichzeitig 7 → 35 nachgezogen: 7 war nur je gegen die falsche (in-den-Boden-zeigende) Ausrichtung
+  über den Daumen gepeilt worden und lag, einmal korrekt ausgerichtet, unter der 8-Bit-Anzeigeschwelle
+  (bestätigt über einen kontrollierten Pixel-Diff bei pausiertem Loop, Licht an/aus, gleiche Kameraposition).
+- `world/forest.js`: `createForest(...)` gab am zurückgegebenen Objekt `lod: FOREST_LOD` zurück – die
+  **eingefrorene** High-Standardkonstante – statt der veränderlichen `{near, mid}`-Variable, die
+  `setLodDistances` tatsächlich beschreibt und `lodFor()` tatsächlich liest. Die echte LOD-Umschaltung
+  war nie kaputt (`stats.byLod` verschiebt sich sichtbar, wenn `setLodDistances` aufgerufen wird –
+  bestätigt mit `{near:5, mid:10}`, fast jeder Baum wandert in den Impostor-Eimer), aber jeder externe
+  Leser von `forest.lod` (F1-Panel, ein künftiger Test) hätte für immer die High-Standardwerte gesehen,
+  unabhängig vom aktiven Preset. Behoben, indem das echte lokale `lod`-Binding zurückgegeben wird; kein
+  anderes Modul las `forest.lod` vor dieser Korrektur (sauber gegrept), also verhaltensneutral außer der
+  jetzt ehrlichen Introspektion.
+
 **Gefunden und behoben in M0.6** (betraf auch M0.4/M0.5, nur weniger sichtbar):
 `player/controller.js#moveBody` hat die Geschwindigkeit aus dem zurückgemeldeten KCC-Weg abgeleitet –
 inklusive der Korrektur, mit der der Character-Controller die Kapsel aus einer Durchdringung
@@ -415,8 +525,37 @@ konnte die Figur damit mit **25 m/s** wegschleudern. Jetzt gilt: ein Hindernis k
 wegnehmen, nie hinzufügen (`asked`-Klemme).
 
 ## Dateien, an denen gerade gearbeitet wird
-– keine offene Baustelle, aber **alles seit Tag `m0` (`d20789e`) ist uncommitted**, inklusive M1.8
-(bereits HEAD `43993bb`, s. u.), M1.1, M1.2, M1.3/M1.5, M1.4/M1.6 und M1.7 (diese Session).
+– keine offene Baustelle, aber **alles seit Tag `m0` (`d20789e`) ist uncommitted**, inklusive M2b (diese
+Session), M2a (davor, nie eigens eingetragen, s. „Aktueller Meilenstein"), M1.8 (bereits HEAD `43993bb`,
+s. u.), M1.1, M1.2, M1.3/M1.5, M1.4/M1.6 und M1.7.
+M2b laut geänderten Dateien: neu
+`js/player/accident.js`, `js/ui/accident-report.js`, `js/game/photo-mode.js`, `js/player/headlamp.js`,
+`js/park/lampions.js`, `js/ui/touch-controls.js`, `tests/unit/brakes-hand.test.mjs`,
+`docs/screenshots/{m2-night,m2-coursemap2}.png`; geändert `js/config.js` (`ACCIDENT`, `NIGHT`, `PHOTO`,
+`GRAPHICS`, `TOUCH`, `TICKET_TYPES.night`), `js/core/input.js` (virtuelle Aktionen/Bewegung/Blick,
+`consume`/`setVirtualState`/`addVirtualLook`), `js/core/params.js` (`?touch=`), `js/core/save.js`
+(`settings.graphics`, `stats.accidents`, `recordAccident`), `js/zipline/brakes.js` (`HAND_BRAKE`,
+`profile`-Parameter auf `inZone`/`apply`), `js/player/on-zipline.js` (Handbremsprofil, `ZIP_PROMPTS.
+handZone`), `js/player/interaction.js` (`autoAdvanceContinuous`, `notice.continuousBelay`),
+`js/game/clip-meter.js` (`isDisabled`), `js/game/session.js` (`abandonActiveRun`, Umsetzstations-Guard
+in `zip:finished`), `js/game/route.js` (Umsetzstations-Länge/Par-Zeit/zweite Hindernis-Id),
+`js/game/ticket.js` (`openingHour` veränderlich), `js/player/nerves.js` (`night`-Term),
+`js/player/{vitals,on-element,fall,on-tarzan}.js` (optionaler `sky`-Parameter), `js/ui/kassa.js`
+(Nachtticket-Knopf), `js/world/forest.js` (`lod`/`setLodDistances`, **+ der oben genannte Bugfix**),
+`js/world/ground-detail.js` (`setDetailScale`), `js/world/sky.js` (`setShadowQuality`),
+`js/ui/options.js` (Grafik-Sektion, `applyGraphicsLive`/`setGraphics`, `pillButton`),
+`js/elements/element.js` (`registerElementVariant`), `js/elements/catalogue-data.js`
+(`CATALOGUE_VARIANTS`), `js/elements/catalogue.js` (Varianten-Registrierung), acht Element-Module
+(`burma-bridge`/`hanging-planks`/`beam-swing`/`stirrups`/`rings`/`barrels`/`net-bridge`/`skate.js`, je
+ein gezielter Config-Override-Punkt), `js/park/layout-route.js` (`variantsAllowedFor`,
+Umsetzstations-Planung in `buildZip`), `js/park/loader.js` (`buildOneZipLeg`, zweite Zip-Etappe,
+`zipLandings`), `js/npc/agents.js` (Zip-Zielanker über `getExitAnchor()`), `js/npc/guest-rig.js`
+(Stirnlampen-Punkt, `nightFactor`-Parameter), `js/main.js` (komplette M2b-Verdrahtung – zu umfangreich
+für eine Aufzählung hier, s. `docs/architecture.md`s M2b-Abschnitt), `css/screens.css`
+(Überschriften-Kontrast, `.accident-*`), `css/hud.css` (`.touch-*`, `.photo-*`, `.accident-active`-Regel),
+`js/ui/map-render.js` (`PATH_BLEND`, Routen-Glüh-Pass), `assets/strings/{en,de}.json` (~30 neue Keys je
+Sprache, Parität geprüft), `tests/unit/{catalogue,save}.test.mjs` (neue Tests), `tests/unit/layout.test.mjs`
+(Hindernisliste um die Umsetzstations-Etappe erweitert), `docs/architecture.md`, `HANDOVER.md`.
 M1.7 laut geänderten Dateien: neu
 `js/ui/options.js`, `js/ui/options-controls.js`, `js/player/assist.js`,
 `docs/screenshots/m1-options.png`; geändert `js/config.js` (`OPTIONS`), `js/core/params.js` (`?options=`),
@@ -488,12 +627,10 @@ entschieden, eintragen), ADR-014 (Rapier compat 0.20.0 – dito), 015–019.
 – keine reproduzierten. Zu prüfen: Kamera-Kollision mit Kronen im echten Wald (nur in Dev-Seite getestet).
 
 ## Unmittelbar nächste Aufgabe
-**M1 „Ein Ticket" ist mit M1.7 komplett** (M1.1–M1.8 alle abgehakt in `ROADMAP.md`, M1.8 bereits HEAD
-`43993bb`). Als Nächstes **M2 „Ein Park"** (`ROADMAP.md`): 15 Parcours + 2 Wichtel, Kreuzungspodeste,
-Legendäre Route, Saisonpass-Modus, Zeitläufe (3-2-1), Flow-Multiplikator (nur bei ruhigen Nerven),
-Umhäng-Feedback, Meisterschaftsstufen, Nachtklettern, drei Sicherungsmodi (bereits an der Kassa wählbar –
-prüfen, was für M2 noch fehlt), Fotos, Sidegrades, Übungskatalog auf 20–25 Familien, Grafikoptionen,
-Touch-Steuerung.
+**M2 „Ein Park" ist mit M2b komplett** (M2a + M2b zusammen liefern alle ROADMAP-M2-Punkte – Checkboxen
+in `ROADMAP.md` bewusst nicht gesetzt, das übernimmt der Lead zusammen mit Commit/Tag `m2`). Als
+Nächstes **M3** (`ROADMAP.md` prüfen für den genauen Umfang – zum Zeitpunkt dieses Eintrags noch nicht
+im Detail gegen diese Datei abgeglichen, s. „Nächste fünf Aufgaben" Punkt 1).
 
 Offene Entscheidung aus M1.3 (weiterhin unentschieden): Größenklasse (`RULES.sizeClasses[].allowed`) ist
 an der Kassa wählbar und persistiert (`save.data.ticket.sizeClassId`), treibt aber **nur** die Zip-Masse
@@ -503,24 +640,46 @@ beides). Noch keine ADR; wenn gewünscht, gehört der Check neben `lockedCategor
 `player/interaction.js`, mit einer eigenen Prompt-Zeile.
 
 ## Nächste fünf Aufgaben
-1. M2-Kickoff: Umfang aus `ROADMAP.md`/GDD §8 schneiden (welche der 15 Parcours zuerst, Kreuzungspodeste
-   vs. Legendäre Route vs. Saisonpass zuerst entscheiden – vermutlich eigene ADR).
-2. Größenklasse → Kategorie-Zugang entscheiden und ggf. verdrahten (s. o., „Offene Entscheidung aus M1.3").
-3. Podest-Typen nachziehen (Übergang, Kreuzung, Rast, Hub – aus der ursprünglichen M1.2-Liste
+1. M3-Kickoff: `ROADMAP.md`s M3-Block („Der Betreiber", ADR-019) ist ein echter Richtungswechsel –
+   Builder-Modus (Bäume mit Gutachten, Podeste, Katalog, Flying-Fox-Werkzeug), Parcours-Inspektor,
+   Gäste-Simulation mit Profilen/Overlays (Warten/Angst/Rettung/Bäume), Begehung als Freigabepflicht,
+   Guide-/Retter-Rolle, Inspektionen, PSA-Alterung, Wetter/Räumung, Ökonomie/Ticketmodelle, Teilen mit
+   Bewertung/Bestzeit – braucht vor dem ersten Code vermutlich eine eigene ADR, welcher Teil zuerst
+   (Builder vs. Betreiber-Simulation sind zwei sehr unterschiedliche Spielmodi, die sich beide auf
+   `parkDef`/`course` stützen würden, aber in entgegengesetzte Richtungen erweitern).
+2. Autoplay-Regressionscheck nachholen: der volle `?autoplay=1&fast=1`-Lauf bis „blue-1 completed" wurde
+   diese Session **nicht** erneut bestätigt (s. „Aktueller Meilenstein", die Playwright-MCP-Verbindung
+   hat sich dabei aufgehängt) – vor dem nächsten Commit einmal sauber nachziehen, idealerweise mit einem
+   deutlich kleineren manuellen `loop._tick()`-Tick-Budget als der Versuch dieser Session (40 000 Ticks
+   war zu viel für den headless-Software-Renderer).
+3. Größenklasse → Kategorie-Zugang entscheiden und ggf. verdrahten (weiterhin offen seit M1.3, s. u.).
+4. Podest-Typen nachziehen (Übergang, Kreuzung, Rast, Hub – aus der ursprünglichen M1.2-Liste
    zurückgestellt, s. „Was halb fertig ist"): `platform.js#kind` kennt bisher nur
-   „standard"/„transition"; Kreuzungspodeste würden auch verlangen, dass zwei Routen sich einen
-   Baum/ein Podest teilen können – das rührt an den Layout-Generator (`layout.js`/`layout-route.js`),
-   nicht nur an den Loader.
-4. Eigene Gast-Posen für Tarzansprung/Skateboard (`js/npc/agents.js`/`guest-rig.js` behandeln beide
-   aktuell wie eine normale kontinuierliche Übung, s. „Was halb fertig ist" M1.4/M1.6) – bräuchte je
-   eine kleine Sonderbehandlung in `advanceElement`/`poseFor`, kein neues Grundgerüst.
-5. Draw-Calls am Spawn weiter drücken (das ältere M1.1-Ziel ≤ 420 ohne Schilder bleibt offen, s.
-   „Offen"; seit M1.4/M1.6 bei 438–439, weiter innerhalb des jetzt gültigen ≤ 480-Ziels): die
-   Podest-Merge-Optimierung ist am Deckungsgrad der statischen Geometrie ausgereizt; als Nächstes käme
-   nur noch dynamische Geometrie in Frage (Zip-Netz/Trolley, Element-Wobble-Meshes) – dafür müsste
-   `element.js`/`zipline.js` eigene LOD- oder Batch-Strategien bekommen, kein reiner Loader-Fix mehr.
+   „standard"/„transition"/„junction" (M2a); ob M3s Builder-Modus eigene Podest-Typen ohnehin
+   mitbringt, ist eine Frage für Aufgabe 1.
+5. Touch-Steuerung von „bewusst einfach" zu „richtig nutzbar" ausbauen (M2b hat nur das Nötigste
+   verdrahtet, s. „Offen / Provisorisch" – größere Tastatur, Geräte-Tuning, ein echtes Einstellungs-Panel
+   dafür sind explizit zurückgestellt), falls M3 mobile/Tablet-Spielweise überhaupt vorsieht.
 
 ## Offen / Provisorisch
+- ~~M2b-Autoplay-Recheck ausstehend~~ – vom Lead nachgeholt (2026-08-26): blue-1 `done` 5/5, 0 Stürze,
+  0 Konsolenfehler, 394 Calls / 0,88 M Tris; `layout.test.mjs` von 4:49 min auf 24 s beschleunigt
+  (Modul-Cache statt Neubau pro Test).
+- **M2b:** Touch-Steuerung ist absichtlich minimal (ROADMAP-Wortlaut „bewusst einfach"): ein Stick, eine
+  Look-Fläche, drei Knöpfe, kein Remapping, keine Haptik, keine Geräte-spezifische Größenanpassung –
+  verifiziert über direkte `pointerdown`/`pointerup`-Events, nicht auf echtem Touch-Hardware. Die
+  Stirnlampen-Intensität (`NIGHT.headlampIntensity = 35`, nach dem Ausrichtungs-Bugfix neu justiert)
+  ist eine einmalige Schätzung anhand eines kontrollierten Pixel-Diffs, keine durchgestylte
+  Lichtstimmung – ein echter Blick-Pass (M2-Politur oder später) könnte das noch verfeinern, gerade im
+  Zusammenspiel mit den Lampions. Lampions/Gäste-Stirnlampen sind rein emissiv (kein
+  `THREE.Light`) – wirft also kein echtes Licht auf die Umgebung, nur ein Leuchteffekt am Objekt selbst
+  (dokumentierte Budget-Entscheidung, s. `docs/architecture.md`). Die Umsetzstation prüft nur, ob eine
+  zweite Zip-Etappe *validierbar* ist (dieselben Regeln wie jede normale Fahrt) – sie erzwingt nicht,
+  dass *jede* schwarze Route eine bekommt, nur dass es strukturell möglich ist; welche Routen in welchem
+  Seed tatsächlich eine Umsetzstation bekommen, ist damit seed-abhängig (Schwarz-I/Seed 1 bestätigt,
+  nicht jede schwarze Route in jedem Seed). Der volle `?autoplay=1&fast=1`-Regressionslauf wurde diese
+  Session nicht erneut bestätigt (s. „Nächste fünf Aufgaben" 2) – kein bekannter Grund zur Annahme eines
+  Regressions, aber auch kein frischer Beleg.
 - **M1.7:** Die `ambience`- und `ui`-Audio-Busse (`js/audio/synth.js`) sind verdrahtet, haben aber noch
   keinen einzigen Klang, der über sie läuft (kein Ambiente-Bett, keine Interface-Sounds – beides erst M2)
   – die zwei Regler im Optionen-Bildschirm wirken also gerade auf nichts Hörbares, klar so vermerkt in
@@ -697,7 +856,9 @@ Shift Sprint, Leertaste Sprung, **F einhängen/umhängen** (classic zusätzlich 
 **E klettern / auf die Übung steigen / Course Map an der Parkplan-Tafel öffnen**, **Tab Course Map**
 (auch Esc/EXIT-Button schließt sie; öffnet nicht pausiert, sperrt nur die Bewegung), T Kamera, F1 Debug,
 F2 Physik-Wireframe, **Esc Pause/Optionen** (M1.7: öffnet `js/ui/options.js`, `loop.paused === true`
-solange offen; bzw. Course-Map-schließen, wenn die offen ist – Course Map hat Vorrang vor Optionen).
+solange offen; bzw. Course-Map-schließen, wenn die offen ist – Course Map hat Vorrang vor Optionen),
+**P Foto-Modus** (M2b: pausiert wie Optionen, gibt die Kamera frei – WASD/Maus/Q·E –, blendet das HUD
+aus; **Leertaste** speichert einen PNG-Schnappschuss, **P** erneut kehrt zurück).
 **Auf einer Übung:** W/S vor und zurück (auf den Planken **ein Druck = eine Planke**), A/D lehnen,
 **Q** linke Hand, **rechte Maustaste** rechte Hand, **R** atmen (nur im Stehen).
 **Im Gurt:** Leertaste hochziehen, W/S am Seil zum Podest hangeln, E Retter rufen.
@@ -725,10 +886,12 @@ Manuelle Smoke-Checkliste: `docs/testing.md`.
 `?kassa=1` (Kassa erzwingen trotz laufendem Ticket) · `?briefing=0` (Einschulung dauerhaft überspringen) ·
 **`?npc=0`** (Gäste komplett deaktivieren, M1.6) · **`?map=1`** (Course Map beim Boot öffnen, M1.4,
 für Screenshots) · **`?options=1`** (Pause/Optionen beim Boot öffnen, M1.7, für Screenshots – blendet
-eine sonst gleichzeitig sichtbare Kassa aus) ·
+eine sonst gleichzeitig sichtbare Kassa aus) · **`?touch=1`** (M2b: Touch-Overlay erzwingen, auch ohne
+`pointer: coarse`-Gerät) ·
 `window.WIPFEL` = {loop, physics, scene, camera, renderer, rng, input, events, terrain, forest, sky,
 wind, player, parkDef, course, **signs**, belay, hud, interaction, vitals, session, save, autoplay,
-kassa, briefing, stampCard, ticket, **options**, **parkBoard, courseMap, occupancy, agents, guestRig**, debug}.
+kassa, briefing, stampCard, ticket, **options**, **parkBoard, courseMap, occupancy, agents, guestRig**,
+**accidentReport, photoMode, headlamp, lampions, touchControls** (M2b), debug}.
 Skripten/Testen: `WIPFEL.player.teleport(x, y, z)`, `WIPFEL.player.setState("ground")`,
 `WIPFEL.course.{anchors, elements, platforms, graph, zipline, zipLanding, zipPlan}`,
 `WIPFEL.course.elements[i].getEntryAnchor().stand`,
@@ -745,7 +908,12 @@ und **`WIPFEL.briefing.completeForBot()`** (die Bot-Hooks, auch von Hand aufrufb
 stehenbleiben), **`WIPFEL.debug.setRiderMass(kg)`** (Größenklasse für die nächste Fahrt, normalerweise
 über die Kassa gesetzt) und **`WIPFEL.debug.endTicket()`** (M1.5: erschöpft die Restzeit und ruft
 `session.forceDayEnd()` – überspringt die 8-s-Erweiterungs-Gnadenfrist, landet direkt auf der
-Stempelkarte; No-op ohne laufendes Ticket).
+Stempelkarte; No-op ohne laufendes Ticket), **`WIPFEL.debug.setNight(on=true)`** (M2b: erzwingt
+`sky.setTimeOfDay(NIGHT.openingHour + 1.5)` ohne echtes Nachtticket, stellt mit `false` den normalen
+Ticket-Uhr-Sync wieder her).
+**M2b:** **`WIPFEL.photoMode.{active,requestSnapshot()}`**, **`WIPFEL.headlamp`**/**`WIPFEL.lampions`**
+(je `.update(nightFactor, …)`, normalerweise vom Loop aufgerufen), **`WIPFEL.accidentReport.visible`**,
+**`WIPFEL.touchControls`** (nur konstruiert, wenn `isTouchDevice()`/`?touch=1`).
 **M1.4/M1.6:** **`WIPFEL.courseMap.{visible,open(),close(),toggle()}`**, **`WIPFEL.parkBoard.
 standPosition`** (zum Hinteleportieren), **`WIPFEL.agents.list`** (jeder Eintrag: `id, category,
 routeId, phase, pos, heading, t, distanceToPlayer, …` – `phase` ∈ wander/toEntry/queue/clipIn/onRail/

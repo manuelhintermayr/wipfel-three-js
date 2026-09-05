@@ -158,7 +158,7 @@ export function loadPark(parkDef, { scene, physics, terrain, forest, rng, textur
         // below) – only their geometry (this route's own merge) and the group itself are this route's.
         route.staticGroup.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
         route.staticGroup.removeFromParent();
-        if (route.zipLanding) route.zipLanding.dispose();
+        for (const landing of route.zipLandings) landing.dispose();
         route.ladder.dispose();
         route.entryDeck.dispose();
         // Only this route's *own* platforms (never a junction's shared, reused one – js/park/layout.js
@@ -216,16 +216,19 @@ function buildRoute(routeDef, { scene, physics, terrain, forest, wind, timber, w
   const elements = routeDef.edges.map((edge) => buildRouteElement(edge, routeDef.id, platforms, trees, terrain, elementCtx));
 
   const zip = buildRouteZip({ routeId, zipDef: routeDef.zip, terrain, platforms, trees, elementCtx, textures: wood, rng: rng.fork("zipline") });
-  if (zip) elements.push(zip.element);
+  // `zip.extra` (M2b Umsetzstation): the earlier leg(s) of a split black route – built and returned
+  // before the final leg, so they read as "crossed first" everywhere `elements` order matters.
+  const zipLegs = zip ? [...(zip.extra || []), { element: zip.element, landing: zip.landing }] : [];
+  for (const leg of zipLegs) elements.push(leg.element);
 
-  // Platforms, the entry deck, the ladder, the zip landing and the zip's own fixed hardware (gate,
-  // terminations, marker sleeve – js/elements/zipline.js's header comment: "the fixed hardware …
-  // does not move", unlike its cable/net/trolley siblings) never move again once built – fold their
-  // already-positioned meshes into one mesh per material for the whole route (SCALE CHECK).
+  // Platforms, the entry deck, the ladder, every zip landing (one per ride – a split route has two) and
+  // each zip's own fixed hardware (gate, terminations, marker sleeve – js/elements/zipline.js's header
+  // comment: "the fixed hardware … does not move", unlike its cable/net/trolley siblings) never move
+  // again once built – fold their already-positioned meshes into one mesh per material for the route.
   const staticGroups = [entryDeck.group, ladder.group, ...ownPlatforms.map((p) => p.group)];
-  if (zip) {
-    staticGroups.push(zip.landing.group);
-    const fixed = zip.element.group.children.find((g) => g.name === `${zip.element.id}-fixed`);
+  for (const leg of zipLegs) {
+    staticGroups.push(leg.landing.group);
+    const fixed = leg.element.group.children.find((g) => g.name === `${leg.element.id}-fixed`);
     if (fixed) staticGroups.push(fixed);
   }
   const staticGroup = mergeRouteStatics(routeId, staticGroups, timber.materials);
@@ -239,6 +242,9 @@ function buildRoute(routeDef, { scene, physics, terrain, forest, wind, timber, w
     tree: trees[0], trees, facing: routeDef.entry.facing,
     platform: platforms[0], platforms, ownPlatforms, ladder, entryDeck, elements,
     zipline: zip ? zip.element : null, zipLanding: zip ? zip.landing : null,
+    // Every zip landing this route built (1, or 2 for an Umsetzstation) – course.dispose() below needs
+    // all of them; `zipLanding` above stays the *last* one for every existing single-zip consumer.
+    zipLandings: zipLegs.map((leg) => leg.landing),
     ladderAnchorId, topAnchorId: `${platforms[0].id}-ring`,
     anchors, staticGroup,
   };
@@ -265,11 +271,49 @@ function buildRouteElement(edge, routeId, platforms, trees, terrain, ctx) {
 }
 
 /**
- * The Flying Fox off the last platform: the generator already searched and validated the line
- * (parkDef.routes[i].zip), so this only builds the arrival deck and hangs the cable – no search here.
- * `zipDef` is null when the seed left this route with no valid line (js/park/layout.js never emits
- * that today – every route either gets a full chain or the seed throws – but the loader stays honest
- * about it exactly like first-course.js did, in case a future generator relaxes that guarantee).
+ * One Flying Fox ride: the arrival deck (js/park/zip-landing.js) plus the zipline element from
+ * `startPos`/`startTop` to it. Shared by the ordinary single-ride case and both legs of a black route's
+ * Umsetzstation (M2b, `buildRouteZip` below) – only the departure point, its platform id and the anchor
+ * id suffix differ between a route's one ride and either half of a split one.
+ */
+function buildOneZipLeg({ routeId, idSuffix, startPos, startTop, startPlatformId, zipLeg, terrain, elementCtx, textures, rng }) {
+  const inset = ZIP_LANDING.depth / 2 - 0.20;         // the end anchor stands on the back edge
+  const centre = { x: zipLeg.landing.x + zipLeg.dir.x * inset, z: zipLeg.landing.z + zipLeg.dir.z * inset };
+  centre.y = terrain.heightAt(centre.x, centre.z);
+  const landing = createZipLanding({
+    scene: elementCtx.scene, physics: elementCtx.physics, position: centre,
+    facing: Math.atan2(-zipLeg.dir.x, -zipLeg.dir.z), deckHeight: zipLeg.deckTop - centre.y,
+    cableHeight: ZIPLINE.cableHeight, groundAt: (x, z) => terrain.heightAt(x, z), rng, textures,
+  });
+
+  const zipId = `${routeId}${idSuffix}`;   // js/game/route.js#routesFromPark builds the same ids
+  const landingPlatformId = `${routeId}${idSuffix}-landing`;
+  const element = createElement({
+    id: zipId, kind: "zipline", label: t("element.zipline"), lifelineAnchorId: zipId,
+    groundY: terrain.heightAt((startPos.x + zipLeg.landing.x) / 2, (startPos.z + zipLeg.landing.z) / 2),
+    entry: { platformId: startPlatformId, position: new THREE.Vector3(startPos.x, startTop, startPos.z) },
+    exit: { platformId: landingPlatformId, position: new THREE.Vector3(zipLeg.landing.x, landing.top, zipLeg.landing.z) },
+    landing: { stand: landing.stand, anchorId: `${routeId}${idSuffix}-out` },
+  }, elementCtx);
+  element.build();
+  element.createPhysics();
+  log.info(`${routeId}${idSuffix}: flying fox ${zipLeg.length.toFixed(1)} m · ${(zipLeg.gradient * 100).toFixed(1)} % · drop ${zipLeg.drop.toFixed(2)} m`);
+  return { element, landing };
+}
+
+/**
+ * The Flying Fox(es) off the last platform: the generator already searched and validated every leg
+ * (parkDef.routes[i].zip[.transfer]), so this only builds the hardware – no search here. `zipDef` is
+ * null when the seed left this route with no valid line (js/park/layout.js never emits that today –
+ * every route either gets a full chain or the seed throws – but the loader stays honest about it
+ * exactly like first-course.js did, in case a future generator relaxes that guarantee).
+ *
+ * M2b Umsetzstation (GDD §3.6): `zipDef.transfer` (a black route whose generator chained a second,
+ * independently validated leg – js/park/layout-route.js#buildZip) turns this into two rides – the first
+ * leg's own arrival deck *is* the transfer platform, no separate structure to build for it – returned as
+ * `{ element, landing, extra: [firstLeg] }` so the caller still finds the route's *final* ride at the
+ * top level (unchanged shape for every other route) while `extra` carries what else needs merging/
+ * disposing.
  */
 function buildRouteZip({ routeId, zipDef, terrain, platforms, trees, elementCtx, textures, rng }) {
   if (!zipDef) { log.warn(`park loader: route "${routeId}" has no Flying Fox – it ends at the last platform`); return null; }
@@ -277,28 +321,23 @@ function buildRouteZip({ routeId, zipDef, terrain, platforms, trees, elementCtx,
   const lastPlatform = platforms[platforms.length - 1];
   const start = { x: lastTree.x + zipDef.dir.x * EDGE_OFFSET, z: lastTree.z + zipDef.dir.z * EDGE_OFFSET };
 
-  const inset = ZIP_LANDING.depth / 2 - 0.20;         // the end anchor stands on the back edge
-  const centre = { x: zipDef.landing.x + zipDef.dir.x * inset, z: zipDef.landing.z + zipDef.dir.z * inset };
-  centre.y = terrain.heightAt(centre.x, centre.z);
-  const landing = createZipLanding({
-    scene: elementCtx.scene, physics: elementCtx.physics, position: centre,
-    facing: Math.atan2(-zipDef.dir.x, -zipDef.dir.z), deckHeight: zipDef.deckTop - centre.y,
-    cableHeight: ZIPLINE.cableHeight, groundAt: (x, z) => terrain.heightAt(x, z), rng, textures,
+  const legA = buildOneZipLeg({
+    routeId, idSuffix: "-zip", startPos: start, startTop: lastPlatform.top, startPlatformId: lastPlatform.id,
+    zipLeg: zipDef, terrain, elementCtx, textures, rng,
   });
+  if (!zipDef.transfer) return legA;
 
-  const zipId = `${routeId}-zip`;               // js/game/route.js#routesFromPark builds the same id
-  const landingPlatformId = `${routeId}-zip-landing`;
-  const element = createElement({
-    id: zipId, kind: "zipline", label: t("element.zipline"), lifelineAnchorId: zipId,
-    groundY: terrain.heightAt((start.x + zipDef.landing.x) / 2, (start.z + zipDef.landing.z) / 2),
-    entry: { platformId: lastPlatform.id, position: new THREE.Vector3(start.x, lastPlatform.top, start.z) },
-    exit: { platformId: landingPlatformId, position: new THREE.Vector3(zipDef.landing.x, landing.top, zipDef.landing.z) },
-    landing: { stand: landing.stand, anchorId: `${routeId}-zip-out` },
-  }, elementCtx);
-  element.build();
-  element.createPhysics();
-  log.info(`${routeId}: flying fox ${zipDef.length.toFixed(1)} m · ${(zipDef.gradient * 100).toFixed(1)} % · drop ${zipDef.drop.toFixed(2)} m`);
-  return { element, landing };
+  const legB = buildOneZipLeg({
+    routeId, idSuffix: "-zip2",
+    startPos: { x: zipDef.transfer.x, z: zipDef.transfer.z }, startTop: legA.landing.top,
+    startPlatformId: `${routeId}-transfer`,
+    zipLeg: {
+      dir: zipDef.transfer.dir, length: zipDef.transfer.length, gradient: zipDef.transfer.gradient,
+      deckTop: zipDef.transfer.deckTop2, drop: zipDef.transfer.drop, landing: zipDef.transfer.landing,
+    },
+    terrain, elementCtx, textures, rng,
+  });
+  return { element: legB.element, landing: legB.landing, extra: [legA] };
 }
 
 /** Anchor list for the belay: entry cable, platform rings, exercise lifelines, zip clip-out. */

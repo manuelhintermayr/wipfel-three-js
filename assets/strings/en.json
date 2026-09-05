@@ -204,5 +204,39 @@
   "mastery.inFlow": "In flow",
 
   "stamp.trialTag": "TRIAL",
-  "stamp.flowScore": "Flow score {score}"
+  "stamp.flowScore": "Flow score {score}",
+
+  "notice.continuousBelay": "Continuous belay – no re-clipping",
+
+  "accident.title": "Accident Report",
+  "accident.route": "Route",
+  "accident.obstacle": "Obstacle",
+  "accident.cause": "Cause",
+  "accident.causeBothOpen": "Both carabiners detached",
+  "accident.time": "Time",
+  "accident.continue": "Continue",
+  "accident.unknownRoute": "Unknown",
+  "accident.unknownObstacle": "Unknown",
+
+  "prompt.zipHandZone": "Hold the brake [RMB]",
+
+  "kassa.ticket.night.name": "Night ticket",
+  "kassa.ticket.night.desc": "Starts at dusk, headlamp required – less height fear, more unknown.",
+
+  "element.burmaNarrow": "narrow Burma bridge",
+  "element.planksLongGap": "hanging planks (long gaps)",
+  "element.netSteep": "steep cargo net",
+  "element.beamSwing4seg": "four-segment swinging beams",
+  "element.stirrupsWide": "wide-spaced stirrups",
+  "element.ringsFar": "far-spaced rings",
+  "element.barrels3": "three-barrel roll",
+  "element.skateLong": "fast skate board",
+
+  "photo.hint": "[P] Exit photo mode  ·  [Space] Snapshot",
+
+  "options.section.graphics": "Graphics",
+  "options.graphics.quality": "Quality",
+  "options.graphics.high": "High",
+  "options.graphics.medium": "Medium",
+  "options.graphics.low": "Low"
 }

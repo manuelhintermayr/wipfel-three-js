@@ -3,7 +3,8 @@
 // their static metadata from `catalogue-data.js`, so a future layout generator can enumerate what is
 // buildable without importing each module – and a browser page like `tools/dev/elements.html` can
 // build every one of them for inspection – by hand.
-import { elementKinds, createElement } from "./element.js";
+import { elementKinds, createElement, registerElementVariant } from "./element.js";
+import { CATALOGUE_VARIANTS } from "./catalogue-data.js";
 import "./burma-bridge.js";
 import "./hanging-planks.js";
 import "./net-bridge.js";
@@ -17,5 +18,11 @@ import "./rings.js";
 import "./tarzan.js";
 import "./skate.js";
 
-export { CATALOGUE, catalogueEntry } from "./catalogue-data.js";
+// M2b parameter variants (ROADMAP "Übungskatalog auf 20–25 Familien/Varianten"): every base kind above
+// has registered itself by now (ES modules run top to bottom, and every import above is a concrete
+// module's own `registerElementKind` side effect) – registering the variants down here, once, keeps
+// this the single place that turns catalogue-data.js's plain data into buildable kinds.
+for (const variant of CATALOGUE_VARIANTS) registerElementVariant(variant.kind, variant.baseKind, variant.configOverride);
+
+export { CATALOGUE, CATALOGUE_VARIANTS, catalogueEntry } from "./catalogue-data.js";
 export { elementKinds, createElement };

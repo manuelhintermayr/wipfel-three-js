@@ -22,11 +22,12 @@ const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const clampSigned = (v) => (v < -1 ? -1 : v > 1 ? 1 : v);
 
 /**
- * @param {{ input, events?, balance, stamina, nerves, rng?, camera? }} options
- *   `balance`, `stamina` and `nerves` are the pure logic modules; this state only feeds them.
+ * @param {{ input, events?, balance, stamina, nerves, rng?, camera?, sky? }} options
+ *   `balance`, `stamina` and `nerves` are the pure logic modules; this state only feeds them. `sky`
+ *   (optional, M2b) reads `sky.night` into the nerves' night terms.
  * @returns {object} a state for the player's state machine – register it with `player.addState("element", …)`
  */
-export function createElementState({ input, events = null, balance, stamina, nerves, rng = null, camera = null }) {
+export function createElementState({ input, events = null, balance, stamina, nerves, rng = null, camera = null, sky = null }) {
   const point = new THREE.Vector3(), tangent = new THREE.Vector3(), side = new THREE.Vector3();
   let element = null;
   let t = 0, railSpeed = 0, stepPhase = 0;
@@ -208,6 +209,7 @@ export function createElementState({ input, events = null, balance, stamina, ner
         handContact: hands,
         onElement: true,
         breathing: breathing && Math.abs(railSpeed) < 0.05,
+        night: sky ? sky.night : 0,
       });
 
       place(player, dt);

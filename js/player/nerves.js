@@ -11,6 +11,7 @@
 // Above `freezeThreshold` the climber freezes and only three deliberate breaths get them going again.
 
 import { NERVES } from "./tuning.js";
+import { NIGHT } from "../config.js";
 
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const LEVEL_NAMES = Object.freeze(["calm", "tense", "scared", "frozen"]);
@@ -33,12 +34,19 @@ export function createNerves({ config = NERVES, value = 0, trust = 0 } = {}) {
   const heightTerm = (height) => clamp01(Math.log1p(Math.max(0, height) / C.heightReference) / logSpan);
 
   function riseRate(ctx) {
-    const rise = C.heightGain * heightTerm(ctx.height || 0)
+    // Night climbing (ROADMAP M2b, GDD §3.7 "weniger Höhenangst, mehr Unbekanntes"): darkness hides
+    // how far down the ground actually is, so the height term itself is softened – but the climber is
+    // also feeling around in the dark, which is its own flat, height-independent unease. `ctx.night`
+    // is `js/world/sky.js#night`, 0..1 – zero for every ordinary daytime ticket, so this is a no-op
+    // unless the park is actually dark.
+    const night = clamp01(ctx.night || 0);
+    const rise = C.heightGain * heightTerm(ctx.height || 0) * (1 - (1 - NIGHT.heightReliefScale) * night)
       + C.exposureGain * clamp01(ctx.exposure || 0)
       + C.wobbleGain * clamp01(ctx.wobble || 0)
       + C.gustGain * clamp01(ctx.gust || 0)
       + C.lookDownGain * clamp01(ctx.lookDown || 0)
-      + (ctx.onElement ? C.elementGain : 0);
+      + (ctx.onElement ? C.elementGain : 0)
+      + NIGHT.unknownGain * night;
     return rise * (1 - C.trustGain * trustValue);
   }
 
@@ -91,7 +99,9 @@ export function createNerves({ config = NERVES, value = 0, trust = 0 } = {}) {
      * @param {number} dt seconds
      * @param {{ height?: number, exposure?: number, wobble?: number, gust?: number, lookDown?: number,
      *   handContact?: number, onElement?: boolean, onPlatform?: boolean, onGround?: boolean,
-     *   breathing?: boolean }} [ctx] `height` in metres above the ground below the climber.
+     *   breathing?: boolean, night?: number }} [ctx] `height` in metres above the ground below the
+     *   climber; `night` 0..1 (js/world/sky.js#night, M2b) softens the height term and adds a flat
+     *   "unknown" rise – omit it (or 0) for ordinary daytime play.
      * @returns {number} the nerve value after the step
      */
     update(dt, ctx = {}) {

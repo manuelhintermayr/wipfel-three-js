@@ -204,5 +204,39 @@
   "mastery.inFlow": "Im Flow",
 
   "stamp.trialTag": "ZEITLAUF",
-  "stamp.flowScore": "Flow-Score {score}"
+  "stamp.flowScore": "Flow-Score {score}",
+
+  "notice.continuousBelay": "Durchlaufende Sicherung – kein Umhängen",
+
+  "accident.title": "Unfallbericht",
+  "accident.route": "Route",
+  "accident.obstacle": "Übung",
+  "accident.cause": "Ursache",
+  "accident.causeBothOpen": "Beide Karabiner gleichzeitig offen",
+  "accident.time": "Zeit",
+  "accident.continue": "Weiter",
+  "accident.unknownRoute": "Unbekannt",
+  "accident.unknownObstacle": "Unbekannt",
+
+  "prompt.zipHandZone": "Bremse halten [RMT]",
+
+  "kassa.ticket.night.name": "Nachtticket",
+  "kassa.ticket.night.desc": "Start in der Dämmerung, Stirnlampe Pflicht – weniger Höhenangst, mehr Unbekanntes.",
+
+  "element.burmaNarrow": "die schmale Burma-Brücke",
+  "element.planksLongGap": "die hängenden Planken mit großen Lücken",
+  "element.netSteep": "das steile Netz",
+  "element.beamSwing4seg": "die viergliedrigen Wackelbalken",
+  "element.stirrupsWide": "die weiten Steigbügel",
+  "element.ringsFar": "die weiten Ringe",
+  "element.barrels3": "die drei Fässer",
+  "element.skateLong": "das schnelle Skateboard",
+
+  "photo.hint": "[P] Fotomodus verlassen  ·  [Leertaste] Schnappschuss",
+
+  "options.section.graphics": "Grafik",
+  "options.graphics.quality": "Qualität",
+  "options.graphics.high": "Hoch",
+  "options.graphics.medium": "Mittel",
+  "options.graphics.low": "Niedrig"
 }

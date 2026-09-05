@@ -18,13 +18,18 @@ const JUNCTIONS = PARK_CONFIG.routes.filter((r) => r.join);
 // hero-tree/platform count is the naive per-route sum minus one tree per junction (js/park/layout.js).
 const EXPECTED_PLATFORM_TOTAL = PARK_CONFIG.routes.reduce((sum, r) => sum + r.chainLength, 0) - JUNCTIONS.length;
 
-/** Build once per seed and hand every test the same { terrain, parkDef } pair. */
+/**
+ * Build once per seed and hand every test the same { terrain, parkDef } pair.
+ * The cases are cached at module level: without the cache every test regenerated all eight
+ * 16-route parks (14 tests × 8 seeds ≈ 5 minutes); with it the suite pays for 8 generations once.
+ */
+const CASES = SEEDS.map((seed) => {
+  const terrain = createHeadlessTerrain({ seed });
+  const parkDef = generateParkLayout({ seed, terrain });
+  return { seed, terrain, parkDef };
+});
 function forEachSeed(fn) {
-  for (const seed of SEEDS) {
-    const terrain = createHeadlessTerrain({ seed });
-    const parkDef = generateParkLayout({ seed, terrain });
-    fn(seed, terrain, parkDef);
-  }
+  for (const c of CASES) fn(c.seed, c.terrain, c.parkDef);
 }
 
 test("16 routes (15 secured + legendary), platform counts match PARK_CONFIG, junctions share one tree", () => {
@@ -202,7 +207,10 @@ test("routesFromPark: one pure run-def per route, obstacles = ladder + edges (+ 
       assert.equal(def.category, route.category);
       assert.equal(def.numeral, route.numeral);
       assert.equal(def.nameKey, route.nameKey);
+      // M2b Umsetzstation (long black-route zips split into two chained legs, js/park/layout-route.js):
+      // a second, independently-planned zip leg adds its own obstacle id after the first.
       const expected = ["ladder", ...route.edges.map((e) => e.id), `${route.id}-zip`];
+      if (route.zip.transfer) expected.push(`${route.id}-zip2`);
       assert.deepEqual(def.obstacles, expected, `seed ${seed} ${route.id}: obstacle list`);
       assert.ok(Number.isFinite(def.heightM) && def.heightM > 0, `seed ${seed} ${route.id}: heightM`);
       assert.ok(Number.isFinite(def.lengthM) && def.lengthM > 0, `seed ${seed} ${route.id}: lengthM`);

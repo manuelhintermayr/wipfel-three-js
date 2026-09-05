@@ -189,10 +189,14 @@ function buildSequence(route) {
   for (const element of route.elements) {
     const fromNodeId = element.getEntryAnchor().platformId;
     if (element.kind === "zipline") {
+      // The element's own exit anchor (not the route-level `zipLanding.stand`, which only ever names
+      // the *last* arrival deck) is correct for every leg of a route, including a black route's
+      // Umsetzstation (M2b) where an earlier zip element's landing is the transfer platform, not the
+      // route's final one – a few centimetres off the hand-tuned dismount spot, invisible on a guest.
+      const exit = element.getExitAnchor();
       steps.push({
         kind: "zip", railId: element.id, element, length: Math.max(0.5, element.length), fromNodeId,
-        toNodeId: route.zipLanding ? `${route.id}-zip-landing` : null, toIsPlatform: false,
-        toStand: route.zipLanding ? route.zipLanding.stand : element.getExitAnchor().stand,
+        toNodeId: exit.platformId, toIsPlatform: false, toStand: exit.stand,
       });
     } else {
       const toNodeId = element.getExitAnchor().platformId;

@@ -8,13 +8,16 @@ import { t } from "../core/i18n.js";
 import { sidegradeEffects } from "../player/sidegrade.js";
 
 /**
- * @param {{ belay, events, hud?, flow, isSuppressed?: () => boolean }} options `isSuppressed` (the
- *   Einschulung practice-anchor ritual, `js/game/briefing.js`) mutes the toast without disabling the
- *   flow bonus's own bookkeeping – a beginner's first fumbled ritual should not feel like it broke
- *   something, but there is nothing to reward there either since it is never "clean" on purpose.
+ * @param {{ belay, events, hud?, flow, isSuppressed?: () => boolean, isDisabled?: () => boolean }} options
+ *   `isSuppressed` (the Einschulung practice-anchor ritual, `js/game/briefing.js`) mutes the toast
+ *   without disabling the flow bonus's own bookkeeping – a beginner's first fumbled ritual should not
+ *   feel like it broke something, but there is nothing to reward there either since it is never "clean"
+ *   on purpose. `isDisabled` (M2b: continuous belay mode) is stronger – there is no ritual at all to
+ *   time there (js/player/interaction.js auto-advances the belay with no keypress), so neither the
+ *   toast nor the flow bonus ever fires while it is true.
  * @returns {{ dispose(): void }}
  */
-export function createClipMeter({ belay, events, hud = null, flow, isSuppressed = () => false }) {
+export function createClipMeter({ belay, events, hud = null, flow, isSuppressed = () => false, isDisabled = () => false }) {
   let ritualStart = null;      // performance.now() of the first open/click seen for the current anchor
   let scoredAnchor = null;     // last anchor id already judged, so settling on it twice never re-fires
 
@@ -27,6 +30,7 @@ export function createClipMeter({ belay, events, hud = null, flow, isSuppressed 
     const anchor = belay.currentAnchor();
     if (anchor == null || anchor === scoredAnchor) return;
     scoredAnchor = anchor;
+    if (isDisabled()) return;
     const seconds = (start != null ? (performance.now() - start) / 1000 : 0) + sidegradeEffects().reclipSecondsPenalty;
     if (seconds >= CLIP_METER.cleanSeconds) return;
     flow.creditCleanClip();

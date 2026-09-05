@@ -30,14 +30,19 @@ export const ZIP_PROMPTS = Object.freeze({
   get seated() { return t("prompt.zipPush"); },
   get riding() { return t("prompt.zipRiding"); },
   get zone() { return t("prompt.zipZone"); },
+  get handZone() { return t("prompt.zipHandZone"); },
   get stalled() { return t("prompt.zipStalled"); },
 });
 
 /**
- * @param {{ input, events?, camera?, hud?, stamina, nerves, wind? }} options
+ * @param {{ input, events?, camera?, hud?, stamina, nerves, wind?, belay?, sky? }} options
+ *   `belay` (optional, M2b): read once per ride (`belay.mode`) to pick the net or the classic hand
+ *   brake – see js/zipline/brakes.js's "profile" parameter. Omit it and the ride always uses the net,
+ *   exactly like before this milestone. `sky` (optional, M2b): `sky.night` (0..1) feeds the nerves'
+ *   night relief/unknown terms – see js/player/nerves.js.
  * @returns {object} a state for the player's state machine – register it with `player.addState("zipline", …)`
  */
-export function createZiplineState({ input, events = null, camera = null, hud = null, stamina, nerves, wind = null }) {
+export function createZiplineState({ input, events = null, camera = null, hud = null, stamina, nerves, wind = null, belay = null, sky = null }) {
   const point = new THREE.Vector3(), tangent = new THREE.Vector3();
   const bounce = createWobble(ZIP_RIDE.bounce);
   const params = { tuck: 0, twist: 0, speed: 0, haul: 0, phase: 0, brace: 0 };
@@ -49,6 +54,9 @@ export function createZiplineState({ input, events = null, camera = null, hud = 
   let trolleySound = null, windSound = null;
   let windOverride = null;
   let riderMass = ZIP_RIDE.massKg;
+  /** Classic mode (M2b, GDD §3.3): decided once at `enter()`, not re-read mid-ride – the belay choice
+   *  cannot change while sitting in the harness anyway (the kassa is not reachable there). */
+  let brakeProfile = "net";
 
   /** Wind component along the direction of travel, m/s: positive is a tail wind. */
   function windAlong() {
@@ -96,8 +104,10 @@ export function createZiplineState({ input, events = null, camera = null, hud = 
     /** The prompt line while the state is active – js/player/interaction.js lets a state speak. */
     get prompt() {
       if (phase === "seated") return ZIP_PROMPTS.seated;
-      if (zip && zip.stalled) return ZIP_PROMPTS.stalled;
-      if (brake && brake.inZone(zip.s, sidegradeEffects().zipBrakeZoneScale)) return ZIP_PROMPTS.zone;
+      if (zip && (zip.stalled || handBrakeStalled())) return ZIP_PROMPTS.stalled;
+      if (brake && brake.inZone(zip.s, sidegradeEffects().zipBrakeZoneScale, brakeProfile)) {
+        return brakeProfile === "hand" ? ZIP_PROMPTS.handZone : ZIP_PROMPTS.zone;
+      }
       return ZIP_PROMPTS.riding;
     },
     pose(out) { return ziplinePose(out, params); },
@@ -124,6 +134,10 @@ export function createZiplineState({ input, events = null, camera = null, hud = 
       if (!element || !element.zip) return;
       zip = element.zip;
       brake = element.brake;
+      // Classic mode (M2b, GDD §3.3 "Flying Fox mit Handbremse"): the belay choice for *this* ride,
+      // frozen at the moment the harness is sat into – js/zipline/brakes.js's "hand" profile replaces
+      // the net's legs-up-at-entry latch with a continuous grip over a longer zone.
+      brakeProfile = belay && belay.mode === "classic" ? "hand" : "net";
       // "Fast trolley" sidegrade (M2a): a lower effective drag coefficient for this ride only – the
       // cable/trolley geometry (built once in js/elements/zipline.js) never changes, only the physics
       // model's own drag term does, exactly like a heavier rider already changes `massKg` per ride.
@@ -204,18 +218,27 @@ export function createZiplineState({ input, events = null, camera = null, hud = 
     return "ground";
   }
 
-  /** One step of the ride: gravity, then the net, then everything the rider can feel. */
+  /** True once the hand brake has pinned the speed near zero short of the end – js/zipline/physics.js's
+   *  own `stalled` getter only ever considers gravity/drag, so a deliberate hand-braked stop needs its
+   *  own check here before the shared "hauling" path below can see it. */
+  function handBrakeStalled() {
+    return brakeProfile === "hand" && zip.v <= 0.05 && zip.s < zip.length - 0.05
+      && brake.inZone(zip.s, sidegradeEffects().zipBrakeZoneScale, "hand");
+  }
+
+  /** One step of the ride: gravity, then the brake, then everything the rider can feel. */
   function ride(dt) {
     zip.setWindAlong(windAlong());
     zip.update(dt, { tuck });
     const zoneScale = sidegradeEffects().zipBrakeZoneScale;
-    if (brake.inZone(zip.s, zoneScale)) {
+    if (brake.inZone(zip.s, zoneScale, brakeProfile)) {
       if (!braked) { braked = true; bounce.excite(0, ZIP_RIDE.brakeBounce); }
-      zip.setSpeed(brake.apply(dt, zip.s, zip.v, tuck > 0.5, zoneScale));
+      const engaged = brakeProfile === "hand" ? input.down("handR") : tuck > 0.5;
+      zip.setSpeed(brake.apply(dt, zip.s, zip.v, engaged, zoneScale, brakeProfile));
     }
     // Stalled: hand over hand to the end. Per RESEARCH-DATA §6 the hands must stay off the cable in
     // front of the trolley, so the rider reaches *behind* the roller and pulls – slow, and it hurts.
-    hauling = zip.stalled && input.move.y > 0.3 ? 1 : 0;
+    hauling = (zip.stalled || handBrakeStalled()) && input.move.y > 0.3 ? 1 : 0;
     if (hauling) zip.haul(dt * (ZIP_RIDE.haulTired + (1 - ZIP_RIDE.haulTired) * stamina.value));
     bounce.excite(0, ZIP_RIDE.rumble * zip.v * dt * (zip.s % 2 < 1 ? 1 : -1));
   }
@@ -240,6 +263,7 @@ export function createZiplineState({ input, events = null, camera = null, hud = 
       wobble: fast,
       lookDown: lookDownAmount(camera),
       onElement: true,
+      night: sky ? sky.night : 0,
     });
 
     params.tuck = tuck;

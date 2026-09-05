@@ -22,8 +22,61 @@ export const CATALOGUE = Object.freeze([
   { kind: "skate", labelKey: "element.skate", discrete: false, metrics: Object.freeze({ physical: 2, coordination: 5, psychological: 3, technical: 2 }) },
 ]);
 
-/** @returns {object|null} */
+/**
+ * Parameter variants (ROADMAP M2b, GDD "Übungskatalog auf 20–25 Familien/Varianten"): each entry is an
+ * existing base kind with a numeric `configOverride` – js/elements/element.js#registerElementVariant
+ * (called once from js/elements/catalogue.js, after every base kind above has registered itself) merges
+ * it over the base kind's own config, so no new mechanic exists anywhere for these eight. `metrics` is
+ * the *variant's own* difficulty (documented against the base kind's own metrics above, so the delta is
+ * visible at a glance) – js/park/layout-route.js#buildEdges only ever offers these to red-II-and-later
+ * and black/legendary routes, so late routes feel meaner without changing what a blue beginner meets.
+ */
+export const CATALOGUE_VARIANTS = Object.freeze([
+  {
+    kind: "burma-narrow", baseKind: "burma-bridge", labelKey: "element.burmaNarrow", discrete: false,
+    metrics: Object.freeze({ physical: 2, coordination: 4, psychological: 4, technical: 1 }),
+    configOverride: Object.freeze({ handSpread: 0.30, slipAngle: 0.32 }),
+  },
+  {
+    kind: "planks-long-gap", baseKind: "hanging-planks", labelKey: "element.planksLongGap", discrete: true,
+    metrics: Object.freeze({ physical: 1, coordination: 4, psychological: 5, technical: 1 }),
+    configOverride: Object.freeze({ gap: 0.62, maxPlanks: 8, slipAngle: 0.30 }),
+  },
+  {
+    kind: "net-steep", baseKind: "net-bridge", labelKey: "element.netSteep", discrete: false,
+    metrics: Object.freeze({ physical: 5, coordination: 1, psychological: 1, technical: 1 }),
+    configOverride: Object.freeze({ sagRatio: 0.038, loadSag: 0.32, staminaDrain: 0.055 }),
+  },
+  {
+    kind: "beam-swing-4seg", baseKind: "beam-swing", labelKey: "element.beamSwing4seg", discrete: false,
+    metrics: Object.freeze({ physical: 3, coordination: 4, psychological: 4, technical: 1 }),
+    configOverride: Object.freeze({ minSegments: 4, maxSegments: 4, maxSwing: 0.34 }),
+  },
+  {
+    kind: "stirrups-wide", baseKind: "stirrups", labelKey: "element.stirrupsWide", discrete: true,
+    metrics: Object.freeze({ physical: 3, coordination: 4, psychological: 4, technical: 1 }),
+    configOverride: Object.freeze({ spacing: 0.62 }),
+  },
+  {
+    kind: "rings-far", baseKind: "rings", labelKey: "element.ringsFar", discrete: true,
+    metrics: Object.freeze({ physical: 5, coordination: 4, psychological: 4, technical: 2 }),
+    configOverride: Object.freeze({ spacing: 0.68 }),
+  },
+  {
+    kind: "barrels-3", baseKind: "barrels", labelKey: "element.barrels3", discrete: false,
+    metrics: Object.freeze({ physical: 2, coordination: 5, psychological: 3, technical: 3 }),
+    configOverride: Object.freeze({ minCount: 3, maxCount: 3 }),
+  },
+  {
+    kind: "skate-long", baseKind: "skate", labelKey: "element.skateLong", discrete: false,
+    metrics: Object.freeze({ physical: 3, coordination: 5, psychological: 3, technical: 2 }),
+    configOverride: Object.freeze({ maxSpeed: 2.3, pushAccel: 1.6, slipAngle: 0.24 }),
+  },
+]);
+
+/** @returns {object|null} looks up both the base twelve and the eight M2b variants. */
 export function catalogueEntry(kind) {
   for (const entry of CATALOGUE) if (entry.kind === kind) return entry;
+  for (const entry of CATALOGUE_VARIANTS) if (entry.kind === kind) return entry;
   return null;
 }

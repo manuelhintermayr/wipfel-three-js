@@ -75,7 +75,7 @@ test("an older save without unlocks migrates to the default gate, blue forced op
   assert.equal(corrupt.isUnlocked("black"), true);
 });
 
-test("an older save without settings migrates to the defaults (M1.7)", () => {
+test("an older save without settings migrates to the defaults (M1.7 + M2b graphics)", () => {
   const storage = memoryStorage();
   storage.setItem(GAME.saveKey, JSON.stringify({ schema: GAME.saveSchema, routes: {} }));
   const save = createSave(storage);
@@ -86,6 +86,7 @@ test("an older save without settings migrates to the defaults (M1.7)", () => {
     reducedCameraMotion: false,
     reducedMotion: false,
     assist: false,
+    graphics: "high",
   });
 });
 
@@ -207,6 +208,55 @@ test("a malformed mastery entry (wrong tier count, not an object) is dropped, no
   assert.equal(save.masteryOf("blue-1"), null, "wrong tier length dropped");
   assert.equal(save.masteryOf("red-1"), null, "not an object dropped");
   assert.deepEqual(save.masteryOf("black-1"), [true, true, false, true], "valid sibling entry kept");
+});
+
+// --- M2b: graphics preset, classic-mode accidents, night-ticket unlock reuse ---------------------------
+
+test("graphics preset defaults to high, only accepts a known preset id, persists", () => {
+  const storage = memoryStorage();
+  const save = createSave(storage);
+  assert.equal(save.data.settings.graphics, "high");
+  save.updateSettings({ graphics: "low" });
+  assert.equal(save.data.settings.graphics, "low");
+  save.updateSettings({ graphics: "ultra-does-not-exist" });
+  assert.equal(save.data.settings.graphics, "low", "unknown preset ignored, previous value kept");
+  const reloaded = createSave(storage);
+  assert.equal(reloaded.data.settings.graphics, "low");
+});
+
+test("a corrupt/foreign graphics value in storage falls back to the default", () => {
+  const storage = memoryStorage();
+  storage.setItem(GAME.saveKey, JSON.stringify({ schema: GAME.saveSchema, routes: {}, settings: { graphics: "cinematic" } }));
+  const save = createSave(storage);
+  assert.equal(save.data.settings.graphics, "high");
+});
+
+test("classic-mode accidents: additive counter, starts at zero, persists across reloads", () => {
+  const storage = memoryStorage();
+  const save = createSave(storage);
+  assert.equal(save.data.stats.accidents, 0);
+  assert.equal(save.recordAccident(), 1);
+  assert.equal(save.recordAccident(), 2);
+  assert.equal(save.data.stats.accidents, 2);
+  const reloaded = createSave(storage);
+  assert.equal(reloaded.data.stats.accidents, 2);
+});
+
+test("an older save without stats migrates to zero accidents, a corrupt value falls back to zero", () => {
+  const storage = memoryStorage();
+  storage.setItem(GAME.saveKey, JSON.stringify({ schema: GAME.saveSchema, routes: {} }));
+  assert.equal(createSave(storage).data.stats.accidents, 0);
+  storage.setItem(GAME.saveKey, JSON.stringify({ schema: GAME.saveSchema, routes: {}, stats: { accidents: "lots" } }));
+  assert.equal(createSave(storage).data.stats.accidents, 0);
+  storage.setItem(GAME.saveKey, JSON.stringify({ schema: GAME.saveSchema, routes: {}, stats: { accidents: 3 } }));
+  assert.equal(createSave(storage).data.stats.accidents, 3);
+});
+
+test("night climbing reuses hasCompletedAnyRoute – no separate unlock flag to migrate or corrupt", () => {
+  const save = createSave(memoryStorage());
+  assert.equal(save.hasCompletedAnyRoute(), false, "night ticket stays hidden at the kassa until this flips");
+  save.recordRun("blue-1", { seconds: 300, falls: 3 });
+  assert.equal(save.hasCompletedAnyRoute(), true);
 });
 
 test("equipment: null by default, persists a chosen id, additive on an older save", () => {

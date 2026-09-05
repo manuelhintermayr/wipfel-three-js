@@ -1,6 +1,6 @@
 // Versioned save (schema 1): route best times, completion counters and category gates. Stored data is
 // never trusted – anything malformed collapses to defaults; new fields must be additive with defaults.
-import { GAME } from "../config.js";
+import { GAME, GRAPHICS } from "../config.js";
 
 const DEFAULTS = Object.freeze({
   schema: GAME.saveSchema,
@@ -26,7 +26,12 @@ const DEFAULTS = Object.freeze({
     reducedCameraMotion: false,   // js/player/camera.js#setReducedMotion – fall shake + nerve breathing
     reducedMotion: false,         // HUD pulse animations (body class, css/base.css)
     assist: false,                // js/player/assist.js – gentler balance disturbance, wider slip window
+    // M2b (ROADMAP "Grafikoptionen"): one of js/config.js#GRAPHICS.order ("high"|"medium"|"low").
+    graphics: "high",
   }),
+  // M2b (ROADMAP "drei Sicherungsmodi"/GDD §3.3): classic-mode accidents (both carabiners open on an
+  // element/ladder/zip) – js/player/accident.js records one every time it happens, never reset.
+  stats: Object.freeze({ accidents: 0 }),
   // M2a (ROADMAP): time trials, per-route best time only ever set by a trial run (js/game/route.js#isTrial).
   trials: {},               // routeId → bestSeconds
   // M2a (ROADMAP, GDD §3.12): four booleans per route, `MASTERY.tierOrder` order – a tier once earned
@@ -48,7 +53,7 @@ export function nextGateCategory(category) {
 /** @returns {{ data, routeBest(id), recordRun(id, {seconds, falls}), isUnlocked(category),
  *   unlockCategory(category), setLocale(l), flush(),
  *   hasCompletedAnyRoute(), trialBest(id), recordTrial(id, seconds),
- *   masteryOf(id), recordMastery(id, tiers), setEquipment(id) }} */
+ *   masteryOf(id), recordMastery(id, tiers), setEquipment(id), recordAccident() }} */
 export function createSave(storage = defaultStorage()) {
   const data = load(storage);
 
@@ -152,7 +157,15 @@ export function createSave(storage = defaultStorage()) {
       }
       if (patch.lookSensitivity === null || Number.isFinite(patch.lookSensitivity)) data.settings.lookSensitivity = patch.lookSensitivity;
       for (const key of SETTINGS_BOOLEANS) if (typeof patch[key] === "boolean") data.settings[key] = patch[key];
+      if (GRAPHICS.order.includes(patch.graphics)) data.settings.graphics = patch.graphics;
       flush();
+    },
+
+    /** Classic-mode accident (M2b, js/player/accident.js) – additive counter, never reset. */
+    recordAccident() {
+      data.stats.accidents += 1;
+      flush();
+      return data.stats.accidents;
     },
 
     /** A JSON string snapshot of the whole save (M3/M4: share/back up a profile). */
@@ -227,6 +240,10 @@ function normalize(parsed) {
     }
     if (s.lookSensitivity === null || Number.isFinite(s.lookSensitivity)) data.settings.lookSensitivity = s.lookSensitivity;
     for (const key of SETTINGS_BOOLEANS) if (typeof s[key] === "boolean") data.settings[key] = s[key];
+    if (GRAPHICS.order.includes(s.graphics)) data.settings.graphics = s.graphics;
+  }
+  if (parsed.stats && typeof parsed.stats === "object" && Number.isFinite(parsed.stats.accidents)) {
+    data.stats.accidents = Math.max(0, parsed.stats.accidents);
   }
   // M2a: trials/mastery per route id, additive – an unknown/malformed entry is simply dropped, never
   // collapses the whole map back to defaults (same philosophy as `data.routes` above).

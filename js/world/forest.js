@@ -111,11 +111,15 @@ export function createForest({ rng, scene, physics, terrain, wind, heroTrees = [
   const focus = new THREE.Vector3();
   const lastRefresh = new THREE.Vector3(Infinity, Infinity, Infinity);
   const stats = { trees: trees.length, heroes: trees.filter((t) => t.isHero).length, byLod: [0, 0, 0], instancedMeshes: group.children.length, colliders: colliders.length, buildMs: 0 };
+  // Graphics options (ROADMAP M2b): a mutable copy of the two distances `lodFor` reads – the exported
+  // `FOREST_LOD` stays the frozen High-quality default; `setLodDistances` (below) is how the Medium/Low
+  // presets actually move where impostors kick in, without needing to rebuild any geometry.
+  const lod = { near: FOREST_LOD.near, mid: FOREST_LOD.mid };
 
   function lodFor(t, d) {
     if (t.isHero) return 0;
-    const near = t.lod === 0 ? FOREST_LOD.near * FOREST_LOD.hysteresis : FOREST_LOD.near;
-    const mid = t.lod === 1 ? FOREST_LOD.mid * FOREST_LOD.hysteresis : FOREST_LOD.mid;
+    const near = t.lod === 0 ? lod.near * FOREST_LOD.hysteresis : lod.near;
+    const mid = t.lod === 1 ? lod.mid * FOREST_LOD.hysteresis : lod.mid;
     if (d < near) return 0;
     if (d < mid) return 1;
     return 2;
@@ -151,8 +155,21 @@ export function createForest({ rng, scene, physics, terrain, wind, heroTrees = [
   stats.buildMs = Math.round(performance.now() - t0);
 
   return {
-    trees, group, archetypes, stats, lod: FOREST_LOD,
+    // `lod` here is the *mutable* near/mid pair `setLodDistances` below actually writes to (not the
+    // frozen `FOREST_LOD` default) – external readers (the F1 debug panel, tests) should see whatever
+    // the current Graphics preset really set, not the High-quality defaults forever.
+    trees, group, archetypes, stats, lod,
     setFocus(pos) { focus.set(pos.x, pos.y ?? focus.y, pos.z); },
+    /**
+     * Graphics options (M2b, js/ui/options.js): move the near/mid LOD thresholds live – `mid` is what
+     * the ROADMAP calls "forest impostors from X m". Forces an immediate `refresh()` so the change is
+     * visible on the same frame instead of waiting for the next `refreshMoveMetres` step.
+     */
+    setLodDistances({ near, mid }) {
+      if (Number.isFinite(near)) lod.near = near;
+      if (Number.isFinite(mid)) lod.mid = mid;
+      refresh();
+    },
     update(dt, elapsed, focusPos) {
       if (focusPos) focus.set(focusPos.x, focusPos.y ?? focus.y, focusPos.z);
       if (focus.distanceTo(lastRefresh) > FOREST_LOD.refreshMoveMetres) refresh();

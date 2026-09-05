@@ -1,5 +1,5 @@
 // URL parameters → runtime flags. ?debug=1 ?autoplay=1 ?seed=42 ?fast=1 ?locale=de ?kassa=1 ?briefing=0
-// ?npc=0 ?map=1 ?options=1 ?routes=6
+// ?npc=0 ?map=1 ?options=1 ?routes=6 ?touch=1
 import { BELAY_MODES, DEFAULTS } from "../config.js";
 
 export function readParams(search = location.search) {
@@ -27,5 +27,8 @@ export function readParams(search = location.search) {
     // park (js/park/layout.js#PARK_CONFIG_SMALL) – quick dev iteration on anything that is not the
     // M2a content itself. Any other value (or none) keeps the new default.
     routes: q.get("routes") === "6" ? 6 : null,
+    // M2b: force the touch overlay on for desktop testing (js/ui/touch-controls.js) – normally it only
+    // appears on a `pointer: coarse` device (matchMedia).
+    touch: flag("touch"),
   });
 }

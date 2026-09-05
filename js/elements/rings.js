@@ -49,7 +49,11 @@ const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
  * @returns {object} element – additionally exposes `steps`
  */
 export function createRings(spec, ctx) {
-  const line = createRingLine(spanOf(spec));
+  // M2b "rings-far" variant: wider `spacing` must reach the line's own layout math, which runs before
+  // `createElementBase` (below) has produced `element.config` – see js/elements/stirrups.js's identical
+  // comment for the same reason.
+  const cfg = { ...RINGS, ...(spec.configOverride || null) };
+  const line = createRingLine(spanOf(spec), cfg);
 
   const element = createElementBase(spec, ctx, {
     config: RINGS,
@@ -84,12 +88,12 @@ function spanOf(spec) {
   return Math.max(0.5, Math.hypot(spec.exit.position.x - spec.entry.position.x, spec.exit.position.z - spec.entry.position.z));
 }
 
-function createRingLine(span) {
-  const { count, first, pitch } = stepLayout({ span, spacing: RINGS.spacing, endMargin: RINGS.endMargin, min: 6, max: 28 });
+function createRingLine(span, cfg = RINGS) {
+  const { count, first, pitch } = stepLayout({ span, spacing: cfg.spacing, endMargin: cfg.endMargin, min: 6, max: 28 });
   return createHangingSteps({
     count, first, pitch,
-    swingHz: RINGS.swingHz, damping: RINGS.swingDamping, maxSwing: RINGS.maxSwing,
-    kickPerStep: RINGS.kickPerStep, coupling: RINGS.coupling, readySlack: RINGS.ringRadius * 0.6,
+    swingHz: cfg.swingHz, damping: cfg.swingDamping, maxSwing: cfg.maxSwing,
+    kickPerStep: cfg.kickPerStep, coupling: cfg.coupling, readySlack: cfg.ringRadius * 0.6,
   });
 }
 

@@ -47,7 +47,11 @@ const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
  * @returns {object} element – additionally exposes `steps`
  */
 export function createStirrups(spec, ctx) {
-  const line = createStirrupLine(spanOf(spec));
+  // M2b "stirrups-wide" variant: wider `spacing` must reach the line's own layout math, which runs
+  // before `createElementBase` (below) has produced `element.config` – so this computes the same merge
+  // a step early, purely to feed `createStirrupLine`.
+  const cfg = { ...STIRRUPS, ...(spec.configOverride || null) };
+  const line = createStirrupLine(spanOf(spec), cfg);
 
   const element = createElementBase(spec, ctx, {
     config: STIRRUPS,
@@ -82,12 +86,12 @@ function spanOf(spec) {
   return Math.max(0.5, Math.hypot(spec.exit.position.x - spec.entry.position.x, spec.exit.position.z - spec.entry.position.z));
 }
 
-function createStirrupLine(span) {
-  const { count, first, pitch } = stepLayout({ span, spacing: STIRRUPS.spacing, endMargin: STIRRUPS.endMargin, min: 6, max: 24 });
+function createStirrupLine(span, cfg = STIRRUPS) {
+  const { count, first, pitch } = stepLayout({ span, spacing: cfg.spacing, endMargin: cfg.endMargin, min: 6, max: 24 });
   return createHangingSteps({
     count, first, pitch,
-    swingHz: STIRRUPS.swingHz, damping: STIRRUPS.swingDamping, maxSwing: STIRRUPS.maxSwing,
-    kickPerStep: STIRRUPS.kickPerStep, coupling: STIRRUPS.coupling, readySlack: STIRRUPS.treadWidth * 0.5,
+    swingHz: cfg.swingHz, damping: cfg.swingDamping, maxSwing: cfg.maxSwing,
+    kickPerStep: cfg.kickPerStep, coupling: cfg.coupling, readySlack: cfg.treadWidth * 0.5,
   });
 }
 

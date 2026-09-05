@@ -25,7 +25,10 @@ export function timeOfDayFor(hoursElapsed, openingHour = TICKET.openingHour) {
  */
 export function createTicketClock(options = {}) {
   let ticketHours = options.ticketHours ?? TIME.ticketHours;
-  const openingHour = options.openingHour ?? TICKET.openingHour;
+  // M2b (ROADMAP "Nachtklettern"): a night ticket opens the sky at a different hour (js/config.js#NIGHT.
+  // openingHour) than every other ticket type – mutable so `reset()` below can switch it per day instead
+  // of only at construction.
+  let openingHour = options.openingHour ?? TICKET.openingHour;
   const extendGameMinutes = options.extendGameMinutes ?? TICKET.extendGameMinutes;
   const maxExtensions = options.maxExtensions ?? TICKET.maxExtensions;
 
@@ -74,9 +77,11 @@ export function createTicketClock(options = {}) {
      * `next.ticketHours` may be `Infinity` (the season pass, M2a, `TICKET_TYPES` "season") – every
      * comparison below (`remaining`, `expired`, `clippable`) already works on ordinary finite maths, so
      * an infinite total simply never runs out; only the guard here needs to let it through.
+     * `next.openingHour` (M2b, the night ticket) switches which wall-clock hour `timeOfDay` counts from.
      */
     reset(next = {}) {
       if (typeof next.ticketHours === "number" && next.ticketHours > 0) ticketHours = next.ticketHours;
+      if (Number.isFinite(next.openingHour)) openingHour = next.openingHour;
       totalGameMinutes = ticketHours * 60;
       elapsedReal = 0;
       extensionsUsed = 0;

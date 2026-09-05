@@ -85,16 +85,20 @@ function nearestBarrel(x, barrels) {
   return best;
 }
 
-/** How many barrels fit the span, and how far apart – whole barrels, never a stub at either end. */
-function barrelLayout(span) {
-  const usable = Math.max(BARRELS.spacing, span - 2 * BARRELS.endMargin);
-  const count = Math.max(BARRELS.minCount, Math.min(BARRELS.maxCount, Math.round(usable / BARRELS.spacing) + 1));
-  return { count, first: BARRELS.endMargin, pitch: count > 1 ? usable / (count - 1) : 0 };
+/**
+ * How many barrels fit the span, and how far apart – whole barrels, never a stub at either end. Reads
+ * `cfg` (default `BARRELS`) so M2b's "barrels-3" variant (`minCount === maxCount === 3`) forces three
+ * regardless of span, instead of always filling it to the usual 4–6.
+ */
+function barrelLayout(span, cfg = BARRELS) {
+  const usable = Math.max(cfg.spacing, span - 2 * cfg.endMargin);
+  const count = Math.max(cfg.minCount, Math.min(cfg.maxCount, Math.round(usable / cfg.spacing) + 1));
+  return { count, first: cfg.endMargin, pitch: count > 1 ? usable / (count - 1) : 0 };
 }
 
 function buildBarrels(builder, frame, element, ctx, barrels) {
   const L = frame.length;
-  const { count, first, pitch } = barrelLayout(L);
+  const { count, first, pitch } = barrelLayout(L, element.config);
   const railY = (x) => frame.rise * (x / L) - element.config.sag * 4 * (x / L) * (1 - x / L);
   const top = (x) => frame.rise * (x / L) + BARRELS.hangHeight;
 

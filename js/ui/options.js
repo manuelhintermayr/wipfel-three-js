@@ -4,10 +4,15 @@
 // versioned – js/core/save.js) AND applies to the running game immediately, the same "live getter"
 // idea js/player/belay.js#setMode already uses for the kassa's belay choice.
 import { t, initI18n, currentLocale } from "../core/i18n.js";
-import { GAME, OPTIONS } from "../config.js";
+import { GAME, OPTIONS, GRAPHICS } from "../config.js";
 import { setMasterVolume, setCategoryVolume } from "../audio/synth.js";
 import { setAssistMode } from "../player/assist.js";
 import { renderControlsList } from "./options-controls.js";
+
+// Graphics presets (M2b): near/mid forest LOD distances scale together, so only `impostorNear`
+// (js/config.js#GRAPHICS, "forest impostors from X m" = the mid threshold) needs to be authored per
+// preset – `near` keeps the same fraction of it the High-quality default (45 m of 100 m) already used.
+const FOREST_NEAR_RATIO = 0.45;
 
 const { lookSensitivityMin: SENS_MIN, lookSensitivityMax: SENS_MAX } = OPTIONS;
 const sensitivityToSlider = (v) => Math.round(((clamp(v, SENS_MIN, SENS_MAX) - SENS_MIN) / (SENS_MAX - SENS_MIN)) * 100);
@@ -16,13 +21,15 @@ const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 
 /**
  * @param {{ root: HTMLElement, save, input, camera, loop, ticket?, onEndDay: () => void,
- *   onCourseMap: () => void }} options
+ *   onCourseMap: () => void, renderer?, sky?, forest?, groundDetail? }} options
  *   `camera` is the player's camera controller (`player.camera`, exposes `setReducedMotion`).
  *   `ticket` (optional) is the pure clock (js/game/ticket.js) – only its `.started` getter is read,
- *   to grey out "End day" when no ticket is running.
+ *   to grey out "End day" when no ticket is running. `renderer`/`sky`/`forest`/`groundDetail` (M2b,
+ *   all optional) are what the Graphics section actually adjusts – omit any of them and that one part
+ *   of a preset silently does nothing, exactly like `ticket` above.
  * @returns {{ visible: boolean, open(): void, close(): void, toggle(): void, applyAll(): void, dispose(): void }}
  */
-export function createOptions({ root, save, input, camera, loop, ticket = null, onEndDay, onCourseMap }) {
+export function createOptions({ root, save, input, camera, loop, ticket = null, onEndDay, onCourseMap, renderer = null, sky = null, forest = null, groundDetail = null }) {
   const screen = el("div", "screen options-screen");
   screen.hidden = true;
   const sheet = el("div", "panel options-sheet");
@@ -39,6 +46,19 @@ export function createOptions({ root, save, input, camera, loop, ticket = null, 
   const applyReducedCameraMotionLive = (on) => camera.setReducedMotion(on);
   const applyReducedMotionLive = (on) => document.body.classList.toggle("reduced-motion", on);
   const applyAssistLive = (on) => setAssistMode(on);
+  /**
+   * Graphics preset (M2b, ROADMAP "Grafikoptionen"): pixel-ratio cap, shadow map size/off, forest
+   * impostor distance and ground-detail radius all move together – each target module owns *how* its
+   * own piece changes (js/world/sky.js#setShadowQuality disposes the old shadow map itself, etc.), this
+   * only decides *what* each preset asks for.
+   */
+  function applyGraphicsLive(id) {
+    const preset = GRAPHICS.presets[id] || GRAPHICS.presets.high;
+    if (renderer) renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, preset.pixelRatioCap));
+    if (sky) sky.setShadowQuality(preset.shadowMapSize);
+    if (forest) forest.setLodDistances({ near: Math.round(preset.impostorNear * FOREST_NEAR_RATIO), mid: preset.impostorNear });
+    if (groundDetail) groundDetail.setDetailScale(preset.groundDetailScale);
+  }
 
   /** Bulk-apply a freshly loaded save at boot – no persistence, the values already came from storage. */
   function applyAll() {
@@ -49,6 +69,7 @@ export function createOptions({ root, save, input, camera, loop, ticket = null, 
     applyReducedCameraMotionLive(s.reducedCameraMotion);
     applyReducedMotionLive(s.reducedMotion);
     applyAssistLive(s.assist);
+    applyGraphicsLive(s.graphics);
   }
 
   // --- control handlers: live-apply, then persist -----------------------------------------------
@@ -58,6 +79,7 @@ export function createOptions({ root, save, input, camera, loop, ticket = null, 
   const setReducedCameraMotion = (on) => { applyReducedCameraMotionLive(on); save.updateSettings({ reducedCameraMotion: on }); };
   const setReducedMotion = (on) => { applyReducedMotionLive(on); save.updateSettings({ reducedMotion: on }); };
   const setAssist = (on) => { applyAssistLive(on); save.updateSettings({ assist: on }); };
+  const setGraphics = (id) => { applyGraphicsLive(id); save.updateSettings({ graphics: id }); render(); };
 
   /** Re-run initI18n and rebuild this panel's own labels immediately (js/core/i18n.js is a module-level
    * singleton, so every other `t()` call in the game – HUD prompts, the next banner – already re-
@@ -119,8 +141,8 @@ export function createOptions({ root, save, input, camera, loop, ticket = null, 
     const localeRow = el("div", "opt-row");
     const localePicker = el("div", "opt-locale");
     localePicker.append(
-      localeButton("English", currentLocale() === "en", () => switchLocale("en")),
-      localeButton("Deutsch", currentLocale() === "de", () => switchLocale("de")),
+      pillButton("English", currentLocale() === "en", () => switchLocale("en")),
+      pillButton("Deutsch", currentLocale() === "de", () => switchLocale("de")),
     );
     localeRow.append(el("span", "opt-label", t("options.gameplay.locale")), localePicker);
 
@@ -146,10 +168,22 @@ export function createOptions({ root, save, input, camera, loop, ticket = null, 
     return section;
   }
 
+  /** Graphics (M2b, ROADMAP): a preset row, same three-pill look the language picker already uses. */
+  function buildGraphicsSection() {
+    const current = save.data.settings.graphics;
+    const picker = el("div", "opt-locale");
+    for (const id of GRAPHICS.order) picker.appendChild(pillButton(t(GRAPHICS.presets[id].labelKey), id === current, () => setGraphics(id)));
+    const row = el("div", "opt-row");
+    row.append(el("span", "opt-label", t("options.graphics.quality")), picker);
+    const section = el("div", "options-section");
+    section.append(el("h2", "", t("options.section.graphics")), row);
+    return section;
+  }
+
   function render() {
     sheet.replaceChildren();
     const sections = el("div", "options-sections");
-    sections.append(buildAudioSection(), buildCameraSection(), buildGameplaySection(), buildControlsSection());
+    sections.append(buildAudioSection(), buildCameraSection(), buildGraphicsSection(), buildGameplaySection(), buildControlsSection());
     sheet.append(
       el("h1", "", t("options.title")),
       buildMenu(),
@@ -205,7 +239,8 @@ function toggleRow(labelText, initial, onChange) {
   return row;
 }
 
-function localeButton(label, selected, onClick) {
+/** Small pill toggle – the language picker and (M2b) the graphics preset row both use this look. */
+function pillButton(label, selected, onClick) {
   const b = document.createElement("button");
   b.type = "button";
   b.className = "opt-locale-btn" + (selected ? " selected" : "");

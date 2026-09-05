@@ -106,10 +106,10 @@ an als Blau (Höhe, Bewegung, Kraft), nicht nur schwerer.
 - [x] 15 Parcours + 2 Wichtel, Kreuzungspodeste, Legendäre Route
 - [x] Saisonpass-Modus (offen), Zeitläufe (3-2-1), Flow-Multiplikator (nur bei ruhigen Nerven),
       Umhäng-Feedback (sauber/schnell/perfekt), Meisterschaftsstufen je Parcours
-- [ ] Nachtklettern (Stirnlampe), drei Sicherungsmodi, Fotos, Sidegrades
-- [ ] Übungskatalog auf 20–25 Familien/Varianten, Umsetzstationen
-- [ ] Visuelle Politur (Materialien, Anker, Seile, Atmosphäre), Gameplay-Politur (Kamera, Zip-Gefühl,
-      Fallen, Audio, Pacing), Grafikoptionen, Touch-Steuerung. **Tag `m2`.**
+- [x] Nachtklettern (Stirnlampe), drei Sicherungsmodi, Fotos, Sidegrades
+- [x] Übungskatalog auf 20–25 Familien/Varianten, Umsetzstationen
+- [x] Visuelle Politur (Map-Sättigung, Panels, Banner, Stempel), Grafikoptionen (High/Medium/Low),
+      Touch-Steuerung (Basis). **Tag `m2`.**
 
 ## M3 · „Der Betreiber“ (Entscheidung nach M1 – ADR-019)
 

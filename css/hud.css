@@ -86,3 +86,45 @@
   100% { transform: scale(0.86); opacity: 0.75; }
 }
 @media (prefers-reduced-motion: reduce) { .hud-vitals .heart i { animation: none; } }
+
+/* Touch overlay (M2b, ROADMAP "Touch-Steuerung"): left stick zone, right look-drag zone, three buttons.
+   Sizing custom properties are set from js/config.js#TOUCH by js/ui/touch-controls.js, not hardcoded
+   here, so the numbers stay in one place. */
+.touch-controls { position: fixed; inset: 0; z-index: 5; pointer-events: none; }
+.touch-stick-zone { position: absolute; left: 0; bottom: 0; width: min(46vw, 280px); height: min(46vh, 280px); pointer-events: auto; touch-action: none; }
+.touch-stick-base {
+  position: absolute; left: 22px; bottom: 22px;
+  width: calc(var(--touch-stick-radius, 46px) * 2); height: calc(var(--touch-stick-radius, 46px) * 2);
+  border-radius: 50%; background: var(--hud-bg); border: 1px solid var(--hud-line);
+}
+.touch-stick-knob {
+  position: absolute; left: 50%; top: 50%; width: 46%; height: 46%; margin-left: -23%; margin-top: -23%;
+  border-radius: 50%; background: var(--hud-bg-strong); border: 1px solid var(--hud-accent);
+}
+.touch-look-zone { position: absolute; right: 0; top: 0; width: 58vw; height: 72vh; pointer-events: auto; touch-action: none; }
+.touch-buttons { position: absolute; right: 18px; bottom: 18px; display: flex; gap: 0.9rem; pointer-events: auto; }
+.touch-btn {
+  width: var(--touch-button-size, 58px); height: var(--touch-button-size, 58px); border-radius: 50%;
+  background: var(--hud-bg); border: 1px solid var(--hud-line); color: var(--hud-text);
+  font: 700 1.15rem/1 var(--font-display); display: grid; place-items: center; touch-action: none; padding: 0;
+}
+.touch-btn.down { background: var(--hud-accent); border-color: var(--hud-accent); color: #20241f; }
+
+/* Photo mode (M2b) – small corner hint, hidden the rest of the time. */
+.photo-hint {
+  position: absolute; left: 50%; bottom: var(--hud-pad); transform: translateX(-50%);
+  background: var(--hud-bg); border: 1px solid var(--hud-line); border-radius: var(--radius);
+  padding: 0.4rem 0.9rem; font: 500 0.82rem/1 var(--font-display); letter-spacing: 0.05em; color: var(--hud-text);
+}
+/* Every other HUD text layer hides while photo mode is active – same idea as .course-map-open. */
+.photo-mode-active .hud-route, .photo-mode-active .hud-ticket, .photo-mode-active .hud-flow,
+.photo-mode-active .hud-prompt, .photo-mode-active .hud-vitals, .photo-mode-active .hud-modes,
+.photo-mode-active .hud-speed, .photo-mode-active .hud-tip, .photo-mode-active .board-prompt,
+.photo-mode-active .touch-controls { visibility: hidden; }
+
+/* Classic-mode accident (M2b) – the dry report reads better without the route banner/HUD bleeding
+   through behind it (same idea as .course-map-open/.photo-mode-active above). */
+.accident-active .hud-route, .accident-active .hud-ticket, .accident-active .hud-flow,
+.accident-active .hud-prompt, .accident-active .hud-vitals, .accident-active .hud-modes,
+.accident-active .hud-speed, .accident-active .hud-tip, .accident-active .board-prompt,
+.accident-active .start-banner, .accident-active .countdown { visibility: hidden; }

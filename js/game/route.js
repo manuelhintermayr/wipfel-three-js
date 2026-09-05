@@ -128,6 +128,9 @@ export function routesFromPark(parkDef) {
   return parkDef.routes.map((route) => {
     const obstacles = ["ladder", ...route.edges.map((e) => e.id)];
     if (route.zip) obstacles.push(`${route.id}-zip`);
+    // M2b Umsetzstation (GDD §3.6): a black route with a mid-ride transfer platform crosses a second,
+    // separately-counted zip obstacle after it – js/park/loader.js builds the same id.
+    if (route.zip && route.zip.transfer) obstacles.push(`${route.id}-zip2`);
     const deckHeights = route.platforms.map((p) => p.deckHeight);
     // Sum of edge lengths + zip length (sanity rule M1.2): each edge leaves the deck EDGE_OFFSET short
     // of the trunk axis at *both* ends (js/park/loader.js#buildRouteElement), so the walkable span is
@@ -145,6 +148,10 @@ export function routesFromPark(parkDef) {
     if (route.zip) {
       lengthM += route.zip.length;
       parSeconds += route.zip.length / parSpeedFor("zipline");
+      if (route.zip.transfer) {
+        lengthM += route.zip.transfer.length;
+        parSeconds += route.zip.transfer.length / parSpeedFor("zipline");
+      }
     }
     return {
       id: route.id, category: route.category, numeral: route.numeral, nameKey: route.nameKey,

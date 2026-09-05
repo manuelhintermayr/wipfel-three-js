@@ -129,17 +129,21 @@ function segmentOffset(u, out, element, segments) {
   );
 }
 
-/** Segment count and pitch: whole logs that fill the span, never a stub at one end. */
-function segmentLayout(span) {
-  const usable = span - 2 * BEAM_SWING.endMargin;
-  const count = Math.max(BEAM_SWING.minSegments, Math.min(BEAM_SWING.maxSegments, Math.round(usable / 3.0)));
-  const logLength = (usable - (count - 1) * BEAM_SWING.segmentGap) / count;
-  return { count, logLength, first: BEAM_SWING.endMargin + logLength / 2, pitch: logLength + BEAM_SWING.segmentGap };
+/**
+ * Segment count and pitch: whole logs that fill the span, never a stub at one end. Reads `cfg` (default
+ * `BEAM_SWING`) instead of the module constant, so M2b's "beam-swing-4seg" variant's `minSegments ===
+ * maxSegments === 4` actually forces four logs regardless of span.
+ */
+function segmentLayout(span, cfg = BEAM_SWING) {
+  const usable = span - 2 * cfg.endMargin;
+  const count = Math.max(cfg.minSegments, Math.min(cfg.maxSegments, Math.round(usable / 3.0)));
+  const logLength = (usable - (count - 1) * cfg.segmentGap) / count;
+  return { count, logLength, first: cfg.endMargin + logLength / 2, pitch: logLength + cfg.segmentGap };
 }
 
 function buildSegments(builder, frame, element, ctx, segments) {
   const L = frame.length;
-  const { count, logLength, first, pitch } = segmentLayout(L);
+  const { count, logLength, first, pitch } = segmentLayout(L, element.config);
   const top = (x) => frame.rise * (x / L) + BEAM_SWING.hangHeight;
 
   // --- static: lifeline, the two carrier cables and their terminations ------------------------------

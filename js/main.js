@@ -1,6 +1,6 @@
 // Boot: params → Rapier → renderer → world (sky, terrain, forest) → player → loop.
 import * as THREE from "three";
-import { GAME, TIME, TICKET, TICKET_TYPES, RULES } from "./config.js";
+import { GAME, TIME, TICKET, TICKET_TYPES, RULES, NIGHT } from "./config.js";
 import { readParams } from "./core/params.js";
 import { installGlobalHandlers, showFatal, log } from "./core/errors.js";
 import { Loop } from "./core/loop.js";
@@ -34,7 +34,13 @@ import { createElementState } from "./player/on-element.js";
 import { createFallState } from "./player/fall.js";
 import { createZiplineState } from "./player/on-zipline.js";
 import { createTarzanState } from "./player/on-tarzan.js";
+import { createAccidentState } from "./player/accident.js";
+import { createHeadlamp } from "./player/headlamp.js";
 import { setSidegrade } from "./player/sidegrade.js";
+import { createLampions } from "./park/lampions.js";
+import { createPhotoMode } from "./game/photo-mode.js";
+import { createTouchControls, isTouchDevice } from "./ui/touch-controls.js";
+import { createAccidentReport } from "./ui/accident-report.js";
 import { createHud } from "./ui/hud.js";
 import { armAudio } from "./audio/synth.js";
 import { initI18n, t, formatClock } from "./core/i18n.js";
@@ -100,6 +106,9 @@ async function boot() {
     root: document.getElementById("hud"), scene, physics, parkDef: publicParkDef, terrain, rng: rng.fork("park-board"), textures: wood,
   });
   const wichtel = createWichtelCourses({ scene, physics, terrain, parkDef, rng: rng.fork("wichtel"), textures: wood });
+  // Night climbing (M2b, GDD §3.7/RESEARCH-DATA §1): lampions strung along the two blue routes –
+  // pure flavour, always built, only glowing once it is actually dark (js/world/sky.js#night).
+  const lampions = createLampions({ scene, parkDef, terrain, rng: rng.fork("lampions") });
   const buildMs = Math.round(performance.now() - t0);
   log.info(`world built in ${buildMs} ms · trees ${forest.trees.length} · hubs ${terrain.hubs.length} · routes ${course.routes.length} · course on tree #${course.tree.id}`);
 
@@ -115,12 +124,16 @@ async function boot() {
   const initialBelayMode = (save.data.ticket && save.data.ticket.belayMode) || params.belayMode;
   const belay = createBelay({ mode: initialBelayMode, onEvent: (e) => events.emit(`belay:${e.type}`, e) });
   const hud = createHud(document.getElementById("hud"));
-  const vitals = createVitals({ player, input, terrain, hud, events });
+  const vitals = createVitals({ player, input, terrain, hud, events, sky });
   const { balance, stamina, nerves } = vitals;
-  player.addState("element", createElementState({ input, events, balance, stamina, nerves, rng: rng.fork("element"), camera: player.camera }));
-  player.addState("fall", createFallState({ physics, input, scene, events, balance, stamina, nerves, camera: player.camera }));
-  player.addState("zipline", createZiplineState({ input, events, camera: player.camera, hud, stamina, nerves, wind }));
-  player.addState("tarzan", createTarzanState({ input, events, nerves, stamina }));
+  player.addState("element", createElementState({ input, events, balance, stamina, nerves, rng: rng.fork("element"), camera: player.camera, sky }));
+  player.addState("fall", createFallState({ physics, input, scene, events, balance, stamina, nerves, camera: player.camera, sky }));
+  player.addState("zipline", createZiplineState({ input, events, camera: player.camera, hud, stamina, nerves, wind, belay, sky }));
+  player.addState("tarzan", createTarzanState({ input, events, nerves, stamina, sky }));
+  // Classic-mode accident (M2b, GDD §3.5): a fall with no harness catch, straight to the ground.
+  player.addState("accident", createAccidentState({ terrain, camera: player.camera, events }));
+  // Night climbing (M2b): a spotlight parented to the rig's head anchor, on once it is dark enough.
+  const headlamp = createHeadlamp({ rig: player.rig });
 
   // --- flow (M2a, GDD §3.10): advanced here (next to vitals), read by js/game/session.js's HUD/mastery ---
   const flow = createFlow();
@@ -133,7 +146,13 @@ async function boot() {
   const courseMap = createCourseMap({ root: overlay, parkDef: publicParkDef, terrain, save, player, getAgents: () => (agents ? agents.list : []) });
   if (params.map) courseMap.open();
 
+  // M2b night debug hook (`WIPFEL.debug.setNight`): while true, the periodic ticket→sky sync in the
+  // gameplay loop below stands down so a forced test/screenshot state is not immediately overwritten.
+  let nightDebugOverride = false;
   const ticketHoursFor = (typeId) => (TICKET_TYPES.find((tt) => tt.id === typeId) || TICKET_TYPES[0]).hours;
+  // M2b (ROADMAP "Nachtklettern"): only the "night" ticket type carries its own `openingHour`
+  // (js/config.js#TICKET_TYPES) – every other type falls back to the park's usual opening time.
+  const openingHourFor = (typeId) => (TICKET_TYPES.find((tt) => tt.id === typeId) || TICKET_TYPES[0]).openingHour ?? TICKET.openingHour;
   const massForSizeClass = (id) => (RULES.sizeClasses.find((s) => s.id === id) || RULES.sizeClasses[RULES.sizeClasses.length - 1]).massKg;
   function applyChoice(choice) {
     belay.setMode(choice.belayMode);
@@ -147,20 +166,23 @@ async function boot() {
   /** Kassa confirm: applies the choice, opens the day, then the Einschulung unless already done. */
   function startDay(choice) {
     save.startTicket(choice);
-    ticket.reset({ ticketHours: ticketHoursFor(choice.type) });
-    sky.setTimeOfDay(TICKET.openingHour);
+    const openingHour = openingHourFor(choice.type);
+    ticket.reset({ ticketHours: ticketHoursFor(choice.type), openingHour });
+    sky.setTimeOfDay(openingHour);
+    nightDebugOverride = false;   // a fresh day always follows the ticket's own clock again
     applyChoice(choice);
     session.beginDay();
-    const endHour = TICKET.openingHour + ticket.totalGameMinutes / 60;
+    const endHour = openingHour + ticket.totalGameMinutes / 60;
     hud.setNotice(t("notice.ticketStarted", { time: formatClock(endHour) }), 6);
     if (!save.data.briefingDone) briefing.start();
   }
   /** Reopening the page with an active ticket (and no `?kassa=1`): resume the day, skip the kassa. */
   function resumeDay() {
     const tk = save.data.ticket;
-    ticket.reset({ ticketHours: ticketHoursFor(tk.type) });
+    ticket.reset({ ticketHours: ticketHoursFor(tk.type), openingHour: openingHourFor(tk.type) });
     ticket.update(tk.elapsedReal);
     sky.setTimeOfDay(ticket.timeOfDay);
+    nightDebugOverride = false;
     applyChoice({ belayMode: tk.belayMode || params.belayMode, sizeClassId: tk.sizeClassId, equipmentId: save.data.equipmentId });
     session.beginDay();
   }
@@ -200,8 +222,57 @@ async function boot() {
     root: overlay, save, input, camera: player.camera, loop, ticket,
     onEndDay: endTicketNow,
     onCourseMap: () => courseMap.open(),
+    // M2b Graphics section: any/all may be omitted (see js/ui/options.js's own header) – all four exist here.
+    renderer, sky, forest, groundDetail,
   });
   options.applyAll();   // settings from a previous visit, applied once before the first frame
+
+  // --- classic-mode accident (M2b, GDD §3.5) --------------------------------------------------------
+  const accidentReport = createAccidentReport({
+    root: overlay,
+    onContinue() {
+      const hub = terrain.spawn || { x: 0, y: 0, z: 0 };
+      player.teleport(hub.x, hub.y, hub.z);
+      player.setState("ground");
+      belay.reset();
+    },
+  });
+  // Classic mode's F/X ritual only ever runs in "ground" ("standing at an anchor", js/player/
+  // interaction.js#update – `anchor` is null in every other mode), so that is the only mode this can
+  // ever fire in; `vitals.onPlatform` (already > 1.6 m, the same line that separates a low entry deck
+  // from "up in the trees") keeps a fumble at the ground-level entry cable from playing the same
+  // dramatic fall a real height would.
+  events.on("belay:unsafe", () => {
+    if (player.mode !== "ground" || !vitals.onPlatform) return;
+    // Only a "lifeline" anchor's label is already localised (js/park/loader.js#buildRouteElement calls
+    // `t()` on it); the entry-cable/ring anchors' own `.label` are internal English literals never meant
+    // for players, so those fall back to the accident report's own "unknown" copy instead of leaking
+    // untranslated text into the German UI (CLAUDE.md "UI-Texte nur über assets/strings").
+    const anchor = interaction.anchor;
+    const elementLabel = anchor && anchor.kind === "lifeline" ? anchor.label : null;
+    const routeName = session.run ? t(session.run.def.nameKey) : null;
+    player.setState("accident", { cause: "bothCarabinersOpen", elementLabel, routeName });
+  });
+  events.on("player:accident-fall", () => { flow.onFall(); accidentReport.showFade(); });
+  events.on("player:accident-landed", ({ elementLabel, routeName, seconds }) => {
+    save.recordAccident();
+    session.abandonActiveRun();
+    accidentReport.showReport({ routeName, elementLabel, seconds });
+  });
+
+  // --- photo mode (M2b) -----------------------------------------------------------------------------
+  const photoMode = createPhotoMode({ camera, input, renderer, loop });
+  const photoHint = document.createElement("div");
+  photoHint.className = "photo-hint";
+  photoHint.hidden = true;
+  overlay.appendChild(photoHint);
+  function setPhotoHintText() { photoHint.textContent = t("photo.hint"); }
+  setPhotoHintText();
+
+  // --- touch overlay (M2b, ROADMAP "Touch-Steuerung") -----------------------------------------------
+  const touchControls = (params.touch || isTouchDevice())
+    ? createTouchControls({ root: document.getElementById("hud"), input })
+    : null;
 
   const resuming = !params.autoplay && !params.kassa && !!save.data.ticket;
   if (resuming) resumeDay();
@@ -251,10 +322,30 @@ async function boot() {
   // --- loop wiring -----------------------------------------------------------------------------------
   loop.on("input", (frameDt) => {
     input.poll();
+    if (touchControls) touchControls.update();   // pushes the overlay's held state in before anything reads it
     if (autoplay) autoplay.update(frameDt);   // synthesises key events – must run before consumers read edges
     if (input.pressed("debug")) debug.toggle();
     if (input.pressed("physdebug")) physics.setDebug(scene, !physics.debugEnabled);
-    if (input.pressed("map") && !options.visible) courseMap.toggle();
+    // Photo mode (M2b): one `toggle()` per press, guarded the same way "pause" above is – never while
+    // another screen owns the input, never during `?autoplay=1`.
+    if (input.pressed("photo") && !photoMode.active && !options.visible && !courseMap.visible && !params.autoplay) {
+      photoMode.enter();
+      document.body.classList.add("photo-mode-active");
+      setPhotoHintText();
+      photoHint.hidden = false;
+    } else if (input.pressed("photo") && photoMode.active) {
+      photoMode.exit();
+      document.body.classList.remove("photo-mode-active");
+      photoHint.hidden = true;
+    }
+    if (photoMode.active) {
+      // Space is "jump" everywhere else – consumed here so it never *also* reaches player.update()'s
+      // jump-buffer once the loop unpauses (that buffer does not decay while physics is not stepping).
+      if (input.pressed("jump")) photoMode.requestSnapshot();
+      input.consume("jump");
+    } else if (input.pressed("map") && !options.visible) {
+      courseMap.toggle();
+    }
     if (courseMap.visible) {
       // The world keeps living behind the dark overlay (no loop.paused) – only the player's own
       // movement input is gated, the same "a screen is up, check its `visible` flag" idea
@@ -264,7 +355,7 @@ async function boot() {
     } else if (options.visible) {
       // Options itself sets loop.paused (M1.7) – Esc here only toggles its own visibility.
       if (input.pressed("pause")) options.close();
-    } else if (!params.autoplay && input.pressed("pause")) {
+    } else if (!params.autoplay && !photoMode.active && input.pressed("pause")) {
       options.open();   // `?autoplay=1` never presses this action, but never trust that silently.
     }
     if (input.pressed("camera")) player.setThirdPerson(player.camera.isFirstPerson);
@@ -276,6 +367,10 @@ async function boot() {
   loop.on("gameplay", (dt, elapsed) => {
     player.update(dt);
     ticket.update(dt);
+    // Sky follows the ticket's own clock once a day is running (M2b: this is what makes the night
+    // ticket's dusk-to-night drift happen at all) – `nightDebugOverride` stands down for
+    // `WIPFEL.debug.setNight()` so a forced test state is not immediately overwritten.
+    if (ticket.started && !nightDebugOverride) sky.setTimeOfDay(ticket.timeOfDay);
     session.update(dt);
     course.update(dt, elapsed, player.position);
     vitals.update(dt);
@@ -297,12 +392,17 @@ async function boot() {
     terrain.update(dt, player.position);
     groundDetail.update(dt, player.position);
     forest.update(dt, elapsed, player.position);
+    // Night climbing (M2b): the headlamp and the lampions both just read the same continuous factor.
+    headlamp.update(sky.night);
+    lampions.update(sky.night, camera.position);
   });
   loop.on("render", (alpha, dt) => {
     player.render(alpha, dt);
-    if (guestRig) guestRig.update(agents.list, player.position, dt);
+    if (photoMode.active) photoMode.update(dt);   // overrides the camera js/player/render just set
+    if (guestRig) guestRig.update(agents.list, player.position, dt, sky.night);
     physics.updateDebug();
     renderer.render(scene, camera);
+    if (photoMode.consumeSnapshotRequest()) photoMode.takeSnapshot();
   });
   loop.on("ui", (dt) => {
     debug.update(dt);
@@ -320,6 +420,8 @@ async function boot() {
     parkBoard, courseMap, occupancy, agents, guestRig,
     // M2a
     flow, clipMeter, wichtel,
+    // M2b
+    accidentReport, photoMode, headlamp, lampions, touchControls,
     debug: {
       /** Force the slip a play-test needs on demand (screenshots, smoke runs). */
       forceSlip(angle = 1) {
@@ -338,6 +440,16 @@ async function boot() {
        * Same path as the options screen's "End day" button (M1.7) – see `endTicketNow` above.
        */
       endTicket() { return endTicketNow(); },
+      /**
+       * M2b: force the sky to a well-into-the-night hour (screenshots, smoke runs) without needing a
+       * real night ticket – stands down the ticket-driven sky sync above until called with `false`.
+       * @returns {boolean} the new override state
+       */
+      setNight(on = true) {
+        nightDebugOverride = !!on;
+        sky.setTimeOfDay(on ? NIGHT.openingHour + 1.5 : TICKET.openingHour + 4);
+        return nightDebugOverride;
+      },
       panel: debug,
     },
     ready: true,

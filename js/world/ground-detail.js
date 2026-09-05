@@ -85,7 +85,7 @@ const tmpP = new THREE.Vector3(), tmpS = new THREE.Vector3(), tmpM = new THREE.M
  * buffers with the spots inside `radius` and sets `mesh.count` accordingly.
  * @returns {{ mesh: THREE.InstancedMesh, refresh(fx:number, fz:number): void }}
  */
-function buildInstances(name, geometry, material, spots, terrain, rng, place, { castShadow = true, radius }) {
+function buildInstances(name, geometry, material, spots, terrain, rng, place, { castShadow = true, radius, getScale = () => 1 }) {
   const total = Math.max(1, spots.length);
   const mesh = new THREE.InstancedMesh(geometry, material, total);
   mesh.name = name;
@@ -110,11 +110,15 @@ function buildInstances(name, geometry, material, spots, terrain, rng, place, { 
   mesh.castShadow = castShadow;
   mesh.receiveShadow = true;
   mesh.frustumCulled = false;      // the kept instances ring the focus – a bounding sphere never culls
-  const r2 = radius * radius, n = spots.length;
+  const n = spots.length;
   const outM = mesh.instanceMatrix.array, outC = mesh.instanceColor.array;
   return {
     mesh,
+    /** `getScale()` (M2b graphics options: Low's "ground detail radius −40%") is read fresh on every
+     *  refresh instead of baked in once, so js/world/ground-detail.js#setDetailScale takes effect on
+     *  the next distance-triggered repack without rebuilding any geometry. */
     refresh(fx, fz) {
+      const r2 = (radius * getScale()) ** 2;
       let k = 0;
       for (let i = 0; i < n; i++) {
         const dx = px[i] - fx, dz = pz[i] - fz;
@@ -189,32 +193,36 @@ export function createGroundDetail({ rng, scene, terrain, wind, exclude }) {
 
   const prng = drng.fork("placement");
   const R = GROUND_DETAIL.radius;
+  // Graphics options (M2b): every family's own radius is multiplied by this at refresh time –
+  // js/ui/options.js's Low preset sets it to 0.6 ("ground detail radius −40 %"); High/Medium stay at 1.
+  let detailScale = 1;
+  const getScale = () => detailScale;
   const families = [
     // pebbles and twigs are too small for their shadow to read – the sun box is only 70 m wide anyway
     buildInstances("pebbles", geometries.pebble, stoneMat, pebbles, terrain, prng, (c, r) => {
       const s = r.float(0.05, 0.14);
       return { yaw: r.float(0, Math.PI * 2), scale: [s * r.float(0.8, 1.3), s, s * r.float(0.8, 1.3)], tilt: 0.8, lift: s * 0.55 * 0.45, tint: grey(r, 0.7, 1.05) };
-    }, { castShadow: false, radius: R.pebbles }),
+    }, { castShadow: false, radius: R.pebbles, getScale }),
     buildInstances("stones", geometries.stone, stoneMat, stones, terrain, prng, (c, r) => {
       const s = r.float(0.16, 0.48);
       return { yaw: r.float(0, Math.PI * 2), scale: [s * r.float(0.85, 1.35), s, s * r.float(0.85, 1.35)], tilt: 0.7, lift: s * 0.62 * 0.5, tint: grey(r, 0.75, 1.05) };
-    }, { radius: R.stones }),
+    }, { radius: R.stones, getScale }),
     buildInstances("roots", geometries.root, barkMat, roots, terrain, prng, (c, r) => {
       const s = r.float(0.7, 1.4);
       return { yaw: r.float(0, Math.PI * 2), scale: [s, s * r.float(0.8, 1.1), s * r.float(0.8, 1.2)], tilt: 1, lift: 0, tint: [r.float(0.8, 1.05), r.float(0.8, 0.95), r.float(0.75, 0.9)] };
-    }, { radius: R.roots }),
+    }, { radius: R.roots, getScale }),
     buildInstances("twigs", geometries.twig, barkMat, twigs, terrain, prng, (c, r) => {
       const s = r.float(0.6, 1.4);
       return { yaw: r.float(0, Math.PI * 2), scale: [s, s, s], tilt: 1, lift: 0, tint: [r.float(0.6, 0.9), r.float(0.55, 0.8), r.float(0.5, 0.7)] };
-    }, { castShadow: false, radius: R.twigs }),
+    }, { castShadow: false, radius: R.twigs, getScale }),
     buildInstances("tufts", geometries.tuft, grassMat, tufts, terrain, prng, (c, r) => {
       const s = r.float(0.65, 1.3), g = r.float(0, 1);
       return { yaw: r.float(0, Math.PI * 2), scale: [s * r.float(0.85, 1.2), s * r.float(0.8, 1.25), s * r.float(0.85, 1.2)], tilt: 0.5, lift: -0.01, tint: [0.75 + 0.3 * g, 0.85 + 0.15 * g, 0.55 + 0.2 * g] };
-    }, { radius: R.tufts }),
+    }, { radius: R.tufts, getScale }),
     buildInstances("leaf-clumps", geometries.clump, clumpMat, clumps, terrain, prng, (c, r) => {
       const s = r.float(0.7, 1.35);
       return { yaw: r.float(0, Math.PI * 2), scale: [s, 1, s * r.float(0.85, 1.15)], tilt: 1, lift: 0.035, tint: grey(r, 0.85, 1.05) };
-    }, { castShadow: false, radius: R.clumps }),
+    }, { castShadow: false, radius: R.clumps, getScale }),
   ];
   const meshes = families.map((f) => f.mesh);
   for (const m of meshes) scene.add(m);
@@ -227,6 +235,12 @@ export function createGroundDetail({ rng, scene, terrain, wind, exclude }) {
   return {
     meshes,
     uniforms,
+    /** Graphics options (M2b, js/ui/options.js): 1 = High/Medium, 0.6 = Low. Repacks immediately. */
+    setDetailScale(scale) {
+      if (!Number.isFinite(scale) || scale <= 0) return;
+      detailScale = scale;
+      refreshAll();
+    },
     /** @param {{x:number,z:number}} [focusPos] camera/player position – drives the distance cull. */
     update(dt, focusPos) {
       if (focusPos) {

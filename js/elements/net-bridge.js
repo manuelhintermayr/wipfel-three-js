@@ -55,14 +55,17 @@ export function createNetBridge(spec, ctx) {
       discrete: true, index: Math.round((t * el.length) / NET.mesh), t, offset: 0, ready: 1,
       swing: 0, plank: null,
     }),
+    // `el.config.loadSag`/`el.config.sag` (M2b "net-steep" variant: a deeper unloaded sag *and* a
+    // deeper dent under weight) are read per-instance instead of the frozen `NET` constant, since that
+    // is the one axis the variant actually changes.
     update: (dt, elapsed, el) => {
-      const wanted = el.occupancy.active ? NET.loadSag : 0;
+      const wanted = el.occupancy.active ? el.config.loadSag : 0;
       load.depth += (wanted - load.depth) * Math.min(1, NET.loadRise * dt);
       if (el.occupancy.active) load.at += (el.occupancy.t - load.at) * Math.min(1, 8 * dt);
     },
     offsetAt: (u, out, el) => out.set(
       0,
-      -el.config.sag * 4 * u * (1 - u) - load.depth * dentProfile(u, load.at) + el.wobble.vertical * 0.4,
+      -el.config.sag * 4 * u * (1 - u) - load.depth * dentProfile(u, load.at, el.config.loadWidth) + el.wobble.vertical * 0.4,
       el.wobble.lateral * 0.4,
     ),
     displace: (offsets, el) => {
@@ -70,7 +73,7 @@ export function createNetBridge(spec, ctx) {
       offsets[1] = -(load.depth + Math.abs(el.wobble.vertical) * 0.4);
       offsets[2] = 0;
     },
-    shape: (u) => dentProfile(u, load.at),
+    shape: (u, group, el) => dentProfile(u, load.at, el.config.loadWidth),
   });
 
   element.load = load;
@@ -80,8 +83,8 @@ export function createNetBridge(spec, ctx) {
 registerElementKind("net-bridge", createNetBridge);
 
 /** A dent centred on the climber, pinned to zero at both platforms. */
-function dentProfile(u, at) {
-  const d = (clamp01(u) - at) / NET.loadWidth;
+function dentProfile(u, at, loadWidth = NET.loadWidth) {
+  const d = (clamp01(u) - at) / loadWidth;
   return Math.exp(-d * d) * Math.sin(Math.PI * clamp01(u));
 }
 

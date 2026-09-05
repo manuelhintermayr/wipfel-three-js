@@ -48,10 +48,16 @@ export function createBurmaBridge(spec, ctx) {
 
 registerElementKind("burma-bridge", createBurmaBridge);
 
-/** Static hardware first (lifeline, terminations), then everything that swings. */
+/**
+ * Static hardware first (lifeline, terminations), then everything that swings. `element.config.
+ * handSpread` (default `BURMA.handSpread`, M2b's "burma-narrow" variant tightens it) is read fresh here
+ * instead of the frozen `BURMA` constant, since that is the one dimension a narrower-bridge variant
+ * actually needs to change at build time.
+ */
 function buildBridge(builder, frame, element, ctx) {
   const L = frame.length;
   const rise = frame.rise;
+  const handSpread = element.config.handSpread;
   // `element.config.sag` is already `sagRatio × span` – createElementBase works it out per span.
 
   lifelineCable(builder, frame, element);
@@ -74,10 +80,10 @@ function buildBridge(builder, frame, element, ctx) {
   for (const side of [-1, 1]) {
     hands.push(cableRun(builder, {
       from: { x: 0, y: BURMA.handHeight, z: 0 }, to: { x: L, y: rise + BURMA.handHeight, z: 0 },
-      sag: BURMA.handSag, spread: side * BURMA.handSpread, radius: BURMA.handRadius, material: "steel",
+      sag: BURMA.handSag, spread: side * handSpread, radius: BURMA.handRadius, material: "steel",
     }));
   }
-  buildStirrups(builder, { length: L, rise, sag: element.config.sag, rng: ctx.rng });
+  buildStirrups(builder, { length: L, rise, sag: element.config.sag, rng: ctx.rng, handSpread });
   const swinging = builder.build(`${element.id}-span`);
 
   const shape = (u) => Math.sin(Math.PI * Math.max(0, Math.min(1, u)));
@@ -96,7 +102,7 @@ function buildBridge(builder, frame, element, ctx) {
  * The hemp stirrups that tie the hand cables down to the foot cable. Without them the hand cables
  * would be two independent lines; with them the bridge reads as one woven system.
  */
-function buildStirrups(builder, { length, rise, sag, rng }) {
+function buildStirrups(builder, { length, rise, sag, rng, handSpread }) {
   const count = Math.max(2, Math.round(length / BURMA.stirrupSpacing) - 1);
   for (let i = 1; i <= count; i++) {
     const t = i / (count + 1);
@@ -106,7 +112,7 @@ function buildStirrups(builder, { length, rise, sag, rng }) {
     const handY = rise * t + BURMA.handHeight - BURMA.handSag * bow;
     for (const side of [-1, 1]) {
       ropeStrand(builder, {
-        from: { x, y: handY, z: side * BURMA.handSpread * bow },
+        from: { x, y: handY, z: side * handSpread * bow },
         to: { x: x + rng.float(-0.02, 0.02), y: footY, z: side * 0.035 },
         radius: BURMA.stirrupRadius, material: "cord",
       });

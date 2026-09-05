@@ -133,18 +133,20 @@ function nearestPlank(t, element, planks) {
 /**
  * How many planks fit between the two decks, and how far apart. The count comes from the nominal
  * pitch, the *actual* pitch is then stretched to fill the span exactly – otherwise a short span
- * hangs its first plank behind the platform it starts from.
+ * hangs its first plank behind the platform it starts from. Reads `cfg` (the element's own merged
+ * config, default `PLANKS` itself) instead of the module constant directly, so the M2b "planks-long-gap"
+ * variant's wider `gap`/lower `maxPlanks` actually changes the built layout, not just the label.
  */
-function plankLayout(span) {
-  const usable = span - 2 * PLANKS.endMargin - PLANKS.plankTread;
-  const nominal = PLANKS.plankTread + PLANKS.gap;
-  const count = Math.max(PLANKS.minPlanks, Math.min(PLANKS.maxPlanks, Math.round(usable / nominal) + 1));
-  return { count, first: PLANKS.endMargin + PLANKS.plankTread / 2, pitch: count > 1 ? usable / (count - 1) : 0 };
+function plankLayout(span, cfg = PLANKS) {
+  const usable = span - 2 * cfg.endMargin - cfg.plankTread;
+  const nominal = cfg.plankTread + cfg.gap;
+  const count = Math.max(cfg.minPlanks, Math.min(cfg.maxPlanks, Math.round(usable / nominal) + 1));
+  return { count, first: cfg.endMargin + cfg.plankTread / 2, pitch: count > 1 ? usable / (count - 1) : 0 };
 }
 
 function buildPlanks(builder, frame, element, ctx, planks) {
   const L = frame.length;
-  const { count, first, pitch } = plankLayout(L);
+  const { count, first, pitch } = plankLayout(L, element.config);
   const top = (x) => frame.rise * (x / L) + PLANKS.hangHeight;
 
   // --- static: lifeline, carrier cables, terminations -----------------------------------------------

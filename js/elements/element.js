@@ -30,6 +30,25 @@ export function registerElementKind(kind, factory) { KINDS.set(kind, factory); }
 export function elementKinds() { return Array.from(KINDS.keys()); }
 
 /**
+ * Parameter variant (ROADMAP M2b, GDD "Übungskatalog auf 20–25 Familien/Varianten"): registers
+ * `variantKind` as `baseKind` built with `configOverride` merged over the base kind's own config
+ * (`createElementBase` below folds `spec.configOverride` into its per-instance copy) – a harder/easier
+ * flavour of an existing element needs no new mechanic, only different numbers. `spec.kind` is left
+ * untouched (already `variantKind`, set by whoever calls `createElement`), so `element.kind`,
+ * `element.label` and every catalogue lookup keep reporting the variant, not the base, kind.
+ * @param {string} variantKind
+ * @param {string} baseKind must already be registered (import order: js/elements/catalogue.js imports
+ *   every concrete module, which is what registers the base kinds, before registering any variant)
+ * @param {object} configOverride merged over the base kind's config – see each concrete module's own
+ *   `config:` block for the field names that actually matter to it
+ */
+export function registerElementVariant(variantKind, baseKind, configOverride) {
+  const base = KINDS.get(baseKind);
+  if (!base) throw new Error(`element: cannot register variant '${variantKind}' – base kind '${baseKind}' is not registered yet`);
+  registerElementKind(variantKind, (spec, ctx) => base({ ...spec, configOverride: { ...configOverride, ...(spec.configOverride || null) } }, ctx));
+}
+
+/**
  * @param {object} spec see `createElementBase`
  * @param {{ scene, physics, rng, timber, wind }} ctx
  * @returns {object} the element interface
@@ -106,7 +125,9 @@ export function createWobble(config = {}) {
  * @returns {object} element
  */
 export function createElementBase(spec, ctx, impl) {
-  const C = { ...impl.config };                                // per-element copy: `sag` depends on the span
+  // `spec.configOverride` (M2b parameter variants, `registerElementVariant` above) is merged in last, so
+  // it always wins over the base kind's own defaults; every existing caller omits it and is unaffected.
+  const C = { ...impl.config, ...(spec.configOverride || null) };   // per-element copy: `sag` depends on the span
   const frame = createFrame(spec, C);
   if (C.sagRatio != null) C.sag = C.sagRatio * frame.length;
   if (C.sag == null) C.sag = 0;

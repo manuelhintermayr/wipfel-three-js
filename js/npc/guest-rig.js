@@ -16,7 +16,7 @@
 // transform per part (computed once), combined with just that guest's own root matrix – the position
 // still advances every frame, only the limb articulation is frozen while far away.
 import * as THREE from "three";
-import { NPC } from "../config.js";
+import { NPC, NIGHT } from "../config.js";
 import { CATEGORY_BY_ID } from "../config.js";
 import { LAYOUT } from "../player/rig-body.js";
 import { poseKindOf } from "./agents.js";
@@ -25,6 +25,10 @@ const SKIN = 0xd2a07e, PANTS = 0x23262b;
 const PARTS = ["torso", "head", "upperArmL", "lowerArmL", "upperArmR", "lowerArmR", "thighL", "shinL", "thighR", "shinR"];
 const SHOULDER_Y = LAYOUT.spineUp + LAYOUT.chestUp + LAYOUT.shoulderUp;   // shoulder height above the pelvis joint
 const TORSO_LEN = SHOULDER_Y;
+// Night climbing (ROADMAP M2b): guests get a tiny emissive "headlamp" dot instead of a real light –
+// a fixed offset from the head joint's own matrix, forward and slightly down, in the same local space
+// `readParts()` already reports every other part in.
+const HEADLAMP_OFFSET = new THREE.Matrix4().makeTranslation(0, LAYOUT.headR * 0.15, LAYOUT.headR * 1.05);
 
 /**
  * @param {{ scene: THREE.Scene, guestCount: number }} options
@@ -43,16 +47,29 @@ export function createGuestRig({ scene, guestCount }) {
     mesh.count = capacity;
     meshes[part] = mesh;
   }
+  // Night climbing (M2b): one more InstancedMesh, unlit so it reads as a small glow regardless of the
+  // scene's own lighting – `count` toggles between 0 (day) and every guest (night), the same cheap
+  // "sets mesh.count" trick js/world/ground-detail.js already uses for its own distance culling.
+  const headlampMesh = new THREE.InstancedMesh(
+    new THREE.SphereGeometry(NIGHT.guestHeadlampScale, 8, 6),
+    new THREE.MeshBasicMaterial({ color: NIGHT.guestHeadlampColour, toneMapped: false }),
+    Math.max(1, guestCount),
+  );
+  headlampMesh.name = "guest-headlamp";
+  headlampMesh.castShadow = false;
+  headlampMesh.count = 0;
+
   const group = new THREE.Group();
   group.name = "npc-guests";
   for (const part of PARTS) group.add(meshes[part]);
+  group.add(headlampMesh);
   scene.add(group);
 
   const poser = buildPoser();
   const visualState = new Map();          // agent.id -> { walkPhase }
   const restMatrices = captureRestPose(poser);   // one cached idle transform per part, for culled guests
 
-  const matrix = new THREE.Matrix4(), rootMatrix = new THREE.Matrix4();
+  const matrix = new THREE.Matrix4(), rootMatrix = new THREE.Matrix4(), matrix2 = new THREE.Matrix4();
   const position = new THREE.Vector3(), quaternion = new THREE.Quaternion(), scaleV = new THREE.Vector3();
   const colorScratch = new THREE.Color();
 
@@ -74,10 +91,15 @@ export function createGuestRig({ scene, guestCount }) {
   return {
     group,
 
-    /** Render phase (js/main.js, variable dt): one call per frame with the live agent list. Purely
-     *  cosmetic – js/npc/agents.js already advanced every position/state in the fixed gameplay step. */
-    update(list, playerPosition, dt) {
+    /**
+     * Render phase (js/main.js, variable dt): one call per frame with the live agent list. Purely
+     * cosmetic – js/npc/agents.js already advanced every position/state in the fixed gameplay step.
+     * `nightFactor` (0..1, `sky.night`, M2b) turns the headlamp dots on – omit it (or 0) for daytime.
+     */
+    update(list, playerPosition, dt, nightFactor = 0) {
       if (!coloured && list.length) { paintColours(list); coloured = true; }
+      const showLamps = nightFactor >= 0.5;
+      headlampMesh.count = showLamps ? list.length : 0;
       list.forEach((agent, i) => {
         rootMatrix.compose(
           position.set(agent.pos.x, agent.pos.y, agent.pos.z),
@@ -87,12 +109,15 @@ export function createGuestRig({ scene, guestCount }) {
         const culled = agent.distanceToPlayer > NPC.cullDistance;
         const parts = culled ? restMatrices : poseFor(agent, visualStateOf(agent, visualState), poser, dt);
         for (const part of PARTS) meshes[part].setMatrixAt(i, matrix.multiplyMatrices(rootMatrix, parts[part]));
+        if (showLamps) headlampMesh.setMatrixAt(i, matrix.multiplyMatrices(rootMatrix, matrix2.multiplyMatrices(parts.head, HEADLAMP_OFFSET)));
       });
       for (const part of PARTS) meshes[part].instanceMatrix.needsUpdate = true;
+      if (showLamps) headlampMesh.instanceMatrix.needsUpdate = true;
     },
 
     dispose() {
       for (const part of PARTS) meshes[part].dispose();
+      headlampMesh.geometry.dispose(); headlampMesh.material.dispose();
       for (const key of Object.keys(geometries)) geometries[key].dispose();
       for (const key of Object.keys(materials)) materials[key].dispose();
       group.removeFromParent();

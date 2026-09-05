@@ -103,6 +103,12 @@ export function createSession({ player, course, parkDef, events, hud, save, root
       if (!run.completeObstacle(element)) continue;
       day.obstaclesTotal += 1;
       day.maxZipKmh = Math.max(day.maxZipKmh, maxKmh);
+      // M2b Umsetzstation (GDD §3.6): a black route can cross two zip obstacles – the transfer leg,
+      // then the real arrival. Only the one that actually finishes every obstacle ends the run; an
+      // intermediate leg still counts towards `progress`/`day.obstaclesTotal` like any other obstacle,
+      // it just does not trigger the completion ceremony below. For every other route the zip is always
+      // the *last* obstacle anyway (a one-way course), so `progress === total` here exactly as before.
+      if (run.progress < run.total) continue;
       const summary = run.finish();
       const isBest = save.recordRun(summary.routeId, summary);
       // M2a: mastery (GDD §3.12) is evaluated once, right here, from this run's own numbers plus the
@@ -177,6 +183,17 @@ export function createSession({ player, course, parkDef, events, hud, save, root
     },
     /** Debug/test shortcut (`WIPFEL.debug.endTicket`): skip the extend-grace window straight to the stamp card. */
     forceDayEnd() { if (!dayOver) endDay(); },
+    /**
+     * Classic-mode accident (M2b, GDD §3.5): whichever run was counting down or riding when both
+     * carabiners came open at once ends there and then – no completion, no partial credit, back to
+     * "idle" so the same route can be attempted again fresh. `js/main.js` calls this once the fall has
+     * landed (`player:accident-landed`), right before showing the accident report.
+     */
+    abandonActiveRun() {
+      for (const run of runs.values()) {
+        if (run.state === "running" || run.state === "countdown") { run.recordFall(); run.reset(); }
+      }
+    },
     update(dt) {
       for (const run of runs.values()) run.update(dt);
       const active = activeRun();

@@ -241,11 +241,27 @@ export function createSky({ scene, renderer, rng, hour = SKY.defaultHour, manage
 
   applyPalette();
 
+  /**
+   * Graphics options (M2b, js/ui/options.js): `size <= 0` turns the sun's own shadow casting off
+   * entirely (Low preset) – no light casts, so the renderer's shadow pass has nothing to do, without
+   * touching any mesh's own `castShadow` flag. A positive size resizes the map – a `THREE.WebGLRenderer`
+   * shadow map cannot be resized in place, so the old one is disposed and rebuilt on the next frame
+   * that needs it (the same "dispose then let three.js lazily recreate it" three.js already expects).
+   */
+  function setShadowQuality(size) {
+    if (!(size > 0)) { sun.castShadow = false; return; }
+    sun.castShadow = true;
+    const capped = Math.min(size, maxTexture);
+    if (sun.shadow.mapSize.width === capped) return;
+    sun.shadow.mapSize.set(capped, capped);
+    if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+  }
+
   return {
     sun, hemi, dome, group, sunDirection,
     get timeOfDay() { return currentHour; },
     get exposure() { return exposure; },
     get night() { return uniforms.uNight.value; },
-    setTimeOfDay, update, dispose,
+    setTimeOfDay, setShadowQuality, update, dispose,
   };
 }

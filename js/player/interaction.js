@@ -29,6 +29,17 @@ const ELEMENT_LABEL_KEYS = Object.freeze({
   "rings": "element.rings",
   "tarzan": "element.tarzan",
   "skate": "element.skate",
+  // M2b parameter variants (js/elements/catalogue-data.js#CATALOGUE_VARIANTS) – `element.kind` reports
+  // the variant kind itself (js/elements/element.js#registerElementVariant leaves `spec.kind` alone),
+  // so each one needs its own prompt label instead of silently falling back to the base kind's.
+  "burma-narrow": "element.burmaNarrow",
+  "planks-long-gap": "element.planksLongGap",
+  "net-steep": "element.netSteep",
+  "beam-swing-4seg": "element.beamSwing4seg",
+  "stirrups-wide": "element.stirrupsWide",
+  "rings-far": "element.ringsFar",
+  "barrels-3": "element.barrels3",
+  "skate-long": "element.skateLong",
 });
 export const PROMPTS = Object.freeze({
   get clipIn() { return t("prompt.clipIn"); },
@@ -49,6 +60,8 @@ export const PROMPTS = Object.freeze({
   get noTicket() { return t("notice.noActiveTicket"); },
   /** Occupancy gate (M1.6): a guest is already on this element (js/game/occupancy.js, cap 1). */
   get waitForClimber() { return t("notice.waitForClimber"); },
+  /** Continuous belay (M2b, GDD §3.3): shown once per route, right after the entry clip. */
+  get continuousHint() { return t("notice.continuousBelay"); },
 });
 
 /** The player's own id in js/game/occupancy.js's ledgers – guests are always "guest-<n>" (js/npc/agents.js). */
@@ -70,6 +83,10 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
   let heldElementId = null;   // the element the player currently occupies, for js/game/occupancy.js
   let anchor = null;
   let entry = null;
+  // Continuous belay (M2b): which routes' entry anchors have already shown the one-time "no
+  // re-clipping" hint this session – keyed by the entry anchor id, so every distinct route still gets
+  // it once, the first time it is used.
+  const continuousHintShownFor = new Set();
 
   /** The category this anchor's route is gated behind, or null if it is an entry anchor and unlocked/not an entry at all. */
   const lockedCategoryOf = (anchorId) => {
@@ -168,6 +185,21 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
     if (events) events.emit("player:interact", { what: element.kind, element: element.id, end });
   }
 
+  /**
+   * Continuous mode (M2b, GDD §3.3 "Durchlaufend … kein Umhängen"): once the belay is established
+   * anywhere on the route, every later platform/element transition happens on its own – there is no
+   * ritual left to click, and js/game/clip-meter.js is told separately to ignore it entirely (there is
+   * nothing to be fast or slow at). The very first clip-in at the route's entry deck stays a real
+   * keypress (`handleInput` below) – "entering a route clips once at the entry" – so a player still
+   * consciously starts each route.
+   */
+  function autoAdvanceContinuous() {
+    if (belay.mode !== "continuous" || !anchor || belay.currentAnchor() == null) return;
+    if (established(anchor.id)) return;
+    if (lockedCategoryOf(anchor.id) || briefingRequiredAt(anchor.id) || ticketBlocks()) return;
+    belay.attach(anchor.id);
+  }
+
   function handleInput() {
     // element, fall and zipline read the keys themselves and must not have them eaten here
     if (player.mode === "element" || player.mode === "fall" || player.mode === "zipline") return;
@@ -176,7 +208,12 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
       if (lockedCategoryOf(anchor.id)) return;         // refused: the route's category is not unlocked yet
       if (briefingRequiredAt(anchor.id)) return;       // refused: the Einschulung practice gate is not done
       if (!established(anchor.id) && ticketBlocks()) return;   // refused: no active, unexpired ticket
+      const firstClipOfRoute = belay.mode === "continuous" && belay.currentAnchor() == null;
       belay.clipTo(anchor.id, classic && input.pressed("clip2") ? "B" : "A");
+      if (firstClipOfRoute && hud && !continuousHintShownFor.has(anchor.id)) {
+        continuousHintShownFor.add(anchor.id);
+        hud.setNotice(PROMPTS.continuousHint, 5);
+      }
       return;
     }
     if (!input.pressed("interact") || player.mode !== "ground" || justSwitched()) return;
@@ -209,6 +246,7 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
       chest.y += INTERACTION.chestHeight;
       entry = onFoot ? course.nearestEntry(player.position, INTERACTION.stepRange) : null;
       anchor = onFoot ? reachableAnchor() : null;
+      if (onFoot) autoAdvanceContinuous();
       handleInput();
       prompt = resolvePrompt();
       if (!hud) return;

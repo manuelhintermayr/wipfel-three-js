@@ -38,9 +38,14 @@ export function createKassa({ root, save = null, defaultChoice = {}, onConfirm }
   const sheet = el("div", "panel kassa-sheet");
   sheet.append(el("h1", "", t("kassa.title")), el("p", "", t("kassa.subtitle")));
 
-  sheet.appendChild(group(t("kassa.ticketLabel"), TICKET_TYPES.map((tt) => ({
+  const ticketGroup = group(t("kassa.ticketLabel"), TICKET_TYPES.map((tt) => ({
     id: tt.id, name: t(tt.labelKey), desc: t(tt.descKey),
-  })), choice.type, (id) => { choice.type = id; }));
+  })), choice.type, (id) => { choice.type = id; });
+  sheet.appendChild(ticketGroup);
+  // Night ticket (M2b, GDD §3.7): only offered once `save.hasCompletedAnyRoute()` – re-checked on every
+  // `show()` below, exactly like the Equipment row already does, so it appears the moment it unlocks
+  // without needing the whole screen rebuilt.
+  const nightButton = ticketGroup.buttons.get("night");
 
   sheet.appendChild(group(t("kassa.sizeLabel"), RULES.sizeClasses.map((s) => ({
     id: s.id, name: t(s.labelKey), desc: t("kassa.sizeMinHeight", { cm: s.minCm }),
@@ -73,7 +78,10 @@ export function createKassa({ root, save = null, defaultChoice = {}, onConfirm }
   return {
     get visible() { return !screen.hidden; },
     show() {
-      if (save) equipmentGroup.hidden = !save.hasCompletedAnyRoute();
+      if (save) {
+        equipmentGroup.hidden = !save.hasCompletedAnyRoute();
+        if (nightButton) nightButton.hidden = !save.hasCompletedAnyRoute();
+      }
       screen.hidden = false;
     },
     hide() { screen.hidden = true; },
@@ -102,6 +110,9 @@ function group(label, options, selectedId, onSelect) {
     list.appendChild(button);
   }
   wrap.appendChild(list);
+  // M2b: lets a caller hide/show one specific option later (the kassa's own night-ticket unlock gate)
+  // without rebuilding the whole row.
+  wrap.buttons = buttons;
   return wrap;
 }
 

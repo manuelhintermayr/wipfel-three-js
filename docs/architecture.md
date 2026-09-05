@@ -1070,3 +1070,203 @@ Selection: the kassa's `Equipment` row (`js/ui/kassa.js`, unlocked once `save.ha
 re-checked on every `show()` so it appears without a screen rebuild), persisted as
 `save.data.equipmentId` (`js/core/save.js#setEquipment`, additive, `null` = none) and applied in
 `js/main.js#applyChoice` alongside belay mode and rider mass.
+
+## Belay modes complete, night climbing, photo mode, catalogue variants, graphics options, touch (M2b)
+
+### Belay modes: continuous auto-advance, classic accident (GDD §3.3, §3.5)
+Continuous mode already attached both carabiners in one press (M0.4); M2b finishes the mode: once a
+route's belay is established via continuous, `js/player/interaction.js#autoAdvanceContinuous()` (called
+from `update()` while `onFoot`) silently `belay.attach()`s the *next* anchor the moment the climber
+reaches it – no re-clip prompt ever again for that route – and a one-time i18n hint
+(`notice.continuousBelay`, `continuousHintShownFor` Set keyed by anchor) explains this on the very first
+real clip so it does not read as a bug. `js/game/clip-meter.js#createClipMeter` gained an `isDisabled()`
+predicate (default `() => false`); `js/main.js` wires it to `belay.mode === "continuous"` so the flow
+module never credits a "clean re-clip" for a ritual that no longer happens.
+
+Classic mode's other failure path (both carabiners open at once) finally does something (previously
+just `belay:unsafe`, unheard): `js/player/accident.js#createAccidentState({terrain, camera, events})` is
+a new player state – a kinematic straight-down fall (no physics body, `ACCIDENT.fallGravityScale`) that
+emits `player:accident-fall` on entry and `player:accident-landed` (with `cause`/`elementLabel`/
+`routeName`) on reaching `terrain.heightAt`. `js/main.js`'s `belay:unsafe` listener triggers it – but
+**only** `if (player.mode === "ground" && vitals.onPlatform)`: careful re-reading of
+`interaction.js#update()` found that anchor/F/X processing (the only path that can ever open both
+carabiners) exclusively runs in `player.mode === "ground"`, so the other three states can never reach
+this event at all; the `vitals.onPlatform` check (reusing `VITALS.platformHeight`) avoids firing over a
+harmless 40 cm entry-deck edge. `js/ui/accident-report.js#createAccidentReport({root, onContinue})` is
+the two-phase dry report (GDD §3.5 "kein Explosion"): `showFade()` (a black overlay fading in over the
+fall, `document.body.classList.add("accident-active")` so the route header/HUD do not bleed through
+underneath – the same pattern `course-map-open`/`photo-mode-active` already use) then `showReport({
+routeName, elementLabel, seconds })` (route/obstacle/cause/time, i18n both locales) once landed – the
+fade must explicitly hide itself first (`fade.hidden = true`) or its own higher `z-index` blacks out the
+report sitting underneath it. `js/game/session.js#abandonActiveRun()` (`run.recordFall(); run.reset();`)
+ends whatever route was running; `js/core/save.js#recordAccident()` (additive `stats.accidents`
+counter) tracks it. Continue teleports back to `terrain.spawn` and calls `belay.reset()`, exactly like
+the existing rescue path.
+
+Classic mode's Flying Fox also gets its own braking system instead of sharing the net's legs-up/down
+latch (GDD §3.3 "Handbremse"): `js/zipline/brakes.js` exports `HAND_BRAKE` (a 12 m zone, twice the
+net's 6 m – there is no single latch instant to aim for) and `createNetBrake(...)` now takes a
+`profile: "net"|"hand"` on `inZone`/`apply`. The hand profile is a continuous skill check, not a single
+keypress: `handDecel(engaged, fraction)` applies `fullDecel` while gripping, `noDecel` while not, and –
+once a full grip has ever been taken before `earlyThreshold` of the zone – permanently latches
+`earlyStallDecel` for the rest of the ride (`earlyGripLatched`, mirroring the net's own "no changing your
+mind" rule). Two outcomes besides `"clean"`: too little braking arrives "messy" (fast); gripping too
+early stalls short of the platform, needing a haul-in exactly like a net-braked rider too light for the
+net – the stall case needed an explicit `outcome = "messy"` (`s < length - 0.06 && speed <= 0.02`), since
+`on-zipline.js#arrive()` reads a `null` outcome as clean by default and a stall would otherwise silently
+read that way forever. `js/player/on-zipline.js` decides `brakeProfile` once at `enter()` (`belay.mode
+=== "classic" ? "hand" : "net"`) and adds a `ZIP_PROMPTS.handZone` hint; unit-tested in
+`tests/unit/brakes-hand.test.mjs` (zone length, all three outcomes, the permanent early-latch, `reset()`,
+and that the default "net" profile is unaffected by the `hand` config existing at all).
+
+### Night climbing (GDD §3.7)
+Unlocked once `save.hasCompletedAnyRoute()` (`js/ui/kassa.js`'s Night ticket option, hidden otherwise);
+`TICKET_TYPES` gained a `"night"` entry with `openingHour: 20.5`. `js/game/ticket.js`'s `openingHour`
+became a mutable `let` (was a `const` closed over at construction) so `reset(next)` can apply a
+different type's own opening hour – without this the night ticket's clock would still compute
+`timeOfDay` from the default 9 AM. The sky's existing continuous `night` factor (0..1, already driving
+stars/hemi/exposure since M0.2) is the single source every new system below reads – no separate "is it
+night" flag anywhere.
+
+`js/player/headlamp.js` (new) is a single `THREE.SpotLight` parented to the rig's head anchor
+(`rig.attach.head`, `NIGHT.headlampRange` 14 m, `headlampAngleDeg` 27°), toggled on past
+`NIGHT_ON_THRESHOLD` (0.5) by `update(nightFactor)` called every gameplay frame from `js/main.js`.
+**Trap found during verification**: `THREE.SpotLight`'s (and `DirectionalLight`'s) constructor defaults
+`position` to `Object3D.DEFAULT_UP`, i.e. `(0, 1, 0)` – not the origin, so the light-to-target vector is
+never degenerate out of the box. Left unset (as first shipped), the light sat 1 m above the head anchor
+while its target sat only ~0.04 m below the anchor's own origin, aiming the whole cone roughly 46°
+*into the ground* instead of "slightly down, straight ahead" as the code's own comment claimed – a
+screenshot at head height showed no visible beam on anything because the beam was never pointed at
+anything in front of the player. Fixed with an explicit `light.position.set(0, 0, 0)`; confirmed via the
+light's and target's live `matrixWorld` translations (near-horizontal direction vector, matching the
+player's own forward). `headlampIntensity` was also retuned 7 → 35 while fixing this: 7 had only ever
+been eyeballed against the broken (into-the-ground) aim, and a controlled paused-frame pixel diff (toggle
+the light, screenshot, diff, both off the ground and off HUD regions) showed it was barely above the
+display's 8-bit threshold once aimed correctly, under three.js's photometric candela falloff at
+`decay = 1.2`. No shadow casting (`castShadow = false`) – one more moving shadow caster for a cone nobody
+is meant to scrutinise, the same budget call `park/signs.js`/`npc/guest-rig.js` already made.
+
+`js/park/lampions.js` (new): `createLampions({scene, parkDef, terrain, rng})` strings
+`NIGHT.lampionsPerEdge` warm point-lights-that-are-not-lights along each platform-to-platform edge of
+the first `NIGHT.lampionRouteCount` blue routes – two `InstancedMesh`es (an opaque bulb, an additive
+glow billboard), **emissive only, no real `THREE.Light`** (matches the task's explicit budget rule);
+`update(nightFactor, cameraPosition)` fades the glow in and yaw-billboards it toward the camera.
+`js/npc/guest-rig.js` gained a matching tiny always-unlit `InstancedMesh` dot (`guestHeadlampScale`,
+no per-guest `THREE.Light` either) toggled by the same `nightFactor` parameter threaded through
+`update(list, playerPosition, dt, nightFactor)`.
+
+Nerves (`js/player/nerves.js`) read a new `ctx.night` (0..1, `clamp01`): the height term is scaled by
+`1 - (1 - NIGHT.heightReliefScale) * night` (GDD "you can't see how far down it is" – ironically *less*
+height fear once fully dark, matching real accounts of exposure feeling less immediate at night) and a
+flat `NIGHT.unknownGain * night` is added (more general unease, independent of real exposure).
+`js/player/{vitals,on-element,fall,on-tarzan}.js` and `on-zipline.js` each gained an optional `sky`
+constructor param passed through as `night: sky ? sky.night : 0` – omit it and the term is simply 0,
+same "optional, degrades to off" pattern `ticket`/`renderer` etc. already use elsewhere in this file.
+
+`WIPFEL.debug.setNight(on = true)`: forces the sky to `NIGHT.openingHour + 1.5` (well into the night)
+without a real ticket, for screenshots/smoke checks; sets a `nightDebugOverride` flag that stands the
+ticket-driven `sky.setTimeOfDay(ticket.timeOfDay)` sync down until called with `false` (or a fresh day
+starts), so a forced test state is not immediately overwritten by the normal per-frame sync.
+
+### Photo mode (ROADMAP M2b)
+`js/game/photo-mode.js` (new): `createPhotoMode({camera, input, renderer, loop})`. `P` (`input`'s
+`photo` action) calls `enter()` – owns `loop.paused` itself exactly like `js/ui/options.js` already does
+(physics/gameplay freeze at `dt = 0`, render keeps compositing) – and frees the camera into a WASD-dolly
++ mouse-look + Q/E-height free-fly, independent of the player. Every HUD layer hides
+(`photo-mode-active` body class, same pattern as `course-map-open`/`accident-active`) and a corner hint
+(`photo.hint`, `css/hud.css#.photo-hint`) replaces it. `Space` calls `requestSnapshot()`; the render
+phase's `consumeSnapshotRequest()` + `takeSnapshot()` (canvas `toBlob` → a throwaway `a[download]`
+click) run once, after that frame's HUD-hidden render, so the PNG never contains the corner hint itself.
+`?autoplay=1` never presses the `photo` action, so the smoke bot can never enter it. **Input-phase trap
+avoided during integration**: the enter/exit toggle was first written as two independent
+`if (pressed) enter()` / `else if (pressed) exit()` blocks, which could both evaluate true-ish in the
+same frame depending on ordering; rewritten as one `if/else if` pair keyed off `photoMode.active` so
+exactly one of enter/exit ever fires per press, with the snapshot-request check as a separate,
+unconditional third `if (photoMode.active)`.
+
+### Catalogue variants + Umsetzstationen (ROADMAP "20–25 Familien/Varianten")
+`js/elements/element.js` exports `registerElementVariant(variantKind, baseKind, configOverride)`: looks
+up the base kind's already-registered factory and wraps it so `createElementBase`'s config line becomes
+`{ ...impl.config, ...(spec.configOverride || null) }` – a variant is *parameters only*, never a new
+mechanic, movement model or physics. `js/elements/catalogue-data.js` exports `CATALOGUE_VARIANTS` (8
+entries – `burma-narrow`, `planks-long-gap`, `net-steep`, `beam-swing-4seg`, `stirrups-wide`,
+`rings-far`, `barrels-3`, `skate-long` – each `{kind, baseKind, labelKey, discrete, metrics,
+configOverride}`, `discrete` always inherited from the base kind); `catalogueEntry()` searches both
+lists. Each of the 8 underlying element modules got exactly one targeted change so the
+variant-relevant field(s) read from the per-instance merged config instead of the module's frozen
+default constant (e.g. `hanging-planks.js#plankLayout(span, cfg = PLANKS)`,
+`net-bridge.js`'s `loadSag`/`loadWidth` via `element.config`).
+
+`js/park/layout-route.js` gates which pool an edge is drawn from: `variantsAllowedFor(routeId,
+category)` – black/legendary always, red only from numeral ≥ 2 (a fresh red-I stays the "plain"
+introduction to each family) – and `buildEdges()` concats `CATALOGUE_VARIANTS` into the pool when
+allowed. **Umsetzstation** (a mid-zip transfer platform, GDD's own term for a real-world Kletterwald
+feature): for `category === "black"`, `buildZip(...)` plans the normal zip (`planZipline`) and then –
+only if that succeeds – plans a **second, fully independent** `planZipline()` leg from the first leg's
+own landing (same shared `ZIP_SEARCH_CONFIG`), storing it as `zip.transfer` if it also succeeds. Two
+independently-validated real zip spans chained end to end, not a two-parabola tangent hack, and not
+`plan.length > 70` sampled off one stretched cable – the latter was tried first and never fired across
+any of seeds 1–8, because `zip-plan.js#ZIP_PLAN.maxLength` (56 m) caps every single-line search, and
+raising that cap was rejected outright (`tests/unit/zipline.test.mjs` hard-asserts every zip stays in
+40–56 m). `js/park/loader.js` extracts the shared `buildOneZipLeg({...})` (used by an ordinary single
+ride *and* both Umsetzstation legs) and `buildRouteZip()` builds a second leg departing from the first
+leg's own landing deck (`startPlatformId: "${routeId}-transfer"`) when `zip.transfer` exists, returning
+`{element: legB.element, landing: legB.landing, extra: [legA]}`; the route object exposes
+`zipLandings` (array) so `course.dispose()` frees both decks. `js/game/route.js#routesFromPark` adds the
+transfer leg's own length/par time and a second obstacle id (`${route.id}-zip2`); `js/game/session.js`'s
+`zip:finished` handler gained `if (run.progress < run.total) continue;` right before `run.finish()` so
+completing only the *first* leg of a split zip does not prematurely end/record the route (a zip is
+always the run's last obstacle on a non-split route, so `progress` already equals `total` there and this
+guard changes nothing for those). `js/npc/agents.js`'s zip-kind sequence step reads the element's own
+`getExitAnchor()` for its destination node/stand instead of a hardcoded `${route.id}-zip-landing` id, so
+guests also complete correctly on a split zip. Verified empirically: `black-1` in the default seed 1 gets
+a transfer station (leg A 56 m, leg B 56 m); most black routes across seeds 1–8 get one too.
+
+### Visual polish
+`css/screens.css`: `.screen h1` gained explicit colour/text-shadow/a bottom border (heading contrast on
+the kassa/briefing/options/accident panels was too low against their translucent backdrops; `.kassa-
+sheet h1` keeps its own lighter-background override). `js/ui/map-render.js`: route colours on the course
+map / park board no longer overwrite the shaded terrain outright – `PATH_BLEND` (0.62) blends the route
+colour into the underlying pixel instead, and `paintRoutes()`'s relief-style pass gained a
+`ctx.shadowColor`/`shadowBlur` glow reset immediately after the main polyline stroke (dimmed/print style
+unaffected); default `lineWidth` 2.4 → 3.0. Route banner category shapes and stamp-card category-
+coloured stamps were already in place from M1.2/M2a (see the Colour + shape audit above) – nothing
+further needed there.
+
+### Graphics options (ROADMAP "Grafikoptionen")
+`js/config.js#GRAPHICS`: three frozen presets (`high`/`medium`/`low`), each
+`{pixelRatioCap, shadowMapSize, impostorNear, groundDetailScale, labelKey}`. `js/ui/options.js`'s new
+Graphics section (`buildGraphicsSection`, reusing the locale switcher's pill-button markup –
+renamed `pillButton`) calls `applyGraphicsLive(id)` on selection: `renderer.setPixelRatio(min
+(devicePixelRatio, cap))`, `sky.setShadowQuality(size)` (`js/world/sky.js`, new – `size <= 0` disables
+`sun.castShadow` outright for Low, otherwise resizes `sun.shadow.mapSize` and disposes the old shadow
+map so three.js rebuilds it), `forest.setLodDistances({near, mid})` (`js/world/forest.js`, new – forces
+an immediate `refresh()` so the impostor swap is visible the same frame) and `groundDetail
+.setDetailScale(scale)` (`js/world/ground-detail.js`, new – `refresh(fx, fz)` recomputes each family's
+squared radius from `radius × getScale()`). All four dependencies are optional constructor params on
+`createOptions(...)`; persisted as `save.data.settings.graphics` (validated against `GRAPHICS.order`,
+corrupt/missing falls back to `"high"`) and re-applied via the existing `applyAll()` at boot.
+
+**Bug found during verification**: `createForest(...)`'s returned object exposed `lod: FOREST_LOD` – the
+*frozen* High-quality default constant – instead of the mutable `{near, mid}` local variable
+`setLodDistances` actually writes to and `lodFor()` actually reads. The live LOD-switching itself was
+never broken (`stats.byLod` visibly shifts when `setLodDistances` is called, confirmed by forcing
+`{near:5, mid:10}` and watching almost every tree move to the impostor bucket), but anything reading
+`forest.lod` externally – the F1 debug panel, a future test – would always see the High defaults
+regardless of the active preset. Fixed by exposing the real local `lod` binding instead; no other module
+read `forest.lod` before this fix (grepped clean), so the change is behaviour-neutral except for making
+the introspection honest.
+
+### Touch controls (ROADMAP M2b, deliberately basic – see HANDOVER.md's Offen list)
+`js/ui/touch-controls.js` (new): `createTouchControls({root, input})` on pointer-coarse devices
+(`matchMedia("(pointer: coarse)")`, exported as `isTouchDevice()`) or `?touch=1`. One left stick zone
+(pointer-events drag, clamped to `TOUCH.stickRadius`, feeds `move`), one right-side look-drag zone
+(`input.addVirtualLook(yawRadians, pitchRadians)` – pre-scaled by `TOUCH.lookSensitivity` here, the input
+module takes radians, never raw pixels) and three buttons (`clip`/`interact`/`jump`, tracked in a `held`
+Set). `update()` (called once per input-phase frame from `js/main.js`) pushes `input.setVirtualState
+(held, move)`. `js/core/input.js#poll()` merges the virtual down-set and move/look into the same
+composition keyboard/gamepad already go through, so every consumer downstream (movement, belay, the zip
+ride) reads one action model regardless of input source – no touch-awareness needed anywhere else.
+No remapping, no haptics, no per-device tuning pass; verified via direct `pointerdown`/`pointerup`
+dispatch (button `down` class + `input.down("clip")` both flip correctly) rather than a real touch
+device.

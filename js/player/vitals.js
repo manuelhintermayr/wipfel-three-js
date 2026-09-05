@@ -26,12 +26,14 @@ export function lookDownAmount(camera) {
 }
 
 /**
- * @param {{ player, input, terrain?, hud?, events? }} options
+ * @param {{ player, input, terrain?, hud?, events?, sky? }} options `sky` (optional, M2b) reads
+ *   `sky.night` (0..1, js/world/sky.js) into the nerves' night relief/unknown terms – omit it and the
+ *   climber is never treated as being out at night.
  * @returns {{ balance, stamina, nerves, height: number, onPlatform: boolean,
  *   update(dt: number): void, reset(): void, probe(): object, dispose(): void }}
  *   `update` runs in the gameplay phase, after the player has moved.
  */
-export function createVitals({ player, input, terrain = null, hud = null, events = null }) {
+export function createVitals({ player, input, terrain = null, hud = null, events = null, sky = null }) {
   const balance = createBalance();
   const stamina = createStamina();
   const nerves = createNerves();
@@ -59,6 +61,7 @@ export function createVitals({ player, input, terrain = null, hud = null, events
       onGround: !onPlatform,
       lookDown: onPlatform ? lookDownAmount(player.camera) : 0,
       breathing: input.down("breathe") && !moving,
+      night: sky ? sky.night : 0,
     });
   }
 

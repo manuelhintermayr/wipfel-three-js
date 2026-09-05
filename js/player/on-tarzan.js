@@ -17,10 +17,11 @@ export const TARZAN_MOVE = Object.freeze({
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 /**
- * @param {{ input, events?, nerves, stamina }} options
+ * @param {{ input, events?, nerves, stamina, sky? }} options `sky` (optional, M2b) reads `sky.night`
+ *   into the nerves' night terms.
  * @returns {object} a state for the player's state machine – register it as "tarzan".
  */
-export function createTarzanState({ input, events = null, nerves, stamina }) {
+export function createTarzanState({ input, events = null, nerves, stamina, sky = null }) {
   const netPoint = new THREE.Vector3(), exitPoint = new THREE.Vector3(), pos = new THREE.Vector3();
   let element = null;
   let phase = "wait";                 // "wait" | "swing" | "climb"
@@ -90,7 +91,7 @@ export function createTarzanState({ input, events = null, nerves, stamina }) {
       const groundY = element.groundY == null ? player.position.y - 6 : element.groundY;
       nerves.update(dt, {
         height: player.position.y - groundY, exposure: 1, wobble: phase === "swing" ? 0.6 : 0.1,
-        onElement: true, breathing: false,
+        onElement: true, breathing: false, night: sky ? sky.night : 0,
       });
       stamina.update(dt, { onElement: true, moving: phase !== "wait" });
 

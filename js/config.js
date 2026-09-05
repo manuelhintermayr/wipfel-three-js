@@ -42,6 +42,11 @@ export const TICKET_TYPES = Object.freeze([
   { id: "standard", hours: TIME.ticketHours, labelKey: "kassa.ticket.standard.name", descKey: "kassa.ticket.standard.desc", scoreMultiplier: 1 },
   { id: "happyHour", hours: TIME.ticketHours / 2, labelKey: "kassa.ticket.happyHour.name", descKey: "kassa.ticket.happyHour.desc", scoreMultiplier: 1.25 },
   { id: "season", hours: Infinity, labelKey: "kassa.ticket.season.name", descKey: "kassa.ticket.season.desc", scoreMultiplier: 1 },
+  // M2b (ROADMAP "Nachtklettern"): a ticket type like any other – `openingHour` is the only thing that
+  // makes it "night", read by js/main.js#startDay instead of TICKET.openingHour. Only offered at the
+  // kassa once `save.hasCompletedAnyRoute()` (js/ui/kassa.js) – GDD "erst nach dem ersten geschafften
+  // Parcours" simplified the same honest way js/game/flow.js's HUD-unlock already reads that sentence.
+  { id: "night", hours: TIME.ticketHours, labelKey: "kassa.ticket.night.name", descKey: "kassa.ticket.night.desc", scoreMultiplier: 1, openingHour: 20.5 },
 ]);
 
 /** Time trials (ROADMAP M2a, GDD §3.8 "Zeitläufe"). Logic: js/game/route.js, js/game/session.js. */
@@ -227,4 +232,91 @@ export const WICHTEL = Object.freeze({
   plankSpan: 1.0,          // one short plank bridge segment inside the course
   clearance: 6.0,          // outside the hub rim, clear of the fingerpost/park-board trailhead cluster
   spacing: 3.5,            // between the two courses
+});
+
+/**
+ * Classic-mode accident (ROADMAP M2b, GDD §3.3/§3.5: "Nur der Klassik-Modus kennt den echten Absturz –
+ * als trockener Unfallbericht"). Both carabiners open at once while riding/climbing something
+ * (js/player/belay.js's `unsafe` event) drops the climber straight to the ground with no harness catch –
+ * js/player/accident.js owns the fall itself, js/ui/accident-report.js the dry paperwork afterwards.
+ */
+export const ACCIDENT = Object.freeze({
+  fadeInSeconds: 0.35,      // screen fade to black once the ground is reached
+  fallGravityScale: 1.15,   // slightly harder than a normal jump's gravity – this is not a jump
+  minFallSpeed: 2.0,        // m/s downward speed enforced even from a near-zero height (a shove, not a step)
+});
+
+/**
+ * Night climbing (ROADMAP M2b, GDD §3.7 "Nachtklettern mit Stirnlampe – weniger Höhenangst, mehr
+ * Unbekanntes", §3.1). Unlocked once `save.hasCompletedAnyRoute()` is true – the same gate
+ * js/game/flow.js's HUD bar already uses, so no new save field was needed. A "night" ticket type
+ * (`TICKET_TYPES`) starts the sky at `openingHour` and lets it drift from dusk into full night over the
+ * session exactly like a normal ticket drifts through the afternoon (js/world/sky.js's existing
+ * `night` factor, 0..1, already renders stars/darker hemi/warm windows – this milestone only *uses* it).
+ */
+export const NIGHT = Object.freeze({
+  openingHour: 20.5,             // 20:30
+  heightReliefScale: 0.6,        // nerves' height term × this at full night – "you can't see how far down it is"
+  unknownGain: 0.10,             // flat rise term at full night – "more unknown", independent of real exposure
+  headlampRange: 14,             // metres, THREE.SpotLight.distance
+  headlampAngleDeg: 27,
+  headlampPenumbra: 0.55,
+  // Tuned against the *fixed* aim (js/player/headlamp.js used to default `light.position` to
+  // three.js's own SpotLight fallback of (0,1,0), aiming the cone ~46° into the ground instead of
+  // roughly where the player looks) – the original `7` was eyeballed against that broken aim and read
+  // as reasonable only because the mis-pointed beam happened to graze the ground near the feet. Once
+  // aimed correctly, `7` under three.js's photometric candela falloff (decay 1.2) was barely above the
+  // display's 8-bit threshold at any real distance – confirmed by a controlled paused-frame pixel diff
+  // (see docs/screenshots), not just eyeballing a screenshot. 35 is the smallest bump that reads as an
+  // actual "lit by my own lamp" patch rather than a rounding error.
+  headlampIntensity: 35,
+  headlampColour: 0xfff0d8,
+  guestHeadlampScale: 0.045,     // radius of the tiny emissive dot guests wear (no per-guest light)
+  guestHeadlampColour: 0xffe2a8,
+  lampionRouteCount: 2,          // the two blue routes strung with lampions
+  lampionsPerEdge: 3,
+  lampionHeightAbovePath: 2.3,   // metres above the straight line between two platforms
+  lampionRadius: 0.075,
+  lampionGlowRadius: 0.30,
+  lampionColour: 0xffb35c,
+});
+
+/**
+ * Photo mode (ROADMAP M2b): `P` freezes the loop (like Esc/options, but no menu) and frees the camera –
+ * orbit around the player with WASD dolly + strafe, mouse look, Q/E for height, `P` again to return,
+ * Space saves a PNG. Logic: js/game/photo-mode.js.
+ */
+export const PHOTO = Object.freeze({
+  dollySpeed: 6.0,        // m/s, WASD
+  sprintScale: 2.4,        // held Shift
+  heightSpeed: 4.0,        // m/s, Q/E
+  fov: 50,
+  pitchLimit: 89 * (Math.PI / 180),
+});
+
+/**
+ * Graphics quality presets (ROADMAP M2b). Applied live from the options screen (js/ui/options.js) –
+ * `pixelRatio`/`shadowMapSize` touch the renderer and the sun's shadow map directly (a map resize needs
+ * the old one disposed first, js/world/sky.js#setShadowMapSize); `impostorNear`/`groundDetailScale`
+ * are read by js/world/forest.js / js/world/ground-detail.js's own distance-cull constants.
+ */
+export const GRAPHICS = Object.freeze({
+  presets: Object.freeze({
+    high: Object.freeze({ pixelRatioCap: RENDER.maxPixelRatio, shadowMapSize: RENDER.shadowMapSize, impostorNear: 100, groundDetailScale: 1.0, labelKey: "options.graphics.high" }),
+    medium: Object.freeze({ pixelRatioCap: 1.25, shadowMapSize: 1024, impostorNear: 70, groundDetailScale: 0.85, labelKey: "options.graphics.medium" }),
+    low: Object.freeze({ pixelRatioCap: 1.0, shadowMapSize: 0, impostorNear: 45, groundDetailScale: 0.6, labelKey: "options.graphics.low" }),
+  }),
+  order: Object.freeze(["high", "medium", "low"]),
+});
+
+/**
+ * Touch controls (ROADMAP M2b): a basic virtual-stick + drag-look + three-button overlay on
+ * pointer-coarse devices (or `?touch=1`), feeding the same `Input` action model every keyboard/gamepad
+ * binding already drives (js/core/input.js#setVirtualState). Logic/UI: js/ui/touch-controls.js.
+ */
+export const TOUCH = Object.freeze({
+  stickRadius: 46,           // px, base radius of the left move stick
+  stickMaxDrag: 46,          // px before the stick clamps to full deflection
+  lookSensitivity: 0.012,    // px of drag → radians, right-side look area
+  buttonSize: 58,            // px, F/E/Space buttons
 });

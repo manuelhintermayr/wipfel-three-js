@@ -58,8 +58,11 @@ export function createSkate(spec, ctx) {
     update: (dt, elapsed, el) => placeBoard(boardGroup, el),
   });
 
-  // shove-and-coast instead of the shared snap-to-speed accel (js/player/on-element.js#walk)
-  element.railAccel = SKATE.pushAccel;
+  // shove-and-coast instead of the shared snap-to-speed accel (js/player/on-element.js#walk) – reads
+  // `element.config.pushAccel` (M2b "skate-long" variant: builds speed faster and holds a higher top
+  // speed – config.js/catalogue-data.js override `pushAccel`/`maxSpeed`/`slipAngle` together) instead of
+  // the frozen `SKATE` constant.
+  element.railAccel = element.config.pushAccel;
   return element;
 }
 

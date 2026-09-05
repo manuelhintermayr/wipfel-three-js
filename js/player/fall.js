@@ -24,10 +24,11 @@ const NO_CONTACTS = groups(GROUP.DYNAMIC, 0);
 const DOWN = new THREE.Vector3(0, -1, 0);
 
 /**
- * @param {{ physics, input, scene?, events?, balance, stamina, nerves, camera? }} options
+ * @param {{ physics, input, scene?, events?, balance, stamina, nerves, camera?, sky? }} options `sky`
+ *   (optional, M2b) reads `sky.night` into the nerves' night terms.
  * @returns {object} a state for the player's state machine – register it with `player.addState("fall", …)`
  */
-export function createFallState({ physics, input, scene = null, events = null, balance, stamina, nerves, camera = null }) {
+export function createFallState({ physics, input, scene = null, events = null, balance, stamina, nerves, camera = null, sky = null }) {
   const R = physics.RAPIER;
   const world = physics.world;
   const anchorPoint = new THREE.Vector3(), hang = new THREE.Vector3(), rail = new THREE.Vector3();
@@ -162,6 +163,7 @@ export function createFallState({ physics, input, scene = null, events = null, b
         height: player.position.y - groundY,
         exposure: 0.4, wobble: 0.2, onElement: true,
         breathing: input.down("breathe"),
+        night: sky ? sky.night : 0,
       });
 
       followBody(player, dt);

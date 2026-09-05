@@ -2,7 +2,10 @@
 
 .screen { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(8, 10, 9, 0.55); }
 .screen .panel { background: var(--hud-bg-strong); border: 1px solid var(--hud-line); border-radius: var(--radius); padding: 1.4rem 1.8rem; min-width: 20rem; }
-.screen h1 { font: 700 2rem/1 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; margin: 0 0 0.6rem; }
+/* M2b polish (HANDOVER "Offen": the Kassa's own heading read as nearly invisible in screenshots) – an
+   explicit colour + shadow on the dark panels instead of relying on inherited body colour, and a visible
+   accent underline everywhere so the title never blends into whatever sits behind a translucent panel. */
+.screen h1 { font: 700 2.1rem/1 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; margin: 0 0 0.7rem; padding-bottom: 0.45rem; color: var(--hud-text); text-shadow: 0 1px 3px rgba(0,0,0,0.5); border-bottom: 2px solid var(--hud-accent); }
 .screen p { margin: 0 0 0.8rem; color: var(--hud-muted); line-height: 1.45; }
 
 .start-banner {
@@ -36,7 +39,7 @@
   background: linear-gradient(180deg, rgba(245, 243, 237, 0.98), rgba(235, 232, 222, 0.98));
   color: #21201b; border: 1px solid rgba(0, 0, 0, 0.15); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
-.kassa-sheet h1 { color: #21201b; }
+.kassa-sheet h1 { color: #21201b; text-shadow: none; border-bottom-color: #21201b; }
 .kassa-sheet p { color: rgba(33, 32, 27, 0.7); }
 .kassa-group { margin-top: 1rem; }
 .kassa-group-label { font: 700 0.72rem/1 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: rgba(33, 32, 27, 0.65); margin-bottom: 0.4rem; }
@@ -146,3 +149,20 @@
 .opt-controls-keys { font: 600 0.8rem/1.4 var(--font-display); letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
 
 .options-version { margin-top: 0.7rem; padding-top: 0.6rem; border-top: 1px solid var(--hud-line); font: 500 0.7rem/1 var(--font-mono); color: var(--hud-muted); text-align: right; }
+
+/* Classic-mode accident (M2b, GDD §3.5): a hard cut to black, then a dry paperwork sheet – no death
+   screen theatrics. The fade sits above everything else while it runs. */
+.accident-fade { position: absolute; inset: 0; background: #000; opacity: 0; transition: opacity 900ms ease; pointer-events: none; z-index: 20; }
+.accident-fade.in { opacity: 1; }
+.accident-sheet {
+  max-width: 26rem; width: min(88vw, 26rem);
+  background: linear-gradient(180deg, rgba(245, 243, 237, 0.98), rgba(235, 232, 222, 0.98));
+  color: #21201b; border: 1px solid rgba(0, 0, 0, 0.15); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.accident-sheet h1 { color: #21201b; text-shadow: none; border-bottom-color: #21201b; }
+.accident-form { margin: 1rem 0; display: grid; gap: 0.5rem; }
+.accident-row { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid rgba(0, 0, 0, 0.12); padding-bottom: 0.4rem; }
+.accident-row .label { color: rgba(33, 32, 27, 0.6); text-transform: uppercase; font: 700 0.68rem/1 var(--font-display); letter-spacing: 0.1em; align-self: center; }
+.accident-row .value { font: 600 0.9rem/1.3 var(--font-ui); text-align: right; }
+.accident-sheet .confirm { display: block; width: 100%; margin-top: 1rem; padding: 0.7em; background: #21201b; border-color: #21201b; color: #f5f3ed; }
+.accident-sheet .confirm:hover { filter: brightness(1.15); }
