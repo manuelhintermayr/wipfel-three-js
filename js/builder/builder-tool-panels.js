@@ -4,6 +4,7 @@
 // function here is a pure "data + dispatch → DOM" builder, called fresh by js/builder/builder-ui.js
 // every time the panel needs to redraw; none of them touch the draft directly, only `dispatch(action)`.
 import { t } from "../core/i18n.js";
+import { RESCUE } from "../config.js";
 import { mapColourOf, cssHex } from "../ui/map-render.js";
 import { SURVEY } from "./survey-trees.js";
 
@@ -107,6 +108,51 @@ export function elementsPanel({ draft, routeId, dispatch }) {
     row.appendChild(select);
     list.appendChild(row);
   });
+  panel.appendChild(list);
+  return panel;
+}
+
+/** @param {{ draft, dispatch: (a:object)=>void }} o – M3b rescuer posts (GDD §4 "Retter"): up to
+ *  RESCUE.maxPosts, placed at a hub or a route's own entry (see js/builder/builder-state.js#rescuePostCandidates'
+ *  own comment on why this reuses existing points instead of a free 3-D pick, like every other builder
+ *  tool here). Route-scoped like the rest of the toolbar for consistency, even though a rescuer post is
+ *  a park-wide object, not one route's own. */
+export function rescuePanel({ draft, dispatch }) {
+  const panel = el("div", "builder-panel builder-rescue-panel");
+  panel.appendChild(el("h3", "", t("builder.rescue.title")));
+
+  const placed = draft.rescuePosts;
+  panel.appendChild(el("div", "builder-form-label", t("builder.rescue.placedCount", { n: placed.length, max: RESCUE.maxPosts })));
+  if (placed.length) {
+    const list = el("div", "builder-rescue-list");
+    placed.forEach((post, i) => {
+      const row = el("div", "builder-rescue-row");
+      row.append(el("span", "builder-rescue-index", `#${i + 1}`));
+      const removeBtn = el("button", "btn small", t("builder.rescue.remove"));
+      removeBtn.type = "button";
+      removeBtn.addEventListener("click", () => dispatch({ type: "removeRescuePost", postId: post.id }));
+      row.appendChild(removeBtn);
+      list.appendChild(row);
+    });
+    panel.appendChild(list);
+  }
+
+  const full = placed.length >= RESCUE.maxPosts;
+  if (full) { panel.appendChild(el("div", "builder-empty-small", t("builder.rescue.capReached"))); return panel; }
+
+  const candidates = draft.rescuePostCandidates().filter((c) => !placed.some((p) => p.id === `post-${c.id}`));
+  if (!candidates.length) { panel.appendChild(el("div", "builder-empty-small", t("builder.rescue.noCandidates"))); return panel; }
+  const list = el("div", "builder-tree-list");
+  for (const c of candidates) {
+    const row = el("button", "builder-tree-row");
+    row.type = "button";
+    // `labelData.name` is a route's `nameKey` (js/builder/builder-state.js stays THREE/i18n-free, so it
+    // cannot resolve this itself) – translated here, one level in, before the outer label interpolates it.
+    const label = c.labelKey === "builder.rescue.entry" ? t(c.labelKey, { name: t(c.labelData.name) }) : t(c.labelKey, c.labelData);
+    row.append(el("span", "builder-tree-species", label));
+    row.addEventListener("click", () => dispatch({ type: "addRescuePost", candidateId: c.id }));
+    list.appendChild(row);
+  }
   panel.appendChild(list);
   return panel;
 }

@@ -180,7 +180,7 @@ function poseFor(agent, visual, poser, dt) {
   visual.walkPhase += Math.max(0, dt) * (2.6 + speed * 3.2);
   if (kind === "walk" && speed > 0.05) applyWalk(poser, visual.walkPhase);
   else if (kind === "ladder") applyLadder(poser, agent.stepPhase);
-  else if (kind === "element") applyElement(poser, Math.sin(agent.t * Math.PI * 2 + agent.stepPhase * 0.3));
+  else if (kind === "element") applyElement(poser, Math.sin(agent.t * Math.PI * 2 + agent.stepPhase * 0.3), fearTremor(agent, visual.walkPhase));
   else if (kind === "zip") applyZip(poser, agent.t);
   else applyIdle(poser, visual.walkPhase, agent.hue * 6.28);
   poser.root.updateWorldMatrix(true, true);
@@ -226,17 +226,27 @@ function applyLadder(p, phase) {
   p.kneeR.rotation.set(0.9 + 0.5 * s, 0, 0);
 }
 
-/** Balance-lean on a rail: arms out, a small sideways sway rocking with `sway` (-1..1). */
-function applyElement(p, sway) {
-  p.hip.rotation.set(0.03, 0, sway * 0.18);
-  p.shoulderL.rotation.set(-0.08, 0, 1.15);
-  p.shoulderR.rotation.set(-0.08, 0, -1.15);
-  p.elbowL.rotation.set(-0.2, 0, 0);
-  p.elbowR.rotation.set(-0.2, 0, 0);
+/** Balance-lean on a rail: arms out, a small sideways sway rocking with `sway` (-1..1). `shake` (0..1,
+ *  M3b fear events, js/npc/agents.js#beginOnRail) layers a quick, small tremor on top while frozen –
+ *  the same silhouette, visibly rattled, no separate "scared" skeleton pose needed. */
+function applyElement(p, sway, shake = 0) {
+  const tremor = shake * Math.sin(sway * 47) * 0.09;
+  p.hip.rotation.set(0.03, 0, sway * 0.18 + tremor);
+  p.shoulderL.rotation.set(-0.08, 0, 1.15 - tremor);
+  p.shoulderR.rotation.set(-0.08, 0, -1.15 + tremor);
+  p.elbowL.rotation.set(-0.2 - shake * 0.15, 0, 0);
+  p.elbowR.rotation.set(-0.2 - shake * 0.15, 0, 0);
   p.hipL.rotation.set(0.16, 0, 0);
   p.hipR.rotation.set(-0.16, 0, 0);
   p.kneeL.rotation.set(0.30, 0, 0);
   p.kneeR.rotation.set(0.30, 0, 0);
+}
+
+/** 0 (calm) or 1 (freezing/panicked) tremor gate for `applyElement` – `visual.walkPhase` already
+ *  advances every frame regardless of pose kind, so reusing it here needs no extra per-agent state. */
+function fearTremor(agent, walkPhase) {
+  if (!agent.fear || agent.fear === "none") return 0;
+  return 0.6 + 0.4 * Math.sin(walkPhase * 22);
 }
 
 /** Seated in the harness under the trolley, legs tucking up as `tuck` (0..1, ≈ ride progress) grows. */

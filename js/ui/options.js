@@ -8,6 +8,8 @@ import { GAME, OPTIONS, GRAPHICS } from "../config.js";
 import { setMasterVolume, setCategoryVolume } from "../audio/synth.js";
 import { setAssistMode } from "../player/assist.js";
 import { renderControlsList } from "./options-controls.js";
+import { CUSTOM_PARK_SCHEMA, isValidCustomPark } from "../core/save.js";
+import { validateRoute, validatePark } from "../builder/builder-validate.js";
 
 // Graphics presets (M2b): near/mid forest LOD distances scale together, so only `impostorNear`
 // (js/config.js#GRAPHICS, "forest impostors from X m" = the mid threshold) needs to be authored per
@@ -21,16 +23,19 @@ const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 
 /**
  * @param {{ root: HTMLElement, save, input, camera, loop, ticket?, onEndDay: () => void,
- *   onCourseMap: () => void, onBuilder?: () => void, renderer?, sky?, forest?, groundDetail? }} options
+ *   onCourseMap: () => void, onBuilder?: () => void, renderer?, sky?, forest?, groundDetail?, terrain? }} options
  *   `camera` is the player's camera controller (`player.camera`, exposes `setReducedMotion`).
  *   `ticket` (optional) is the pure clock (js/game/ticket.js) – only its `.started` getter is read,
  *   to grey out "End day" when no ticket is running. `renderer`/`sky`/`forest`/`groundDetail` (M2b,
  *   all optional) are what the Graphics section actually adjusts – omit any of them and that one part
  *   of a preset silently does nothing, exactly like `ticket` above. `onBuilder` (M3a, optional): shows
  *   the "Park builder" menu row at all – omit it (older dev harnesses, tests) and the row never appears.
+ *   `terrain` (M3b, optional, ADR-029 "Teilen ist dateibasiert"): lets the Sharing section's import
+ *   button run the real layout validation against an imported file – omit it and import still applies
+ *   the park (with every route forced to "needs walkthrough") but skips the up-front issue count.
  * @returns {{ visible: boolean, open(): void, close(): void, toggle(): void, applyAll(): void, dispose(): void }}
  */
-export function createOptions({ root, save, input, camera, loop, ticket = null, onEndDay, onCourseMap, onBuilder = null, renderer = null, sky = null, forest = null, groundDetail = null }) {
+export function createOptions({ root, save, input, camera, loop, ticket = null, onEndDay, onCourseMap, onBuilder = null, renderer = null, sky = null, forest = null, groundDetail = null, terrain = null }) {
   const screen = el("div", "screen options-screen");
   screen.hidden = true;
   const sheet = el("div", "panel options-sheet");
@@ -172,6 +177,101 @@ export function createOptions({ root, save, input, camera, loop, ticket = null, 
     return section;
   }
 
+  // --- sharing (M3b, ADR-029 "Teilen ist dateibasiert": JSON export/import, never a network) ----------
+  let sharingNotice = null;   // { text, isError } – survives the next render() so a result stays visible
+
+  /** Downloads only the `customPark` half of the save (not best times/settings/etc.) plus a free-text
+   *  author string, as a plain JSON file – a browser Blob + a throwaway `<a download>`, the standard
+   *  client-side download pattern (no server, no CDN, ADR-001). */
+  function exportPark(author) {
+    const cp = save.data.customPark;
+    if (!cp) { sharingNotice = { text: t("options.sharing.noCustomPark"), isError: true }; render(); return; }
+    const payload = { schema: CUSTOM_PARK_SCHEMA, kind: "wipfel-park", author: String(author || "").trim(), parkDef: cp.parkDef, routeStatus: cp.routeStatus };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${cp.parkDef.id || "wipfel-park"}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  /** Every route's own trees/edges/zip re-checked against js/park/layout-validate.js's real rules
+   *  (js/builder/builder-validate.js, ADR-003 "the builder writes what the generator emits") – informs
+   *  the operator up front rather than silently importing a broken park; it does not block the import
+   *  itself, the same way a hand-edited route with issues stays importable/openable as a "Draft" in the
+   *  builder rather than being rejected outright. */
+  function issueCountFor(parkDef) {
+    if (!terrain) return 0;
+    let count = 0;
+    for (const route of parkDef.routes) {
+      const otherRouteTreeIndexes = new Set();
+      for (const other of parkDef.routes) {
+        if (other.id === route.id) continue;
+        for (const p of other.platforms) otherRouteTreeIndexes.add(p.treeIndex);
+      }
+      if (validateRoute(route, { terrain, heroTrees: parkDef.heroTrees, otherRouteTreeIndexes }).issues.length) count += 1;
+    }
+    if (!validatePark({ heroTrees: parkDef.heroTrees }).ok) count += 1;
+    return count;
+  }
+
+  /** Applies an imported file's park: forces every route back to "needs walkthrough" (GDD §4's own
+   *  inspection-before-opening rule, ADR-029) regardless of what the file itself claims, structurally
+   *  validated the same way a page load's own save.js#normalize() never trusts stored data either. */
+  function importParkFile(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      let parsed;
+      try { parsed = JSON.parse(String(reader.result)); } catch { sharingNotice = { text: t("options.sharing.importInvalid"), isError: true }; render(); return; }
+      if (!isValidCustomPark(parsed)) { sharingNotice = { text: t("options.sharing.importInvalid"), isError: true }; render(); return; }
+      const routeStatus = Object.fromEntries(parsed.parkDef.routes.map((r) => [r.id, { walked: false }]));
+      save.setCustomPark({ parkDef: parsed.parkDef, routeStatus });
+      const issues = issueCountFor(parsed.parkDef);
+      sharingNotice = { text: issues > 0 ? t("options.sharing.importSuccessIssues", { n: issues }) : t("options.sharing.importSuccess"), isError: false };
+      render();
+    };
+    reader.onerror = () => { sharingNotice = { text: t("options.sharing.importInvalid"), isError: true }; render(); };
+    reader.readAsText(file);
+  }
+
+  function buildSharingSection() {
+    const section = el("div", "options-section");
+    section.appendChild(el("h2", "", t("options.section.sharing")));
+
+    const authorRow = el("div", "opt-row");
+    authorRow.appendChild(el("span", "opt-label", t("options.sharing.authorLabel")));
+    const authorInput = document.createElement("input");
+    authorInput.type = "text";
+    authorInput.maxLength = 40;
+    authorInput.className = "opt-text-input";
+    authorRow.appendChild(authorInput);
+    section.appendChild(authorRow);
+
+    const actions = el("div", "opt-sharing-actions");
+    const exportBtn = button(t("options.sharing.export"), () => exportPark(authorInput.value));
+    exportBtn.disabled = !save.data.customPark;
+    const importInput = document.createElement("input");
+    importInput.type = "file";
+    importInput.accept = "application/json";
+    importInput.hidden = true;
+    importInput.addEventListener("change", () => {
+      const file = importInput.files && importInput.files[0];
+      if (file) importParkFile(file);
+      importInput.value = "";
+    });
+    const importBtn = button(t("options.sharing.import"), () => importInput.click());
+    actions.append(exportBtn, importBtn, importInput);
+    section.appendChild(actions);
+
+    section.appendChild(el("div", "opt-note", t("options.sharing.exportNote")));
+    section.appendChild(el("div", "opt-note", t("options.sharing.importNote")));
+    if (sharingNotice) section.appendChild(el("div", `opt-note${sharingNotice.isError ? " opt-note-error" : ""}`, sharingNotice.text));
+    return section;
+  }
+
   /** Graphics (M2b, ROADMAP): a preset row, same three-pill look the language picker already uses. */
   function buildGraphicsSection() {
     const current = save.data.settings.graphics;
@@ -187,7 +287,7 @@ export function createOptions({ root, save, input, camera, loop, ticket = null, 
   function render() {
     sheet.replaceChildren();
     const sections = el("div", "options-sections");
-    sections.append(buildAudioSection(), buildCameraSection(), buildGraphicsSection(), buildGameplaySection(), buildControlsSection());
+    sections.append(buildAudioSection(), buildCameraSection(), buildGraphicsSection(), buildGameplaySection(), buildControlsSection(), buildSharingSection());
     sheet.append(
       el("h1", "", t("options.title")),
       buildMenu(),

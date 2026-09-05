@@ -113,11 +113,11 @@ an als Blau (Höhe, Bewegung, Kraft), nicht nur schwerer.
 
 ## M3 · „Der Betreiber“ (Entscheidung nach M1 – ADR-019)
 
-- [ ] Builder (Bäume mit Gutachten, Podeste, Katalog, Flying-Fox-Werkzeug), Parcours-Inspektor
-- [ ] Gäste-Simulation mit Profilen, Overlays (Warten, Angst, Rettung, Bäume)
-- [ ] Begehung als Freigabepflicht, Guide- und Retter-Rolle
-- [ ] Inspektionen, PSA-Alterung, Wetter/Räumung, Ökonomie, Ticketmodelle
-- [ ] Teilen von Parcours mit Bewertung/Bestzeit. **Tag `m3`.**
+- [x] Builder (Bäume mit Gutachten, Podeste, Katalog, Flying-Fox-Werkzeug), Parcours-Inspektor
+- [x] Gäste-Simulation mit Profilen, Overlays (Warten, Angst, Rettung, Bäume)
+- [x] Begehung als Freigabepflicht, Guide- und Retter-Rolle
+- [x] Inspektionen, PSA-Alterung, Wetter/Räumung, Ökonomie, Ticketmodelle
+- [x] Teilen von Parcours mit Bewertung/Bestzeit. **Tag `m3`.**
 
 ## M4 · „Die anderen“ (lokal – ADR-029)
 - [ ] Koop 2 lokal (Gamepad + Tastatur, Begleitregel), Zuschauer-Rufe, geteilte Physik, Koop-Übungen, weitere Kapitel bis zum

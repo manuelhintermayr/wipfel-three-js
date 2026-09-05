@@ -12,6 +12,13 @@ const MARKER = Object.freeze({
   platformRadius: 0.5,
 });
 const ZIP_COLOUR = 0x3fa7ff;
+// M3b operator overlays (GDD §4 "Overlays: Warten·Angst·Rettung", builder-ui.js's toolbar toggle row):
+// small floating spheres colour-coded green→red by how bad the reading is, plus the rescue layer's own
+// hut markers and coverage rings. Kept as plain THREE.InstancedMesh per layer, same trick `setCandidates`
+// below already uses, so four overlays together are still a handful of draw calls.
+const HEAT_RADIUS = 0.5;
+const HEAT_LOW = 0x58c56b, HEAT_HIGH = 0xe0564c;
+const HUT_COLOUR = 0xf2c635;
 
 /**
  * @param {{ scene: THREE.Scene }} options
@@ -37,6 +44,43 @@ export function createBuilderOverlays({ scene }) {
   let lifelineObj = null;
   let zipObj = null;
   let labels = [];
+
+  // --- M3b operator overlays -------------------------------------------------------------------------
+  const heatGeometry = new THREE.SphereGeometry(HEAT_RADIUS, 10, 8);
+  let waitMesh = null, fearMesh = null, treeHealthMesh = null, rescuePlatformMesh = null;
+  let rescueProps = [];   // plain THREE.Mesh per post: one hut cone + one coverage ring (shared geometry/material below)
+  const hutGeometry = new THREE.ConeGeometry(0.45, 1.1, 6);
+  const hutMaterial = new THREE.MeshBasicMaterial({ color: HUT_COLOUR });
+  let ringGeometry = null, ringMaterial = null;   // radius depends on the live rescue timer/walk-speed tuning, rebuilt per call
+
+  const lerpColour = (lo, hi, u) => new THREE.Color(lo).lerp(new THREE.Color(hi), Math.max(0, Math.min(1, u)));
+
+  /** Rebuilds one colour-coded instanced-sphere layer from `{x,y,z,value}` points (`value` 0..1, 0 = the
+   *  good end of `lowColour`). Shared by wait/fear/tree-health – only the input points and hue differ. */
+  function rebuildHeatMesh(oldMesh, points, lowColour = HEAT_LOW, highColour = HEAT_HIGH) {
+    if (oldMesh) { group.remove(oldMesh); oldMesh.geometry.dispose(); oldMesh.material.dispose(); }
+    if (!points || !points.length) return null;
+    const mesh = new THREE.InstancedMesh(heatGeometry, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.9 }), points.length);
+    mesh.name = "builder-heat-overlay";
+    const m = new THREE.Matrix4(), colour = new THREE.Color();
+    points.forEach((p, i) => {
+      m.setPosition(p.x, p.y + 0.2, p.z);
+      mesh.setMatrixAt(i, m);
+      mesh.setColorAt(i, colour.copy(lerpColour(lowColour, highColour, p.value)));
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    group.add(mesh);
+    return mesh;
+  }
+
+  /** Only removes the per-post meshes from the group – their geometry/material are the module-level
+   *  `hutGeometry`/`hutMaterial`/`ringGeometry`/`ringMaterial` shared across every post and disposed
+   *  separately (in `setRescueOverlay` when the ring's own radius changes, and once in `dispose()`). */
+  function disposeRescueProps() {
+    for (const obj of rescueProps) group.remove(obj);
+    rescueProps = [];
+  }
 
   function disposeCandidateMesh() {
     if (!candidateMesh) return;
@@ -114,9 +158,48 @@ export function createBuilderOverlays({ scene }) {
      *  projects these to screen space each frame; kept as plain data so this module never touches DOM. */
     getLabels() { return labels; },
 
+    // --- M3b operator overlays (js/builder/builder-ui.js's toolbar toggle row) -----------------------
+    /** `points`: `[{x,y,z,value}]`, `value` 0..1 – js/builder/builder.js normalises whatever
+     *  js/npc/agents.js#waitStats() returns against a fixed "long wait" ceiling before calling this. */
+    setWaitOverlay(points) { waitMesh = rebuildHeatMesh(waitMesh, points); },
+    /** Same shape as `setWaitOverlay` – js/npc/agents.js#fearStats() normalised against a small ceiling. */
+    setFearOverlay(points) { fearMesh = rebuildHeatMesh(fearMesh, points); },
+    /** `points`: `[{x,y,z,value}]`, `value` = 1 - tree.health (so a sick tree reads red, a healthy one green). */
+    setTreeHealthOverlay(points) { treeHealthMesh = rebuildHeatMesh(treeHealthMesh, points); },
+    /** `view`: `{ posts: [{x,y,z}], radiusM, platforms: [{x,y,z,covered}] }`, or `null` to clear – a hut
+     *  cone + a translucent coverage ring per post, plus every platform recoloured green/red by
+     *  js/builder/builder-metrics.js#rescueCoverage's own verdict. */
+    setRescueOverlay(view) {
+      disposeRescueProps();
+      rescuePlatformMesh = rebuildHeatMesh(rescuePlatformMesh, null);   // clears without a stray reference
+      if (!view) return;
+      if (ringGeometry) ringGeometry.dispose();
+      if (ringMaterial) ringMaterial.dispose();
+      ringGeometry = new THREE.RingGeometry(Math.max(0.2, view.radiusM - 0.5), view.radiusM, 48);
+      ringMaterial = new THREE.MeshBasicMaterial({ color: HUT_COLOUR, transparent: true, opacity: 0.10, side: THREE.DoubleSide, depthWrite: false });
+      for (const post of view.posts) {
+        const hut = new THREE.Mesh(hutGeometry, hutMaterial);
+        hut.position.set(post.x, post.y + 0.55, post.z);
+        group.add(hut);
+        rescueProps.push(hut);
+        const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.set(post.x, post.y + 0.05, post.z);
+        group.add(ring);
+        rescueProps.push(ring);
+      }
+      rescuePlatformMesh = rebuildHeatMesh(null, view.platforms.map((p) => ({ x: p.x, y: p.y, z: p.z, value: p.covered ? 0 : 1 })));
+    },
+
     dispose() {
       disposeCandidateMesh();
       disposeRouteObjects();
+      disposeRescueProps();
+      for (const mesh of [waitMesh, fearMesh, treeHealthMesh, rescuePlatformMesh]) if (mesh) { mesh.geometry.dispose(); mesh.material.dispose(); }
+      heatGeometry.dispose();
+      hutGeometry.dispose(); hutMaterial.dispose();
+      if (ringGeometry) ringGeometry.dispose();
+      if (ringMaterial) ringMaterial.dispose();
       markerGeometry.dispose();
       markerMaterial.dispose();
       platformGeometry.dispose();

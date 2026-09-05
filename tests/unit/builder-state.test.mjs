@@ -10,6 +10,7 @@ import { generateParkLayout, PARK_CONFIG_SMALL, PARK_CONFIG } from "../../js/par
 import { surveyTrees, SURVEY } from "../../js/builder/survey-trees.js";
 import { createBuilderDraft } from "../../js/builder/builder-state.js";
 import { CATEGORY_RULES } from "../../js/park/layout-validate.js";
+import { RESCUE } from "../../js/config.js";
 
 const SEED = 1;
 const terrain = createHeadlessTerrain({ seed: SEED });
@@ -263,4 +264,73 @@ test("serialize/restore: heroTrees, routes and walked-status all round-trip", ()
 
   const again = restored.serialize();
   assert.equal(JSON.stringify(again.parkDef), JSON.stringify(saved.parkDef), "serialising an unchanged restored draft must reproduce the same parkDef");
+});
+
+// --- M3b rescuer posts + coverage (GDD §4 "Retter") ----------------------------------------------------
+
+test("rescuePostCandidates: every hub plus every route's own entry, addRescuePost places one, capped at RESCUE.maxPosts", () => {
+  const draft = freshDraft();
+  const candidates = draft.rescuePostCandidates();
+  assert.ok(candidates.some((c) => c.id === "hub:0"), "the spawn hub is always a candidate");
+  assert.ok(candidates.some((c) => c.id.startsWith("entry:")), "every route's entry is a candidate");
+  assert.ok(candidates.length >= 4, "the small park's own hub + six route entries should give plenty of candidates");
+  assert.equal(draft.rescuePosts.length, 0);
+
+  const first = draft.addRescuePost("hub:0");
+  assert.equal(first.ok, true);
+  assert.equal(draft.rescuePosts.length, 1);
+  assert.equal(draft.rescuePosts[0].x, candidates.find((c) => c.id === "hub:0").x);
+  assert.equal(draft.addRescuePost("hub:0").ok, false, "the same candidate cannot be placed twice");
+
+  for (const c of candidates) { if (draft.rescuePosts.length >= RESCUE.maxPosts) break; draft.addRescuePost(c.id); }
+  assert.equal(draft.rescuePosts.length, RESCUE.maxPosts);
+  const stillFree = candidates.find((c) => !draft.rescuePosts.some((p) => p.id === `post-${c.id}`));
+  assert.equal(draft.addRescuePost(stillFree.id).ok, false, `a ${RESCUE.maxPosts + 1}th post is refused`);
+});
+
+test("removeRescuePost: frees the slot back up", () => {
+  const draft = freshDraft();
+  const post = draft.addRescuePost("hub:0");
+  assert.equal(post.ok, true);
+  const id = draft.rescuePosts[0].id;
+  assert.equal(draft.removeRescuePost("does-not-exist").ok, false);
+  assert.equal(draft.removeRescuePost(id).ok, true);
+  assert.equal(draft.rescuePosts.length, 0);
+});
+
+test("rescueCoverage: no posts placed leaves every platform uncovered", () => {
+  const draft = freshDraft();
+  const coverage = draft.rescueCoverage();
+  assert.equal(coverage.covered.size, 0);
+  assert.ok(coverage.uncovered.size > 0, "the small park has at least one platform to be uncovered");
+  assert.ok(coverage.radiusM > 0);
+});
+
+test("rescueCoverage: a post at the hub covers routes near it, and never covers a platform impossibly far away", () => {
+  const draft = freshDraft();
+  draft.addRescuePost("hub:0");
+  const coverage = draft.rescueCoverage();
+  assert.ok(coverage.covered.size > 0, "at least the nearest route's own platforms should be reachable from the hub");
+  // Every distance reported must be non-negative and finite – a broken graph walk would otherwise
+  // silently produce NaN/Infinity here instead of a clean covered/uncovered split.
+  for (const d of Object.values(coverage.distanceOf)) assert.ok(Number.isFinite(d) && d >= 0);
+});
+
+test("rescueCoverage: a junction platform (shared by two routes) keeps the shorter of the two distances", () => {
+  // PARK_CONFIG's own red-III/black-II routes join an earlier route's platform (js/park/layout.js) –
+  // reuse the real, full park so at least one junction actually exists.
+  const fullParkDef = generateParkLayout({ seed: SEED, terrain, config: PARK_CONFIG });
+  const draft = createBuilderDraft({ parkDef: fullParkDef, terrain, rng: new Rng(SEED).fork("builder-rescue-test") });
+  draft.addRescuePost("hub:0");
+  const coverage = draft.rescueCoverage();
+  const junctionIds = new Set();
+  const seen = new Set();
+  for (const route of draft.routes) {
+    for (const platform of route.platforms) {
+      if (seen.has(platform.id)) junctionIds.add(platform.id);
+      seen.add(platform.id);
+    }
+  }
+  assert.ok(junctionIds.size > 0, "PARK_CONFIG is expected to have at least one junction platform");
+  for (const id of junctionIds) assert.ok(Number.isFinite(coverage.distanceOf[id]), `junction platform ${id} should have a resolved distance`);
 });

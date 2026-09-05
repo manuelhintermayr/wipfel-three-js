@@ -1,6 +1,6 @@
 // Boot: params → Rapier → renderer → world (sky, terrain, forest) → player → loop.
 import * as THREE from "three";
-import { GAME, TIME, TICKET, TICKET_TYPES, RULES, NIGHT, GRAPHICS } from "./config.js";
+import { GAME, TIME, TICKET, TICKET_TYPES, RULES, NIGHT, GRAPHICS, ECONOMY } from "./config.js";
 import { readParams } from "./core/params.js";
 import { installGlobalHandlers, showFatal, log } from "./core/errors.js";
 import { Loop } from "./core/loop.js";
@@ -55,6 +55,9 @@ import { createBriefing } from "./game/briefing.js";
 import { createStampCard } from "./ui/stamp-card.js";
 import { createOptions } from "./ui/options.js";
 import { createBuilder } from "./builder/builder.js";
+import { createOperations } from "./game/operations.js";
+import { createEconomy } from "./game/economy.js";
+import { createRescue } from "./game/rescue.js";
 import { sfxCarabinerOpen, sfxCarabinerLock, sfxHarnessCatch } from "./audio/sfx.js";
 
 async function boot() {
@@ -116,11 +119,27 @@ async function boot() {
   // pure flavour, always built, only glowing once it is actually dark (js/world/sky.js#night).
   const lampions = createLampions({ scene, parkDef, terrain, rng: rng.fork("lampions") });
   const buildMs = Math.round(performance.now() - t0);
+
+  // --- operator simulation (M3b, GDD §4): season/day/PPE/weather + cash/rating ------------------------
+  const operations = createOperations({ save, seed: parkDef.seed, wind });
+  const economy = createEconomy({ save });
+  /** A route with > 100 m of total zip length, or the legendary route unlocked, raises the rating
+   *  ceiling a little (GDD "Signature-Logik", simplified to one flat cap bump) – recomputed whenever the
+   *  park or the unlocks can plausibly have changed rather than tracked incrementally. */
+  function refreshSignatureBonus() {
+    const hasLongZip = parkDef.routes.some((r) => {
+      if (!r.zip) return false;
+      const total = r.zip.length + (r.zip.transfer ? r.zip.transfer.length : 0);
+      return total > ECONOMY.signatureMinZipLengthM;
+    });
+    economy.setSignatureActive(hasLongZip || save.isUnlocked("legendary"));
+  }
+  refreshSignatureBonus();
   log.info(`world built in ${buildMs} ms · trees ${forest.trees.length} · hubs ${terrain.hubs.length} · routes ${course.routes.length} · course on tree #${course.tree.id}`);
 
   // --- NPC guests (M1.6): occupancy is shared with the player's own belay/interaction below --------
   const occupancy = createOccupancy();
-  let agents = params.npc ? createAgents({ course, parkDef, terrain, rng: rng.fork("npc"), occupancy, events }) : null;
+  let agents = params.npc ? createAgents({ course, parkDef, terrain, rng: rng.fork("npc"), occupancy, events, allowPanic: !params.autoplay }) : null;
   let guestRig = agents ? createGuestRig({ scene, guestCount: agents.count }) : null;
   if (agents) log.info(`guests: ${agents.count}`);
 
@@ -148,7 +167,17 @@ async function boot() {
   // --- kassa + Einschulung + ticket clock + stamp card (M1.3/M1.5) --------------------------------------
   const overlay = document.getElementById("overlay");
   const ticket = createTicketClock();
-  let interaction = createInteraction({ player, input, belay, course, hud, events, vitals, save, ticket, occupancy });
+  // Rescuer role (M3b, GDD §4): reads `agents`/`parkDef`/`builder` through live getters (all three are
+  // `let`/`const` bindings that either get reassigned or exist further down this file – safe, because
+  // none of these closures actually run until the loop starts, long after every one of them is set).
+  const rescue = createRescue({
+    player, input, events, hud, terrain, root: overlay,
+    getParkDef: () => parkDef, getAgents: () => agents,
+    isBuilderOpen: () => builder.mode !== "closed",
+    autoplay: !!params.autoplay,
+    onResolved: (success) => economy.onRescueOutcome(success),
+  });
+  let interaction = createInteraction({ player, input, belay, course, hud, events, vitals, save, ticket, occupancy, rescue, operations });
   let courseMap = createCourseMap({ root: overlay, parkDef: publicParkDef, terrain, save, player, getAgents: () => (agents ? agents.list : []) });
   if (params.map) courseMap.open();
 
@@ -178,6 +207,9 @@ async function boot() {
     nightDebugOverride = false;   // a fresh day always follows the ticket's own clock again
     applyChoice(choice);
     session.beginDay();
+    // M3b economy (RESEARCH-DATA §7 "Fixkosten vorne") – every day the gates open, storm or not.
+    economy.chargeDailyFixedCost();
+    economy.onDayAvailability(save.hasCompletedAnyRoute() || save.isUnlocked("legendary"));
     const endHour = openingHour + ticket.totalGameMinutes / 60;
     hud.setNotice(t("notice.ticketStarted", { time: formatClock(endHour) }), 6);
     if (!save.data.briefingDone) briefing.start();
@@ -195,7 +227,18 @@ async function boot() {
 
   const stampCard = createStampCard({
     root: overlay, save,
-    onNewDay() { save.endTicket(); kassa.show(); },
+    onNewDay() {
+      // M3b (GDD §4 "Saison ... 8 Tage"): the one place a day boundary is actually crossed – yesterday's
+      // modelled admissions (js/game/economy.js#nextDayGuestCount) pay in and wear the PPE, then
+      // tomorrow's forecast is rolled before the kassa (which reads it for the storm-warning line) shows.
+      const endingTicketType = save.data.ticket ? save.data.ticket.type : TICKET_TYPES[0].id;
+      const guestCount = economy.nextDayGuestCount(parkDef.seed, operations.day);
+      economy.admitGuests(endingTicketType, guestCount);
+      operations.beginDay(guestCount);
+      refreshSignatureBonus();
+      save.endTicket();
+      kassa.show();
+    },
     onContinue() { ticket.end(); save.endTicket(); },
   });
   let session = createSession({ player, course, parkDef, events, hud, save, root: document.getElementById("hud"), ticket, input, stampCard, flow });
@@ -204,7 +247,7 @@ async function boot() {
     rng: rng.fork("briefing"), belay, player, input, save, events,
   });
   const kassa = createKassa({
-    root: overlay, save,
+    root: overlay, save, operations,
     defaultChoice: { type: TICKET_TYPES[0].id, sizeClassId: "adult", belayMode: params.belayMode, equipmentId: save.data.equipmentId },
     onConfirm: startDay,
   });
@@ -254,16 +297,17 @@ async function boot() {
     signs = createSigns({ parkDef, scene, terrain, textures: wood, rng: rng.fork(`signs-rebuild-${rebuildSeq}`) });
     publicParkDef = { ...parkDef, routes: parkDef.routes.filter((r) => r.category !== "legendary") };
     parkBoard = createParkBoard({ root: document.getElementById("hud"), scene, physics, parkDef: publicParkDef, terrain, rng: rng.fork(`park-board-rebuild-${rebuildSeq}`), textures: wood });
-    interaction = createInteraction({ player, input, belay, course, hud, events, vitals, save, ticket, occupancy });
+    interaction = createInteraction({ player, input, belay, course, hud, events, vitals, save, ticket, occupancy, rescue, operations });
+    refreshSignatureBonus();
     session = createSession({ player, course, parkDef, events, hud, save, root: document.getElementById("hud"), ticket, input, stampCard, flow });
     courseMap = createCourseMap({ root: overlay, parkDef: publicParkDef, terrain, save, player, getAgents: () => (agents ? agents.list : []) });
-    agents = params.npc ? createAgents({ course, parkDef, terrain, rng: rng.fork(`npc-rebuild-${rebuildSeq}`), occupancy, events }) : null;
+    agents = params.npc ? createAgents({ course, parkDef, terrain, rng: rng.fork(`npc-rebuild-${rebuildSeq}`), occupancy, events, allowPanic: !params.autoplay }) : null;
     guestRig = agents ? createGuestRig({ scene, guestCount: agents.count }) : null;
     return { course, parkDef };
   }
   const builder = createBuilder({
     scene, terrain, rng: rng.fork("builder"), player, camera, renderer, input, events, loop,
-    save, ticket, kassa, briefing, belay, hud, root: overlay,
+    save, ticket, kassa, briefing, belay, hud, root: overlay, operations, economy,
     world: {
       getParkDef: () => parkDef, getCourse: () => course, getGuests: () => ({ agents, guestRig }),
       // `interaction` is rebuilt right alongside `course` (both close over the old, disposed course
@@ -283,7 +327,7 @@ async function boot() {
     // here. `forest` is a small live-forwarding proxy (not the object itself) because js/builder/
     // builder.js may rebuild the real one after a hero-tree-adding edit – the proxy always calls
     // whichever instance is current instead of latching onto the one that existed at boot.
-    renderer, sky, forest: { setLodDistances: (v) => forest.setLodDistances(v) }, groundDetail,
+    renderer, sky, forest: { setLodDistances: (v) => forest.setLodDistances(v) }, groundDetail, terrain,
   });
   options.applyAll();   // settings from a previous visit, applied once before the first frame
 
@@ -317,6 +361,7 @@ async function boot() {
   events.on("player:accident-landed", ({ elementLabel, routeName, seconds }) => {
     save.recordAccident();
     session.abandonActiveRun();
+    economy.onAccident();
     accidentReport.showReport({ routeName, elementLabel, seconds });
   });
 
@@ -355,9 +400,13 @@ async function boot() {
   // to the platform the player is standing on ticks trust up and nerves down a little – js/npc/agents.js
   // only emits the event, js/player/nerves.js#watchSuccess() decides what it is worth.
   events.on("npc:watched-success", () => vitals.nerves.watchSuccess());
+  // M3b rating (GDD §4 "Betreiber merkt, ob Farben stimmen"): a small, guaranteed bump every time any
+  // route is finished, independent of js/game/session.js's own mastery/unlock bookkeeping.
+  events.on("route:completed", () => economy.onRouteCompleted());
 
   // --- debug panel -----------------------------------------------------------------------------------
   let npcMs = 0;   // set in the gameplay phase below – js/npc/agents.js's own per-frame budget
+  let wasEvacuating = false;   // js/game/operations.js rising-edge detector (storm evacuation, M3b)
   const debug = new DebugPanel(document.getElementById("debug"), () => ({
     fps: loop.stats.fps.toFixed(0),
     "frame ms": loop.stats.frameMs.toFixed(2),
@@ -381,6 +430,10 @@ async function boot() {
     "world ms": buildMs,
     flow: flow.value.toFixed(2),
     routes: course.routes.length,
+    "op day": `S${operations.season}·${operations.dayInSeason} (${operations.forecast})`,
+    "op evac": operations.isEvacuating() ? "yes" : "no",
+    "op cash/rating": `${economy.cash} / ${economy.rating.toFixed(2)}`,
+    rescue: rescue.state,
   }));
   if (params.debug) debug.toggle(true);
   if (params.physics) physics.setDebug(scene, true);
@@ -444,7 +497,20 @@ async function boot() {
     // normally, exactly like the ordinary game, only `agents` stays frozen (see below).
     if (builder.mode === "editing") return;
     player.update(dt);
-    ticket.update(dt);
+    // Weather (M3b, GDD §4 "Gewitter = Räumung"): checked against whichever clock is currently live
+    // (the ticket once a day has started, the sky's own otherwise) *before* deciding whether to advance
+    // the ticket this frame – see js/game/operations.js's own header on why the evacuation timer cannot
+    // be measured against a clock this same block is about to freeze.
+    const gameHourNow = ticket.started ? ticket.timeOfDay : sky.timeOfDay;
+    operations.update(dt, gameHourNow);
+    const evacuatingNow = operations.isEvacuating();
+    if (evacuatingNow && !wasEvacuating) {
+      if (agents) agents.evacuate();
+      economy.onEvacuation();
+      hud.setNotice(t("notice.stormEvacuated"), 6);
+    }
+    wasEvacuating = evacuatingNow;
+    if (!evacuatingNow) ticket.update(dt);
     // Sky follows the ticket's own clock once a day is running (M2b: this is what makes the night
     // ticket's dusk-to-night drift happen at all) – `nightDebugOverride` stands down for
     // `WIPFEL.debug.setNight()` so a forced test state is not immediately overwritten.
@@ -457,6 +523,7 @@ async function boot() {
     const onElement = player.mode === "element" || player.mode === "zipline" || player.mode === "tarzan";
     flow.update(dt, { progressing: onElement, frozen: vitals.nerves.frozen, nervesValue: vitals.nerves.value });
     interaction.update(dt);       // the player's own occupancy claim/release happens here first –
+    rescue.update(dt);            // M3b: reads/consumes "interact" only while on the rescue's own element (see js/game/rescue.js)
     if (agents && builder.mode === "closed") {   // guests below only ever see a slot the player has already taken.
       const t0 = performance.now();
       agents.update(dt, player.position);
@@ -511,6 +578,8 @@ async function boot() {
     accidentReport, photoMode, headlamp, lampions, touchControls,
     // M3a
     builder,
+    // M3b
+    operations, economy, rescue,
     debug: {
       /** Force the slip a play-test needs on demand (screenshots, smoke runs). */
       forceSlip(angle = 1) {
@@ -539,6 +608,14 @@ async function boot() {
         sky.setTimeOfDay(on ? NIGHT.openingHour + 1.5 : TICKET.openingHour + 4);
         return nightDebugOverride;
       },
+      /**
+       * M3b: panics a guest AND immediately claims the rescue (js/game/rescue.js#forcePanic), so the
+       * timer HUD is on screen for a screenshot without first walking a rescuer post.
+       * @returns {{guestId,elementId}|null}
+       */
+      forcePanic() { return rescue.forcePanic(); },
+      /** M3b: today's forecast becomes "storm" and the evacuation starts immediately (screenshots). */
+      forceStorm() { operations.debugForceStorm(); if (agents) agents.evacuate(); return true; },
       panel: debug,
     },
     ready: true,

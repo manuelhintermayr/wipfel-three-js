@@ -172,10 +172,11 @@ export const DEFAULTS = Object.freeze({
 });
 
 /**
- * NPC guests (ROADMAP M1.6): count/profile/route assignment is deterministic per seed
- * (js/npc/agents.js#createAgents forks `rng`), occupancy caps come from RULES above.
- * `profiles` map a guest archetype to the category they head for – GDD §4 "Gäste als Agenten"
- * simplified to three archetypes for M1 (full profile roster is a Betreiber-era, M3, concern).
+ * NPC guests (ROADMAP M1.6/M3b): count/route assignment is deterministic per seed
+ * (js/npc/agents.js#createAgents forks `rng`), occupancy caps come from RULES above. The guest
+ * archetype roster itself (courage/strength/patience) moved to js/npc/profiles.js in M3b – GDD §4
+ * "Gäste als Agenten" – the same way js/elements/catalogue-data.js's kind table lives next to its own
+ * domain rather than here (this file stays plain scalar tuning, not content tables).
  */
 export const NPC = Object.freeze({
   countMin: 8,
@@ -193,11 +194,86 @@ export const NPC = Object.freeze({
   zipSecondsPerMetre: 0.22,    // eased traversal duration ≈ length * this (a lazy ~16 km/h average)
   trustWatchRadius: 2.6,       // metres (flat) – "the player stands on the platform" proxy for the trust hook
   trustWatchHeight: 2.2,       // metres (vertical) – generous, decks vary a little in height
-  profiles: Object.freeze([
-    { id: "kid", category: "blue", weight: 3, heightScale: [0.76, 0.90] },
-    { id: "teen", category: "red", weight: 2, heightScale: [0.90, 1.00] },
-    { id: "sporty", category: "black", weight: 2, heightScale: [0.96, 1.08] },
-  ]),
+});
+
+/**
+ * Fear events (ROADMAP M3b, GDD §4 "Angst-Ereignisse aus den psychologischen Achsen"). Pure logic:
+ * js/npc/profiles.js#rollFearEvent. `psychThreshold` is the catalogue's own 0-5 "psychological" axis
+ * (js/elements/catalogue-data.js) above which a low-courage guest starts to feel real pressure; below
+ * it nobody ever freezes, however anxious. `freezeChanceScale`/`panicEscalation` are documented design
+ * assumptions (GDD gives no real probability table) tuned so an anxious guest (courage ≈ 0.2) on a
+ * psychological-5 element freezes clearly more than half the time and panics a small minority of those.
+ */
+export const FEAR = Object.freeze({
+  psychThreshold: 3,
+  freezeChanceScale: 0.85,
+  panicEscalation: 0.4,
+  freezeSeconds: [6, 15],
+});
+
+/**
+ * Rescuer role (ROADMAP M3b, GDD §4 "Retter: Gast in Panik, 10 Spielminuten Timer", RESEARCH-DATA §7
+ * "jede Station in ≤ 10 min von einem Retter erreichbar"). Logic: js/game/rescue.js. The timer is
+ * expressed in *game* minutes like the ticket clock (js/game/ticket.js) and converted the same way
+ * (`TIME.gameHourMinutes` real seconds per game minute) – `10 game-minutes → 100 real seconds` at the
+ * project's own default pacing, a workable HUD countdown rather than a literal ten real-world minutes.
+ */
+export const RESCUE = Object.freeze({
+  timerGameMinutes: 10,
+  postInteractRange: 2.4,
+  talkdownRange: 2.2,
+  talkdownSeconds: 3,
+  maxPosts: 3,
+  walkSpeedMps: 1.3,           // IAPA "reachable within N minutes" assumption for the coverage overlay
+});
+
+/**
+ * Season/day operations (ROADMAP M3b, GDD §4 "Sicherheit als Tech-Baum und Pflicht"). Logic:
+ * js/game/operations.js. A season is 8 in-game days (a "New day" at the kassa, ROADMAP wording);
+ * PPE wears by a fixed amount per guest-day and per player-day, an inspection becomes due at 85% worn
+ * (the annual-inspection ritual compressed to the scale of a single play session – documented, honest
+ * simplification, RESEARCH-DATA §7's real "jährliche Inspektion" is a season, not a single day, in
+ * reality). Weather is a deterministic per-day forecast; a storm always lands at a fixed hour so a
+ * session that reaches that hour reliably sees the evacuation this milestone asks for.
+ */
+export const OPERATIONS = Object.freeze({
+  seasonDays: 8,
+  ppeWearPerGuestDay: 0.006,
+  ppeWearPerPlayerDay: 0.03,
+  ppeInspectionThreshold: 0.85,
+  ppeResetCash: -1,            // placeholder, real cost lives in ECONOMY.ppeResetCost
+  stormHour: 14,                // storm days always break at 14:00 park time
+  stormDurationHours: 1.5,
+  forecasts: Object.freeze(["clear", "overcast", "windy", "storm"]),
+  forecastWeights: Object.freeze([5, 3, 2, 1]),   // storm is the rare one
+  windBiasByForecast: Object.freeze({ clear: 0.9, overcast: 1.0, windy: 1.35, storm: 1.8 }),
+});
+
+/**
+ * Economy + rating (ROADMAP M3b, GDD §4 "Ökonomie"/"Betreiber merkt, ob Farben stimmen"). Logic:
+ * js/game/economy.js. Fixed costs upfront, ~0 variable cost per guest (RESEARCH-DATA §7) – the only
+ * "cost per guest" here is the flip side, admission income. `routeBuildCost`/`lengthScale` land a
+ * blue/red/black route in the GDD's own "~40-50k je Parcours" band once a realistic length is folded
+ * in. Rating starts at the mockup's own implied "decent, unproven" 3.5/5.
+ */
+export const ECONOMY = Object.freeze({
+  startingCash: 150000,
+  dailyFixedCost: 500,
+  rescuePostCost: 5000,
+  ppeResetCost: 2000,
+  routeBuildCostBase: Object.freeze({ blue: 40000, red: 43000, black: 46000, legendary: 48000 }),
+  routeBuildLengthScale: 40,     // + this much per metre of route length, gently within the 40-50k band
+  incomeByTicketType: Object.freeze({ standard: 32, happyHour: 22, season: 45, night: 28 }),
+  ratingStart: 3.5,
+  ratingMin: 0,
+  ratingMax: 5,
+  signatureBonusCap: 0.3,        // GDD "Signature-Logik" – simplified to one cap bonus, not 149+1 obstacles
+  signatureMinZipLengthM: 100,
+  ratingDeltas: Object.freeze({
+    routeCompleted: 0.01, shortWait: 0.01, longWait: -0.01, rescueSuccess: 0.05, rescueFailure: -0.08,
+    nightAvailable: 0.01, accident: -0.05, evacuationNoWarning: -0.15,
+  }),
+  wordOfMouth: Object.freeze({ guestsAtFloor: 8, guestsAtCeil: 16, ratingFloor: 2.0, ratingCeil: 5.0 }),
 });
 
 /** Course Map overlay + diegetic park board (ROADMAP M1.4). Logic: js/ui/map-render.js. */

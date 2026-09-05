@@ -12,6 +12,7 @@ import { CATEGORY_RULES, LAYOUT_LIMITS, metricSum, zipLandingOk } from "../park/
 import { CATALOGUE, CATALOGUE_VARIANTS } from "../elements/catalogue-data.js";
 import { buildEntry, ZIP_GRADIENT } from "../park/layout-route.js";
 import { createZipPhysics } from "../zipline/physics.js";
+import { RESCUE } from "../config.js";
 import { surveyTrees, SURVEY } from "./survey-trees.js";
 import { validateRoute, validatePark } from "./builder-validate.js";
 import * as metrics from "./builder-metrics.js";
@@ -70,6 +71,13 @@ export function createBuilderDraft({ parkDef, terrain, rng, walkedStatus = {} })
     cloned._status.walked = walkedStatus[r.id] === true;
     return cloned;
   });
+  // M3b rescuer posts (GDD §4 "Retter", RESEARCH-DATA §7 "jede Station in ≤ 10 min erreichbar"): up to
+  // RESCUE.maxPosts world points, each placed near an existing hub or route entry rather than an
+  // arbitrary 3-D click (this builder's own established convention – see the module header on M3a's
+  // "no 3-D click targets" choice, restated in HANDOVER). `{ id, x, z }`, plain data, round-trips through
+  // toParkDef() like every other field here.
+  const rescuePosts = Array.isArray(parkDef.rescuePosts)
+    ? parkDef.rescuePosts.map((p) => ({ id: p.id, x: p.x, z: p.z })) : [];
   let surveyPool = null;   // lazily built – terrain sampling is not free, and tests may never ask for it
 
   const findRoute = (routeId) => {
@@ -172,6 +180,35 @@ export function createBuilderDraft({ parkDef, terrain, rng, walkedStatus = {} })
     routes.push(route);
     revalidate(id);
     return routeView(route);
+  }
+
+  /** Placement candidates for a rescuer post: the hub(s) plus every route's own entry deck – reusing
+   *  positions the draft already knows about instead of an arbitrary 3-D pick (see the field's own
+   *  comment above). */
+  function rescuePostCandidates() {
+    const candidates = terrain.hubs.map((h, i) => ({ id: `hub:${i}`, x: h.x, z: h.z, labelKey: "builder.rescue.hub", labelData: { n: i + 1 } }));
+    for (const route of routes) {
+      if (!route.entry) continue;
+      candidates.push({ id: `entry:${route.id}`, x: route.entry.x, z: route.entry.z, labelKey: "builder.rescue.entry", labelData: { name: route.nameKey } });
+    }
+    return candidates;
+  }
+
+  function addRescuePost(candidateId) {
+    if (rescuePosts.length >= RESCUE.maxPosts) return { ok: false, reason: "capReached" };
+    const postId = `post-${candidateId}`;
+    if (rescuePosts.some((p) => p.id === postId)) return { ok: false, reason: "alreadyPlaced" };
+    const candidate = rescuePostCandidates().find((c) => c.id === candidateId);
+    if (!candidate) return { ok: false, reason: "notFound" };
+    rescuePosts.push({ id: postId, x: candidate.x, z: candidate.z });
+    return { ok: true };
+  }
+
+  function removeRescuePost(postId) {
+    const index = rescuePosts.findIndex((p) => p.id === postId);
+    if (index === -1) return { ok: false, reason: "notFound" };
+    rescuePosts.splice(index, 1);
+    return { ok: true };
   }
 
   function removeRoute(routeId) {
@@ -324,6 +361,9 @@ export function createBuilderDraft({ parkDef, terrain, rng, walkedStatus = {} })
       // the *whole* draft whenever any one route is walked, so one half-started route must never break
       // every other, already-valid one – "keep it robust and loading-tolerant").
       routes: routes.filter((r) => r.entry != null).map((r) => { const { _status, ...rest } = r; return structuredClone(rest); }),
+      // M3b: rescuer posts (js/game/rescue.js reads these at runtime, js/builder/builder-overlays.js's
+      // coverage overlay reads them at edit time) – plain data, same round-trip as everything above.
+      rescuePosts: structuredClone(rescuePosts),
     };
   }
 
@@ -354,6 +394,14 @@ export function createBuilderDraft({ parkDef, terrain, rng, walkedStatus = {} })
     evaluateZip, commitZip,
     canWalk, markWalked, markDirty,
     revalidate,
+
+    // M3b rescuer posts (up to RESCUE.maxPosts, GDD §4)
+    get rescuePosts() { return rescuePosts.map((p) => ({ ...p })); },
+    rescuePostCandidates,
+    addRescuePost, removeRescuePost,
+    /** GDD §4 "Retter-Abdeckung" – delegated to js/builder/builder-metrics.js like every other derived
+     *  read-out here (aggregateAxes, dramaturgyCurve, …). */
+    rescueCoverage() { return metrics.rescueCoverage({ routes, heroTrees, rescuePosts }); },
 
     toParkDef, serialize,
   };

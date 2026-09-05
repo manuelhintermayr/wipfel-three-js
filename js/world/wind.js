@@ -25,6 +25,9 @@ const WIND = Object.freeze({
 export function createWind({ rng } = {}) {
   const r = rng ? rng.fork("wind") : null;
   const rand = (lo, hi) => (r ? r.float(lo, hi) : (lo + hi) / 2);
+  // M3b (js/game/operations.js#createOperations): a day's forecast nudges the wind's own baseline –
+  // "windy"/"storm" days scale everything up, "clear" scales it down a touch. 1 = no change.
+  let dailyBias = 1;
 
   const baseAngle = rand(0, Math.PI * 2);
   const phaseSwell = rand(0, 100);
@@ -56,7 +59,7 @@ export function createWind({ rng } = {}) {
       const lobe = Math.max(0, Math.sin((t / WIND.gustPeriodSec) * Math.PI * 2 + phaseGust));
       const ripple = 0.7 + 0.3 * Math.sin((t / WIND.gustRipplePeriodSec) * Math.PI * 2 + phaseRipple);
       wind.gust = lobe * lobe * lobe * ripple;
-      wind.strength = THREE.MathUtils.clamp(base + WIND.gustGain * wind.gust, WIND.minStrength, WIND.maxStrength);
+      wind.strength = THREE.MathUtils.clamp((base + WIND.gustGain * wind.gust) * dailyBias, WIND.minStrength, WIND.maxStrength * 1.6);
 
       const angle = baseAngle + WIND.directionWobbleRad * Math.sin((t / WIND.directionWobblePeriodSec) * Math.PI * 2 + phaseDir);
       direction.set(Math.cos(angle), Math.sin(angle));
@@ -64,6 +67,9 @@ export function createWind({ rng } = {}) {
       uniforms.uTime.value = t;
       uniforms.uWindStrength.value = wind.strength;
     },
+    /** js/game/operations.js: `bias` multiplies the whole strength/gust computation above (1 = no change,
+     *  >1 a windier/stormier day, <1 an unusually calm one). */
+    setDailyBias(bias) { dailyBias = Number.isFinite(bias) && bias > 0 ? bias : 1; },
   };
   return wind;
 }

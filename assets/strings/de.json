@@ -271,7 +271,6 @@
   "builder.inspector.jamRisk": "Stau-Risiko",
   "builder.inspector.parTime": "Richtzeit",
   "builder.inspector.length": "Länge",
-  "builder.inspector.rescuerPlaceholder": "Retter-Abdeckung – kommt mit der Gäste-Simulation (M3b).",
   "builder.inspector.issues": "Verstöße",
   "builder.inspector.noIssues": "Keine Verstöße – bereit zur Begehung.",
 
@@ -336,5 +335,60 @@
 
   "builder.walk.banner": "INSPEKTION – {name} begehen, um sie zu öffnen",
   "builder.walk.completed": "Begehung abgeschlossen – Route ist offen",
-  "builder.walk.aborted": "Begehung abgebrochen"
+  "builder.walk.aborted": "Begehung abgebrochen",
+
+  "notice.stormEvacuated": "Gewitter – Park geräumt",
+
+  "rescue.panicToast": "Ein Gast gerät im Parcours in Panik",
+  "rescue.startPrompt": "Rettung starten [E]",
+  "rescue.talkdownPrompt": "Beruhigen [E]",
+  "rescue.timerLabel": "Rettung · {time}",
+  "rescue.breathing": "Gemeinsam atmen … {seconds}s",
+  "rescue.success": "Gast beruhigt – gut gemacht",
+  "rescue.failure": "Zu langsam – der Gast musste abseits gerettet werden",
+
+  "operator.day": "Tag",
+  "operator.dayValue": "S{season}·{day}",
+  "operator.weather": "Wetter",
+  "operator.forecast.clear": "Klar",
+  "operator.forecast.overcast": "Bewölkt",
+  "operator.forecast.windy": "Windig",
+  "operator.forecast.storm": "Gewitter",
+  "operator.guests": "Gäste",
+  "operator.wait": "Ø Wartezeit",
+  "operator.waitSeconds": "{s}s",
+  "operator.rating": "Bewertung",
+  "operator.cash": "Kasse",
+  "operator.currency": "€",
+  "operator.inspectPpe": "PSA-Kontrolle fällig ({pct}%) – zurücksetzen [{cost}]",
+
+  "operations.stormWarning": "Heute Gewitter angesagt – Räumung um {hour}:00",
+
+  "builder.toolbar.rescue": "Retterposten",
+  "builder.overlay.wait": "Warten",
+  "builder.overlay.fear": "Angst",
+  "builder.overlay.rescue": "Rettung",
+  "builder.overlay.treeHealth": "Baumgesundheit",
+
+  "builder.rescue.title": "Retterposten",
+  "builder.rescue.placedCount": "{n} / {max} platziert",
+  "builder.rescue.remove": "Entfernen",
+  "builder.rescue.capReached": "Maximal drei Retterposten erreicht.",
+  "builder.rescue.noCandidates": "Kein Hub oder Routen-Einstieg mehr frei zum Platzieren.",
+  "builder.rescue.hub": "Hub {n}",
+  "builder.rescue.entry": "Einstieg · {name}",
+
+  "builder.inspector.rescueNoPosts": "Noch keine Retterposten platziert.",
+  "builder.inspector.rescueCoverage": "Retter-Abdeckung: {covered} / {total} Podeste",
+
+  "options.section.sharing": "Park teilen",
+  "options.sharing.authorLabel": "Erbauer:in",
+  "options.sharing.export": "Park exportieren",
+  "options.sharing.import": "Park importieren",
+  "options.sharing.exportNote": "Lädt den aktuellen individuellen Park (inkl. Freigabe-/Begehungsstatus) als JSON-Datei herunter.",
+  "options.sharing.importNote": "Importierte Routen müssen vor der Nutzung durch Gäste erneut begangen werden – dieselbe Inspektionspflicht wie bei einer frisch gebauten Route.",
+  "options.sharing.importInvalid": "Diese Datei ist kein gültiger Wipfel-Park.",
+  "options.sharing.importSuccess": "Park importiert – jede Route muss vor der Öffnung erneut begangen werden.",
+  "options.sharing.importSuccessIssues": "Park importiert – {n} Route(n) haben Verstöße, die im Builder zu beheben sind; jede Route muss vor der Öffnung erneut begangen werden.",
+  "options.sharing.noCustomPark": "Zuerst im Park-Builder etwas bauen oder bearbeiten – es gibt noch nichts Individuelles zu exportieren."
 }

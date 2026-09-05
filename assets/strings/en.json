@@ -271,7 +271,6 @@
   "builder.inspector.jamRisk": "Jam risk",
   "builder.inspector.parTime": "Par time",
   "builder.inspector.length": "Length",
-  "builder.inspector.rescuerPlaceholder": "Rescuer coverage – coming with the guest simulation (M3b).",
   "builder.inspector.issues": "Issues",
   "builder.inspector.noIssues": "No violations – ready to walk.",
 
@@ -336,5 +335,60 @@
 
   "builder.walk.banner": "INSPECTION – walk {name} to open it",
   "builder.walk.completed": "Walkthrough complete – route is open",
-  "builder.walk.aborted": "Walkthrough aborted"
+  "builder.walk.aborted": "Walkthrough aborted",
+
+  "notice.stormEvacuated": "Storm – park evacuated",
+
+  "rescue.panicToast": "A guest is panicking on the course",
+  "rescue.startPrompt": "Start rescue [E]",
+  "rescue.talkdownPrompt": "Talk them down [E]",
+  "rescue.timerLabel": "Rescue · {time}",
+  "rescue.breathing": "Breathe with them… {seconds}s",
+  "rescue.success": "Guest calmed down – nice work",
+  "rescue.failure": "Too slow – the guest had to be rescued off-site",
+
+  "operator.day": "Day",
+  "operator.dayValue": "S{season}·{day}",
+  "operator.weather": "Weather",
+  "operator.forecast.clear": "Clear",
+  "operator.forecast.overcast": "Overcast",
+  "operator.forecast.windy": "Windy",
+  "operator.forecast.storm": "Storm",
+  "operator.guests": "Guests",
+  "operator.wait": "Ø Wait",
+  "operator.waitSeconds": "{s}s",
+  "operator.rating": "Rating",
+  "operator.cash": "Cash",
+  "operator.currency": "€",
+  "operator.inspectPpe": "PPE inspection due ({pct}%) – reset [{cost}]",
+
+  "operations.stormWarning": "Storm forecast today – evacuation at {hour}:00",
+
+  "builder.toolbar.rescue": "Rescuer posts",
+  "builder.overlay.wait": "Wait",
+  "builder.overlay.fear": "Fear",
+  "builder.overlay.rescue": "Rescue",
+  "builder.overlay.treeHealth": "Tree health",
+
+  "builder.rescue.title": "Rescuer posts",
+  "builder.rescue.placedCount": "{n} / {max} placed",
+  "builder.rescue.remove": "Remove",
+  "builder.rescue.capReached": "Maximum of three rescuer posts reached.",
+  "builder.rescue.noCandidates": "No hub or route entry left to place one at.",
+  "builder.rescue.hub": "Hub {n}",
+  "builder.rescue.entry": "Entry · {name}",
+
+  "builder.inspector.rescueNoPosts": "No rescuer posts placed yet.",
+  "builder.inspector.rescueCoverage": "Rescuer coverage: {covered} / {total} platforms",
+
+  "options.section.sharing": "Share park",
+  "options.sharing.authorLabel": "Author name",
+  "options.sharing.export": "Export park",
+  "options.sharing.import": "Import park",
+  "options.sharing.exportNote": "Downloads the current custom park (including open/walkthrough state) as a JSON file.",
+  "options.sharing.importNote": "Imported routes must be walked again before guests use them – the same inspection rule as a freshly built one.",
+  "options.sharing.importInvalid": "That file is not a valid Wipfel park.",
+  "options.sharing.importSuccess": "Park imported – walk every route again before opening it.",
+  "options.sharing.importSuccessIssues": "Park imported – {n} route(s) have issues to fix in the builder; walk every route again before opening it.",
+  "options.sharing.noCustomPark": "Build or edit something in the park builder first – there is nothing custom to export yet."
 }

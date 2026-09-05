@@ -62,22 +62,28 @@ export const PROMPTS = Object.freeze({
   get waitForClimber() { return t("notice.waitForClimber"); },
   /** Continuous belay (M2b, GDD §3.3): shown once per route, right after the entry clip. */
   get continuousHint() { return t("notice.continuousBelay"); },
+  /** Weather evacuation (M3b, js/game/operations.js): shown instead of any clip/step-on prompt. */
+  get evacuated() { return t("notice.stormEvacuated"); },
 });
 
 /** The player's own id in js/game/occupancy.js's ledgers – guests are always "guest-<n>" (js/npc/agents.js). */
 const PLAYER_HOLDER_ID = "player";
 
 /**
- * @param {{ player, input, belay, course, hud?, events?, vitals?, save?, ticket?, occupancy? }} options
+ * @param {{ player, input, belay, course, hud?, events?, vitals?, save?, ticket?, occupancy?, rescue?, operations? }} options
  *   `save` gates category entry anchors (GDD §3.12) and the Einschulung practice gate (M1.3) – omit it
  *   (dev harnesses, older tests) and nothing is ever locked. `ticket` gates every anchor once a day is
  *   over (M1.5, js/game/ticket.js) – omit it and clipping is never refused for lack of a ticket.
  *   `occupancy` (M1.6, js/game/occupancy.js) makes the player take a slot on an element like every
- *   guest does – omit it and stepping onto an element is never refused for lack of room.
+ *   guest does – omit it and stepping onto an element is never refused for lack of room. `rescue` (M3b,
+ *   js/game/rescue.js) lets the player share a panicked guest's own element slot while an active rescue
+ *   targets it – omit it and occupancy is never relaxed. `operations` (M3b, js/game/operations.js)
+ *   refuses every new clip-in during a storm evacuation with its own notice – omit it and weather never
+ *   gates the belay.
  * @returns {{ update(dt: number): void, prompt: string|null, anchor: object|null,
  *   entry: {element: object, end: string}|null, dispose(): void }}
  */
-export function createInteraction({ player, input, belay, course, hud = null, events = null, vitals = null, save = null, ticket = null, occupancy = null }) {
+export function createInteraction({ player, input, belay, course, hud = null, events = null, vitals = null, save = null, ticket = null, occupancy = null, rescue = null, operations = null }) {
   const chest = new THREE.Vector3();
   let prompt = null;
   let heldElementId = null;   // the element the player currently occupies, for js/game/occupancy.js
@@ -104,12 +110,18 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
   /** Ticket gate (M1.5): no new clip-in once the day has no active, unexpired ticket. */
   const ticketBlocks = () => !!ticket && !ticket.clippable;
 
+  /** Weather evacuation (M3b, GDD §4 "Gewitter = Räumung"): no new clip-in while the park is cleared. */
+  const evacuating = () => !!operations && operations.isEvacuating();
+
   /** Occupancy gate (M1.6): someone else (a guest) is already on this element – RULES.maxPerElement
    *  is 1, shared with js/npc/agents.js via js/game/occupancy.js. The ladder is deliberately not
    *  gated here (see this module's own header note on scope – guests queue for it among themselves,
-   *  but a human is not expected to "wait its turn" behind an NPC on a rail as short as the ladder). */
+   *  but a human is not expected to "wait its turn" behind an NPC on a rail as short as the ladder).
+   *  M3b: an active rescue (js/game/rescue.js) shares its one target element's slot with the player –
+   *  "guests yield" for that element only, everywhere else the normal cap-1 rule still applies. */
   const elementBlockedByGuest = (element) => {
     if (!occupancy || !element) return false;
+    if (rescue && rescue.isTarget(element.id)) return false;
     const holder = occupancy.holderOfElement(element.id);
     return holder != null && holder !== PLAYER_HOLDER_ID;
   };
@@ -158,6 +170,7 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
     if (player.mode === "ladder") return PROMPTS.onLadder;
     const next = startable();
     if (readyToStepOn()) {
+      if (evacuating() && !(rescue && rescue.isTarget(next.element.id))) return PROMPTS.evacuated;
       if (elementBlockedByGuest(next.element)) return PROMPTS.waitForClimber;
       return next.element.enterPrompt || PROMPTS.stepOn(next.element);
     }
@@ -165,6 +178,7 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
       const locked = lockedCategoryOf(anchor.id);
       if (locked) return PROMPTS.locked(locked);
       if (briefingRequiredAt(anchor.id)) return PROMPTS.briefingRequired;
+      if (!established(anchor.id) && evacuating()) return PROMPTS.evacuated;
       if (!established(anchor.id) && ticketBlocks()) return PROMPTS.noTicket;
       if (!established(anchor.id)) return belay.pendingAnchor() === anchor.id ? PROMPTS.clipSecond : PROMPTS.clipIn;
     }
@@ -180,7 +194,9 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
    */
   function stepOntoElement() {
     const { element, end } = startable();
-    if (occupancy) { occupancy.claimElement(element.id, PLAYER_HOLDER_ID); heldElementId = element.id; }
+    // M3b: a rescue target is shared with whichever guest still holds it (see `elementBlockedByGuest`)
+    // – the player never claims it themselves, so releasing it later never fights the guest's own hold.
+    if (occupancy && !(rescue && rescue.isTarget(element.id))) { occupancy.claimElement(element.id, PLAYER_HOLDER_ID); heldElementId = element.id; }
     player.setState(element.playerState || "element", { element, fromEnd: end, t: end === "exit" ? 1 : 0 });
     if (events) events.emit("player:interact", { what: element.kind, element: element.id, end });
   }
@@ -207,6 +223,7 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
     if (anchor && (input.pressed("clip") || (classic && input.pressed("clip2")))) {
       if (lockedCategoryOf(anchor.id)) return;         // refused: the route's category is not unlocked yet
       if (briefingRequiredAt(anchor.id)) return;       // refused: the Einschulung practice gate is not done
+      if (!established(anchor.id) && evacuating()) return;     // refused: storm evacuation in progress
       if (!established(anchor.id) && ticketBlocks()) return;   // refused: no active, unexpired ticket
       const firstClipOfRoute = belay.mode === "continuous" && belay.currentAnchor() == null;
       belay.clipTo(anchor.id, classic && input.pressed("clip2") ? "B" : "A");
@@ -218,7 +235,10 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
     }
     if (!input.pressed("interact") || player.mode !== "ground" || justSwitched()) return;
     if (readyToStepOn()) {
-      if (elementBlockedByGuest(startable().element)) return;   // refused: a guest already holds this element
+      const target = startable().element;
+      const isRescueTarget = !!(rescue && rescue.isTarget(target.id));
+      if (evacuating() && !isRescueTarget) return;   // refused: storm evacuation in progress
+      if (elementBlockedByGuest(target)) return;     // refused: a guest already holds this element
       stepOntoElement();
       return;
     }

@@ -55,6 +55,7 @@
 .kassa-option.selected .name, .kassa-option.selected .desc { color: #f5f3ed; }
 .kassa-sheet .confirm { display: block; width: 100%; margin-top: 1.3rem; padding: 0.7em; background: var(--cat-blue); border-color: var(--cat-blue); color: #fff; font-size: 0.95rem; }
 .kassa-sheet .confirm:hover { filter: brightness(1.08); }
+.kassa-storm-note { margin-top: 0.6rem; padding: 0.5em 0.8em; border-radius: var(--radius); background: rgba(224,86,76,0.14); border: 1px solid var(--hud-danger); color: #7a231d; font: 600 0.78rem/1.4 var(--font-ui); }
 
 /* Einschulung dialogue (M1.3) – diegetic, bottom-centre, does not block movement. */
 .briefing-panel {
@@ -147,6 +148,12 @@
 .opt-controls-list { display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 1rem; margin-top: 0.4rem; }
 .opt-controls-label { font: 500 0.78rem/1.4 var(--font-ui); color: var(--hud-muted); }
 .opt-controls-keys { font: 600 0.8rem/1.4 var(--font-display); letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+
+/* Sharing (M3b, ADR-029 "Teilen ist dateibasiert") */
+.opt-text-input { flex: 1 1 auto; font: 500 0.8rem/1.3 var(--font-ui); background: var(--hud-bg); color: var(--hud-text); border: 1px solid var(--hud-line); border-radius: var(--radius); padding: 0.35em 0.5em; }
+.opt-sharing-actions { display: flex; gap: 0.6rem; margin: 0.5rem 0; }
+.opt-sharing-actions .btn { flex: 1 1 auto; }
+.opt-note-error { color: var(--hud-danger); }
 
 .options-version { margin-top: 0.7rem; padding-top: 0.6rem; border-top: 1px solid var(--hud-line); font: 500 0.7rem/1 var(--font-mono); color: var(--hud-muted); text-align: right; }
 

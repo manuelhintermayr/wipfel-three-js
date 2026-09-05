@@ -1,6 +1,6 @@
 // Versioned save (schema 1): route best times, completion counters and category gates. Stored data is
 // never trusted – anything malformed collapses to defaults; new fields must be additive with defaults.
-import { GAME, GRAPHICS } from "../config.js";
+import { GAME, GRAPHICS, OPERATIONS, ECONOMY } from "../config.js";
 
 const DEFAULTS = Object.freeze({
   schema: GAME.saveSchema,
@@ -47,8 +47,18 @@ const DEFAULTS = Object.freeze({
   // parkDef because it is not part of what the generator itself ever emits. js/main.js prefers this over
   // a freshly generated park at boot when present and structurally valid.
   customPark: null,
+  // M3b operator simulation (GDD §4): a season is OPERATIONS.seasonDays in-game days, one "New day" at
+  // the kassa each (js/game/operations.js owns the derived season/day-in-season maths). `ppeWear` 0..1,
+  // an inspection becomes due at OPERATIONS.ppeInspectionThreshold; `ppeResets` is a lifetime counter.
+  operations: Object.freeze({ day: 1, ppeWear: 0, ppeResets: 0 }),
+  // M3b economy + rating (GDD §4): `routesCharged` is which route ids have already had their one-time
+  // build cost deducted (js/builder/builder.js, on a route's *first* successful walkthrough) – kept here
+  // so re-walking an already-open route, or reloading mid-session, never charges it twice.
+  economy: Object.freeze({ cash: ECONOMY.startingCash, rating: ECONOMY.ratingStart, routesCharged: {} }),
 });
-const CUSTOM_PARK_SCHEMA = 1;
+// Exported (M3b, ADR-029 "Teilen ist dateibasiert"): js/ui/options.js's export/import builds/checks
+// share files against this exact same schema marker and shape check, instead of a second copy of it.
+export const CUSTOM_PARK_SCHEMA = 1;
 
 const SETTINGS_BOOLEANS = Object.freeze(["invertY", "reducedCameraMotion", "reducedMotion", "assist"]);
 const clampVolume = (v) => Math.max(0, Math.min(100, v));
@@ -188,6 +198,18 @@ export function createSave(storage = defaultStorage()) {
       flush();
     },
 
+    /** M3b (js/game/operations.js) – merge a partial patch (`{day, ppeWear, ppeResets}`), same shape
+     *  every other `update*` here already uses. */
+    updateOperations(patch = {}) {
+      Object.assign(data.operations, patch);
+      flush();
+    },
+    /** M3b (js/game/economy.js) – merge a partial patch (`{cash, rating, routesCharged}`). */
+    updateEconomy(patch = {}) {
+      Object.assign(data.economy, patch);
+      flush();
+    },
+
     /** A JSON string snapshot of the whole save (M3/M4: share/back up a profile). */
     export() { return JSON.stringify(data); },
 
@@ -281,6 +303,20 @@ function normalize(parsed) {
   // themselves tolerant of an incomplete-but-well-shaped parkDef, so this just refuses to hand a
   // corrupt/foreign blob any further (same "malformed collapses to the default" rule every field here
   // follows) rather than re-validating every geometry rule save.js has no business knowing about.
+  if (parsed.operations && typeof parsed.operations === "object") {
+    const o = parsed.operations;
+    if (Number.isFinite(o.day) && o.day >= 1) data.operations.day = Math.floor(o.day);
+    if (Number.isFinite(o.ppeWear)) data.operations.ppeWear = Math.max(0, Math.min(1, o.ppeWear));
+    if (Number.isFinite(o.ppeResets)) data.operations.ppeResets = Math.max(0, Math.floor(o.ppeResets));
+  }
+  if (parsed.economy && typeof parsed.economy === "object") {
+    const e = parsed.economy;
+    if (Number.isFinite(e.cash)) data.economy.cash = e.cash;
+    if (Number.isFinite(e.rating)) data.economy.rating = Math.max(0, Math.min(5, e.rating));
+    if (e.routesCharged && typeof e.routesCharged === "object") {
+      for (const [id, was] of Object.entries(e.routesCharged)) if (was === true) data.economy.routesCharged[id] = true;
+    }
+  }
   if (isValidCustomPark(parsed.customPark)) {
     const cp = parsed.customPark;
     const routeStatus = {};
@@ -292,7 +328,9 @@ function normalize(parsed) {
   return data;
 }
 
-function isValidCustomPark(cp) {
+/** Exported (M3b): js/ui/options.js's park-file import runs this same structural check before ever
+ *  handing an imported file's `parkDef` to js/builder/builder-validate.js's real layout rules. */
+export function isValidCustomPark(cp) {
   return !!cp && typeof cp === "object" && cp.schema === CUSTOM_PARK_SCHEMA
     && !!cp.parkDef && typeof cp.parkDef === "object"
     && typeof cp.parkDef.id === "string" && Number.isFinite(cp.parkDef.seed)

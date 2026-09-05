@@ -122,6 +122,15 @@
 .photo-mode-active .hud-speed, .photo-mode-active .hud-tip, .photo-mode-active .board-prompt,
 .photo-mode-active .touch-controls { visibility: hidden; }
 
+/* Rescuer role (M3b, js/game/rescue.js) – its own bespoke prompt line, same idea as .board-prompt: no
+   ordering fight with js/player/interaction.js's own hud.setPrompt() call. */
+.rescue-panel {
+  position: absolute; left: 50%; bottom: calc(var(--hud-pad) + 6.6rem); transform: translateX(-50%);
+  background: var(--hud-bg-strong); border: 1px solid var(--hud-accent); border-radius: var(--radius);
+  padding: 0.45rem 1rem; font: 600 0.85rem/1 var(--font-display); letter-spacing: 0.04em; color: var(--hud-text);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Classic-mode accident (M2b) – the dry report reads better without the route banner/HUD bleeding
    through behind it (same idea as .course-map-open/.photo-mode-active above). */
 .accident-active .hud-route, .accident-active .hud-ticket, .accident-active .hud-flow,

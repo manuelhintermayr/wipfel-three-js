@@ -5,6 +5,72 @@
 > `ROADMAP.md`. Eine neue Session muss allein mit dieser Datei + `ROADMAP.md` weiterarbeiten können.
 
 ## Aktueller Meilenstein
+**M3b (zweite Hälfte von „Der Betreiber") FERTIG – damit ist M3 komplett** (uncommitted, oben auf dem
+gesamten M0–M3a-Stapel darunter): Gäste-Profile mit Mut/Kraft/Geduld und Angst-Ereignissen, Retter-Rolle
+(spielbar), Inspektionen/PSA-Alterung/Wetter-Räumung, Ökonomie/Bewertung, Betreiber-Kopfzeile +
+Overlays, Teilen (Export/Import, ADR-029). Neun Module: `js/npc/profiles.js` (neu – sieben Archetypen
+mit Mut/Kraft/Geduld statt der drei M1.6-Profile, `rollFearEvent` rein/deterministisch getestet),
+`js/npc/agents.js` (erweitert – Angst/Panik-Zustandsmaschine im `onRail`-Schritt, Geduld-Warteabbruch,
+laufende Wartezeit-/Angst-Mittelwerte über `js/game/occupancy.js#createStatTracker` neu, `resolvePanic`/
+`evacuate`/`debugForcePanic`), `js/game/rescue.js` (neu – kleine Zustandsmaschine idle→pending→active→
+talkdown, keine eigene Kamera nötig, da der Spieler schon in normalem First/Third-Person spielt; teilt
+sich den Element-Slot des panischen Gasts über `js/player/interaction.js`s neuen `rescue`-Parameter),
+`js/game/operations.js` (neu – Saison/Tag/PSA-Verschleiß/Wetterprognose, Räumung als eigene
+Echtzeit-Gegenzeit statt Vergleich gegen die während des Sturms pausierte Ticket-Uhr),
+`js/game/economy.js` (neu – Kasse/Bewertung, Routenbaukosten einmalig, Mundpropaganda-Gästezahl,
+Signature-Bonus auf den Bewertungs-Deckel), `js/builder/operator-panel.js` (neu – Kopfzeile),
+`js/builder/builder-overlays.js` (erweitert – vier Overlay-Layer: Warten/Angst/Baumgesundheit als
+farbcodierte Kugeln, Rettungsabdeckung als Hüttenkegel + Radius-Ring + Podest-Einfärbung),
+`js/builder/builder-state.js` (erweitert – `rescuePosts`, max. 3, Kandidaten = Hubs + Routen-Einstiege,
+kein freier 3-D-Klick, wie schon der M3a-Builder es hält), `js/ui/options.js` (erweitert – „Park
+teilen": Export als JSON-Datei-Download, Import mit vollständiger Layout-Validierung + erzwungenem
+„braucht Begehung" für jede importierte Route). Details/Verträge: `docs/architecture.md#Operator
+simulation (M3b …)`.
+
+**Beim Verifizieren einen echten, vorbestehenden Bug gefunden und behoben** (seit M3a, s. „Gefunden und
+behoben" unten): `js/builder/builder-ui.js`s Haupt-Container hatte nie ein initiales `hidden = true` –
+er war auf **jedem** Boot sichtbar, überlappte das normale Gameplay-HUD, unabhängig von `?builder=1`,
+weil M3a nur `?builder=1`-Boots screenshotete. Behoben.
+
+**Bewusste Vereinfachungen (dokumentiert, s. „Was halb fertig ist"):** Gruppen-Profile (Kind+Begleitung,
+Schulklasse) bewegen sich nicht buchstäblich im Verbund (Occupancy erlaubt ohnehin nur eine Person pro
+Übung); die Gästezahl für die Ökonomie ist eine **modellierte** Mundpropaganda-Zahl, entkoppelt von der
+tatsächlichen NPC-Rostergröße (die bleibt pro Session fest, kein täglicher Neuaufbau); Retterposten haben
+noch kein eigenes 3-D-Hütten-Mesh im normalen Spiel, nur den funktionalen Trigger + HUD-Prompt (der
+Builder-Overlay zeigt sie als Kegel); Guide-Rolle ist **nicht** Teil dieses Auftrags (nur Retter stand
+in der Aufgabenliste) und bleibt offen für M3c/später; Wartezeit-Bewertungsbonus („kurze/lange
+Wartezeit") ist in `economy.js` als reine Funktion vorhanden, aber noch nirgends verdrahtet (kein
+Auslöse-Ereignis dafür in dieser Session gebaut).
+
+**Geprüft** (echter Chromium via Playwright MCP, bis die Browser-Verbindung dieser Session mitten in der
+Sitzung unwiederbringlich abbrach – dieselbe Grenze, die HANDOVER für M3a schon einmal dokumentiert;
+danach mit dem separaten Browser-Pane-Werkzeug weitergemacht, das JS/Konsole/Netzwerk zuverlässig liest,
+aber in dieser Sitzung keine Screenshots/`requestAnimationFrame` liefert, weil das Pane nie sichtbar
+war): frischer `?debug=1`-Boot **0 Konsolenfehler/-warnungen, 0 externe Requests**, `operations`/
+`economy`/`rescue` korrekt verdrahtet (`cash 150000`, `rating 3.5`, Prognose deterministisch je Seed/Tag).
+`?builder=1`-Boot: Betreiber-Kopfzeile mit echten Werten, Overlay-Umschalter „Rescue" aktivierbar,
+Screenshot `docs/screenshots/m3-operator.png`. `WIPFEL.debug.forcePanic()`: Gast panisch, Retter-Timer
+sofort **aktiv** mit vollen 100 s, HUD-Zeile „Rescue · 01:39.xx" sichtbar, Screenshot
+`docs/screenshots/m3-rescue.png`. `WIPFEL.debug.forceStorm()`: `forecast` → `"storm"`, `isEvacuating()`
+→ `true`, ein Gast mitten auf dem Weg zu einer Route (`toEntry`) wechselt sofort auf `"return"` –
+**live per Zustandsabfrage bestätigt**, aber **kein Screenshot** (`m3-storm.png` fehlt): der Absturz der
+Playwright-Verbindung kam genau in diesem Schritt, das Ersatzwerkzeug konnte in dieser Sitzung nicht
+screenshotten. Alle drei Sub-Systeme sind zusätzlich durch 26 reine Unit-Tests (`operations.test.mjs`,
+`economy.test.mjs`, `rescue.test.mjs`) abgedeckt, `rescue.test.mjs` läuft komplett DOM-frei (derselbe
+Kniff wie `ticket.js`). **`?autoplay=1&fast=1` konnte in dieser Sitzung nicht erneut live bestätigt
+werden** (Browser-Werkzeug down, s. o.) – per Code-Review aber geprüft: `rescue.update()`/
+`operations.update()` sind während `?autoplay=1` vollständig wirkungslos (Sturmtag-Prognose für Seed 1/
+Tag 1 ist „overcast", nie „storm"; `rescue`s eigener `autoplay`-Guard verhindert jeden Zustandswechsel),
+und ein echtes Regressionsrisiko wurde dabei gefunden und **behoben**: ein dauerhaft panischer Gast auf
+genau der Übung, die der `?autoplay=1`-Bot als Nächstes braucht, hätte ihn für immer blockiert (der Bot
+kann nie zu einem Retterposten laufen) – `createAgents({..., allowPanic: !params.autoplay})` unterdrückt
+seither nur die **dauerhafte** Eskalation (ein einfaches Einfrieren, das sich von selbst löst, bleibt
+möglich) während `?autoplay=1`. `check-all` **164/164**, `node --test` **254/254** (217 + 37 neue:
+26 Agents/Profile-Tests inkl. Panik-Determinismus, 10 Operations-, 11 Economy-, 11 Rescue-, 5 Builder-
+State-Rescue-Tests – teils Überschneidung durch Erweiterung bestehender Testdateien, exakte Aufteilung
+s. „Dateien" unten).
+
+## Aktueller Meilenstein (M3a – vollständig, s. oben für M3b)
 **M3a (Builder-Hälfte von „Der Betreiber") FERTIG** (uncommitted, oben auf dem gesamten M0–M2b-Stapel
 darunter): Builder-Modus, Parcours-Inspektor, Begehungspflicht – der zweite Akt aus GDD §4, erste
 Hälfte (Gäste-Simulation/Guide/Retter/Inspektionen/Ökonomie/Teilen bleiben M3b). ADR-003 zahlt sich aus:
@@ -541,8 +607,26 @@ PIL: 900 px Kantenlänge, 128–160-Farben-Palette).
   `js/core/save.js#data.customPark` (additiv), `js/main.js#rebuildFromParkDef` (Wiederaufbau-Kaskade
   bei angewendetem Entwurf), `js/game/autoplay.js`s optionaler `route`-Parameter. Details/Prüfnachweis:
   oben unter „Aktueller Meilenstein", Verträge in `docs/architecture.md#Builder (M3a …)`.
+- **Gäste-Profile, Angst/Panik, Retter-Rolle, Betrieb, Ökonomie, Teilen (M3b):** `js/npc/profiles.js`
+  (neu), `js/npc/agents.js` (erweitert), `js/game/{rescue,operations,economy}.js` (neu),
+  `js/builder/operator-panel.js` (neu), `js/builder/{builder-overlays,builder-state,builder-metrics,
+  builder-ui,builder-tool-panels,builder-inspector,builder}.js` (erweitert), `js/ui/{kassa,options}.js`
+  (erweitert), `js/player/interaction.js` (erweitert), `js/game/occupancy.js` (`createStatTracker`),
+  `js/world/wind.js` (`setDailyBias`), `js/core/save.js` (`data.operations`/`data.economy`,
+  `CUSTOM_PARK_SCHEMA`/`isValidCustomPark` exportiert). Details/Prüfnachweis oben unter „Aktueller
+  Meilenstein", Verträge in `docs/architecture.md#Operator simulation (M3b …)`.
 
 ## Was halb fertig ist
+- **M3b (s. oben für die volle Liste bewusster Vereinfachungen):** kein Screenshot für die Sturm-
+  Räumung (`m3-storm.png`) – Umgebungsgrenze der Browser-Werkzeuge dieser Sitzung, Mechanik selbst per
+  Zustandsabfrage bestätigt (s. „Geprüft" oben). `?autoplay=1&fast=1` nicht live neu bestätigt, dafür
+  ein echtes Regressionsrisiko gefunden und behoben (`allowPanic`, s. oben). Retterposten-Platzierung
+  läuft wie jedes andere M3a-Werkzeug über eine DOM-Liste (Hubs + Routen-Einstiege als Kandidaten), kein
+  freier 3-D-Klick. Rettungsabdeckung ist eine Graph-/Boden-Distanz-**Näherung** (kürzester Weg vom
+  nächsten Posten zum Routen-Einstieg, dann die Route entlang), kein echter Pfadsucher über den ganzen
+  Park. Kurze/lange Wartezeit als Bewertungsfaktor existiert nur als reine Funktion in `economy.js`,
+  ohne Verdrahtung an ein Auslöse-Ereignis. Autoren-Feld beim Teilen wird nicht gespeichert (nur für den
+  jeweiligen Export getippt) – kein neues Save-Feld dafür angelegt.
 - **M3a Builder:** Podest-Bearbeitung ist bewusst nur „anhängen/letztes entfernen" (Kette wächst/schrumpft
   ausschließlich am Ende) plus „verschieben" (beliebige Position, anderer Baum) – kein Einfügen/Löschen
   mitten in der Kette; das deckt „add/remove/move platform" aus dem Auftragstext ab, ohne die
@@ -592,6 +676,18 @@ PIL: 900 px Kantenlänge, 128–160-Farben-Palette).
 ## Was kaputt ist
 – nichts Bekanntes. Beobachtungen: siehe „Offen / Provisorisch“.
 
+**Gefunden und behoben in M3b:**
+- `js/builder/builder-ui.js`: der äußere `.builder-ui`-Container bekam nie ein initiales
+  `hidden = true`; `setVisible()` ist die einzige Stelle, die `.hidden` je anfasst, und die wird nur aus
+  `js/builder/builder.js#enter()`/`exit()` gerufen – keins von beiden läuft bei einem frischen
+  „closed"-Boot. Die komplette Builder-Werkzeugleiste/Routenliste/Inspektor war dadurch bei **jedem**
+  Boot sichtbar und überlappte das normale Gameplay-HUD, unabhängig von `?builder=1` – unsichtbar für
+  frühere Prüfungen, weil M3a nur `?builder=1`-Boots screenshotete. Behoben mit `container.hidden = true`
+  direkt bei der Konstruktion, wie es `js/builder/builder-zip-tool.js`s eigenes Panel schon immer richtig
+  gemacht hat. Gefunden beim Versuch, einen sauberen `?debug=1`-Screenshot für die Retter-Rolle zu
+  bekommen (das Panel drängte sich mit ins Bild) – live per `window.WIPFEL.builder.mode === "closed"` +
+  `document.querySelector('.builder-ui').hidden` vor/nach dem Fix bestätigt.
+
 **Gefunden und behoben in M2b:**
 - `player/headlamp.js`: `THREE.SpotLight` (wie `DirectionalLight`) setzt seine `position` im Konstruktor
   standardmäßig auf `Object3D.DEFAULT_UP` = `(0, 1, 0)`, nicht auf den Ursprung – damit der Licht-zu-Ziel-
@@ -622,9 +718,30 @@ konnte die Figur damit mit **25 m/s** wegschleudern. Jetzt gilt: ein Hindernis k
 wegnehmen, nie hinzufügen (`asked`-Klemme).
 
 ## Dateien, an denen gerade gearbeitet wird
-– keine offene Baustelle, aber **alles seit Tag `m0` (`d20789e`) ist uncommitted**, inklusive M3a (diese
-Session), M2b, M2a (davor, nie eigens eingetragen, s. „Aktueller Meilenstein"), M1.8 (bereits HEAD
+– keine offene Baustelle, aber **alles seit Tag `m0` (`d20789e`) ist uncommitted**, inklusive M3b (diese
+Session), M3a, M2b, M2a (davor, nie eigens eingetragen, s. „Aktueller Meilenstein"), M1.8 (bereits HEAD
 `43993bb`, s. u.), M1.1, M1.2, M1.3/M1.5, M1.4/M1.6 und M1.7.
+M3b laut geänderten Dateien: neu
+`js/npc/profiles.js`, `js/game/{rescue,operations,economy}.js`, `js/builder/operator-panel.js`,
+`tests/unit/{operations,economy,rescue}.test.mjs`, `docs/screenshots/{m3-operator,m3-rescue}.png`;
+geändert `js/config.js` (`FEAR`, `RESCUE`, `OPERATIONS`, `ECONOMY`, `NPC.profiles` entfernt – zog nach
+`profiles.js` um), `js/npc/agents.js` (Profile aus `profiles.js`, Angst/Panik-Zustandsmaschine, Geduld-
+Warteabbruch, `waitStats`/`fearStats`/`resolvePanic`/`evacuate`/`debugForcePanic`, `allowPanic`),
+`js/npc/guest-rig.js` (Zitter-Effekt bei Angst/Panik), `js/game/occupancy.js` (`createStatTracker`
+neu), `js/player/interaction.js` (`rescue`/`operations`-Parameter: geteilter Element-Slot während einer
+aktiven Rettung, Sturm-Räumungssperre), `js/core/save.js` (`data.operations`, `data.economy`,
+`updateOperations`/`updateEconomy`, `CUSTOM_PARK_SCHEMA`/`isValidCustomPark` exportiert),
+`js/world/wind.js` (`setDailyBias`), `js/builder/builder-state.js` (`rescuePosts` + Kandidaten/
+Coverage-Delegation), `js/builder/builder-metrics.js` (`rescueCoverage`), `js/builder/builder-overlays.js`
+(vier neue Overlay-Layer), `js/builder/builder-ui.js` (Overlay-Umschalter-Reihe, „Rescue"-Werkzeug,
+**+ der oben genannte Sichtbarkeits-Bugfix**), `js/builder/builder-tool-panels.js` (`rescuePanel`),
+`js/builder/builder-inspector.js` (echte Retter-Abdeckungszeile statt Platzhalter), `js/builder/builder.js`
+(Betreiber-Kopfzeile mounten, Overlay-Daten berechnen, Routen-Baukosten beim ersten Begehen abbuchen),
+`js/ui/kassa.js` (Sturm-Warnzeile), `js/ui/options.js` („Park teilen"-Sektion: Export/Import),
+`js/main.js` (komplette M3b-Verdrahtung: `operations`/`economy`/`rescue` erzeugen, Räumungs-Gate in der
+Gameplay-Phase, Tages-/Bewertungs-Hooks, `WIPFEL.debug.forcePanic/forceStorm`), `assets/strings/{en,de}.json`
+(~50 neue Keys je Sprache, Parität geprüft), `tests/unit/{agents,builder-state,save}.test.mjs` (erweitert),
+`css/{builder,hud,screens}.css`, `docs/architecture.md`, `HANDOVER.md`.
 M3a laut geänderten Dateien: neu
 `js/builder/{survey-trees,builder-validate,builder-state,builder-metrics,builder-camera,builder-overlays,
 builder-zip-tool,builder-inspector,builder-tool-panels,builder-ui,builder}.js`, `css/builder.css`,
@@ -729,7 +846,8 @@ geändert `js/world/{terrain,ground-detail,forest}.js`, `js/world/terrain/materi
 
 ## Wichtige Architekturentscheidungen
 `docs/architecture.md` (Modulverträge – Park/Belay/HUD/Audio seit M0.4 eingetragen, Course-Map/Parkplan-
-Tafel/Gäste-Occupancy seit M1.4/M1.6, Optionen + Settings seit M1.7, **Builder seit M3a**),
+Tafel/Gäste-Occupancy seit M1.4/M1.6, Optionen + Settings seit M1.7, Builder seit M3a,
+**Betreiber-Simulation (Angst/Panik, Retter, Betrieb, Ökonomie, Teilen) seit M3b**),
 `docs/DECISIONS.md` ADR-001…012, 020…029 (Mockup 1:1, UI EN+DE, Kategorien mit Green, M3 wird gebaut,
 M4-Koop lokal). Offen: ADR-013 (Three.js 0.185.1 – faktisch entschieden, eintragen), ADR-014 (Rapier
 compat 0.20.0 – dito), 015–018.
@@ -740,12 +858,15 @@ Beobachtet (kein Bug dieser Session, s. „Was halb fertig ist"): der `?autoplay
 einem Sturz hängen bleiben, wenn Kraft leer und Nerven gleichzeitig einfrieren (drückt nie „Retter [E]").
 
 ## Unmittelbar nächste Aufgabe
-**M3a (Builder-Hälfte von „Der Betreiber") ist fertig** (Checkbox in `ROADMAP.md` bewusst nicht gesetzt,
-das übernimmt der Lead zusammen mit Commit). Als Nächstes **M3b**: Gäste-Simulation mit Profilen/
-Overlays (Warten/Angst/Rettung/Bäume), Begehung/Guide-/Retter-Rolle in der laufenden Gästesimulation
-(dieselbe Kamerawechsel-Mechanik wie die Builder-Begehung – `js/builder/builder.js`s Begehungsablauf ist
-bewusst so gebaut, dass er sich auf Guide/Retter übertragen lassen sollte), Inspektionen/PSA-Alterung,
-Wetter/Räumung, Ökonomie/Ticketmodelle, Teilen mit Bewertung/Bestzeit (GDD §4, zweite Hälfte).
+**M3b ist fertig – damit ist M3 „Der Betreiber" komplett** (Checkbox in `ROADMAP.md` bewusst nicht
+gesetzt, das übernimmt der Lead zusammen mit Commit/Tag `m3`). Als Nächstes **M4 „Die anderen"** (lokal,
+ADR-029): Koop zu zweit lokal (Gamepad + Tastatur/Maus, Begleitregel), Zuschauer-Rufe, geteilte Physik,
+Koop-Übungen.
+
+Offene Punkte aus M3b (s. „Was halb fertig ist" oben für die volle Liste): kein Sturm-Räumungs-
+Screenshot (Umgebungsgrenze, Mechanik selbst bestätigt); `?autoplay=1&fast=1` nicht live neu bestätigt in
+dieser Sitzung; Guide-Rolle war nicht Teil des Auftrags und bleibt offen; Wartezeit-Bewertungsfaktor
+unverdrahtet; kein 3-D-Hütten-Mesh für Retterposten im normalen Spiel.
 
 Offene Entscheidung aus M1.3 (weiterhin unentschieden): Größenklasse (`RULES.sizeClasses[].allowed`) ist
 an der Kassa wählbar und persistiert (`save.data.ticket.sizeClassId`), treibt aber **nur** die Zip-Masse
@@ -755,22 +876,17 @@ beides). Noch keine ADR; wenn gewünscht, gehört der Check neben `lockedCategor
 `player/interaction.js`, mit einer eigenen Prompt-Zeile.
 
 ## Nächste fünf Aufgaben
-1. M3b-Kickoff: Gäste-Simulation mit echten Profilen (Kind+Begleitung, Jugendliche, Schulklasse,
-   Firmengruppe, …) und Overlays (Warten/Angst/Rettung/Baumgesundheit) – baut auf `js/npc/agents.js`
-   (M1.6) auf, aber mit Mut/Erwartung/Angst-Ereignissen statt der drei einfachen M1.6-Profile.
-2. Guide- und Retter-Rolle: dieselbe Kamerawechsel-Mechanik wie die Builder-Begehung
-   (`js/builder/builder.js#startWalkthrough`) auf „Gruppe führen" (Guide) und „Gast in Panik, 10-Minuten-
-   Timer" (Retter) übertragen – prüfen, wie viel von `builder.js`s Begehungsablauf sich direkt
-   wiederverwenden lässt, bevor eine zweite, ähnliche Implementierung entsteht.
-3. Größenklasse → Kategorie-Zugang entscheiden und ggf. verdrahten (weiterhin offen seit M1.3, s. o.).
-4. Podest-Typen nachziehen (Übergang, Kreuzung, Rast, Hub – aus der ursprünglichen M1.2-Liste
-   zurückgestellt, s. „Was halb fertig ist"): `platform.js#kind` kennt weiterhin nur
-   „standard"/„transition"/„junction" – der M3a-Builder fügt bewusst keine neuen Podest-Bautypen hinzu.
-5. Autoplay-Sturz-Grenze (s. „Was halb fertig ist"/„Bekannte Bugs"): der Bot presst im Sturz nie
-   „Retter [E]" oder „Atmen [R]" – ein kleiner, gezielter Fix in `js/game/autoplay.js`s
-   Sturzbehandlung (Retter drücken, sobald `canRescue` UND Kraft leer sind) würde sowohl den normalen
-   `?autoplay=1`-Smoke-Test als auch künftige Builder-Begehungen robuster machen, ist aber ein eigener,
-   von M3 unabhängiger Auftrag.
+1. M4-Kickoff (ADR-029, lokal): zweiter Spieler am selben Gerät (Gamepad + Tastatur/Maus gleichzeitig),
+   geteilte oder Splitscreen-Kamera je nach Machbarkeit – erster Schritt vor Koop-Übungen/Zuschauer-Rufen.
+2. Sturm-Räumung visuell nachprüfen, sobald ein Browser-Werkzeug in einer Sitzung wieder Screenshots
+   liefert (s. „Was halb fertig ist") – `m3-storm.png` nachreichen, Mechanik selbst ist bereits durch
+   Unit-Tests + Live-Zustandsabfrage bestätigt.
+3. `?autoplay=1&fast=1` einmal frisch laufen lassen und bestätigen, dass `allowPanic: false` das
+   Regressionsrisiko (dauerhaft panischer Gast blockiert den Bot) tatsächlich beseitigt hat.
+4. Größenklasse → Kategorie-Zugang entscheiden und ggf. verdrahten (weiterhin offen seit M1.3, s. o.).
+5. Wartezeit-Bewertungsfaktor verdrahten (`economy.js` hat die reine Funktion schon, s. „Was halb fertig
+   ist") – z. B. an `js/npc/agents.js#waitStats()` beim Tageswechsel gekoppelt, kurze Ø-Wartezeit hebt,
+   lange senkt die Bewertung.
 
 ## Offen / Provisorisch
 - ~~M2b-Autoplay-Recheck ausstehend~~ – vom Lead nachgeholt (2026-08-26): blue-1 `done` 5/5, 0 Stürze,

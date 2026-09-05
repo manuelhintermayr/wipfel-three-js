@@ -121,3 +121,29 @@ export function createQueueRegistry() {
     reset() { queues.clear(); },
   };
 }
+
+/**
+ * A running mean per key (ROADMAP M3b): js/npc/agents.js feeds it real seconds waited in a queue
+ * (keyed by route id, for the wait-time overlay/operator panel) or a bare event count (keyed by
+ * element id, for the fear-event overlay – `record(id, 1)` each freeze/panic). Pure bookkeeping, no
+ * decay – the whole session's own average, cheap enough that it never needs to forget anything.
+ * @returns {{ record(key: string, value: number): void, averageOf(key): number, snapshot(): object }}
+ */
+export function createStatTracker() {
+  const stats = new Map();   // key -> { sum, count }
+  return {
+    record(key, value) {
+      if (!key) return;
+      const s = stats.get(key) || { sum: 0, count: 0 };
+      s.sum += value; s.count += 1;
+      stats.set(key, s);
+    },
+    averageOf(key) { const s = stats.get(key); return s && s.count ? s.sum / s.count : 0; },
+    /** @returns {Record<string, number>} key -> running mean, for an overlay/dashboard to read once a frame. */
+    snapshot() {
+      const out = {};
+      for (const [key, s] of stats) out[key] = s.count ? s.sum / s.count : 0;
+      return out;
+    },
+  };
+}

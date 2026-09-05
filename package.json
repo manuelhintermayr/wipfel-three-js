@@ -9,5 +9,8 @@
     "check": "node tools/check-all.mjs",
     "test": "node --test --test-concurrency=1 \"tests/unit/**/*.test.mjs\"",
     "smoke": "node tests/smoke.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.62.1"
   }
 }

@@ -1543,3 +1543,165 @@ player rig's visibility/`loop.paused` correctly. Screenshots `docs/screenshots/m
 selected, inspector with axes/dramaturgy/facts, 3-D lifeline highlight with span labels visible over the
 terrain), `m3-validate.png` (the Category & Name violation state above) – both < 300 KB (PIL: 760 px
 edge, 112-colour palette).
+
+## Operator simulation (M3b – second half of "Der Betreiber", GDD §4)
+
+### `js/npc/profiles.js` (pure)
+```js
+PROFILES: Array<{ id, category, weight, heightScale, courage, strength, patienceSeconds,
+  groupSize, chaperones, companionHeightScale? }>
+pickProfile(rng) → profile
+pickRouteForProfile(profile, routes, rng) → route          // strict category match, boot roster only
+chooseRouteConsideringQueues(profile, routes, rng, queueLengthOf?) → route   // courage + congestion
+rollFearEvent({ courage, psychMetric, rng }) → "none"|"freeze"|"panic"
+```
+Seven archetypes (kid, kid+chaperone, teen, adult, sporty, anxious, school group of 4+1) replacing
+M1.6's three. A `groupSize > 1` profile pushes several linked roster entries at once (shared `groupId`,
+same route) rather than literally moving in lock-step – `RULES.maxPerElement = 1` makes true group
+climbing impossible, so this reads as "arrived together, disperses along the route" (documented
+simplification). `rollFearEvent` is pure numbers in, string out: elements at/under `FEAR.psychThreshold`
+never trigger anything; past it, low courage raises both the freeze chance and, once frozen, the chance
+that freeze escalates into a permanent panic (courage 1 never triggers anything, by construction – the
+`(1 - courage)` factor zeroes out). `chooseRouteConsideringQueues` is what runtime re-picks use (GDD
+"wählen nach Freigabe/Farbe/Wartezeit"); the boot roster still uses the old strict-category pick, since
+no live queue data exists yet at that point.
+
+### `js/npc/agents.js` extensions
+Three additions on top of the M1.6 machinery, all in the existing `onRail`/`queue` phase dispatch:
+- **Fear/panic**: `beginOnRail` (fires once, at the clipIn→onRail transition, only for `step.kind ===
+  "element"`) rolls `rollFearEvent` and sets `agent.fear` to `"none"|"freezing"|"panicked"`.
+  `stepOnRail` freezes `t` (not the pose – `applyElementPose` keeps re-deriving position/wobble) while
+  `fear !== "none"`; a "freezing" agent counts down its own `fearTimer` and clears itself, a "panicked"
+  one holds forever and emits `"npc:panic" {guestId, elementId}` (js/main.js wires this to
+  js/game/rescue.js). Exactly one panic is ever open (`ctx.panicked` guard) – a second would-be panic
+  downgrades to an extra-long freeze instead of vanishing silently. `allowPanic` (constructor option,
+  `js/main.js` passes `!params.autoplay`) suppresses the *permanent* escalation only – `?autoplay=1`'s
+  bot has no way to walk to a rescuer post and resolve one, so a guest stuck forever on the exact
+  element the bot needs would deadlock the smoke run; a plain freeze still happens and still self-clears.
+- **Patience**: the `"queue"` phase now tracks `agent.queueWait` and calls `abandonQueue` past
+  `agent.patienceSeconds` – releases the pending queue slot/held platform and heads back towards the hub
+  for a fresh pick via `chooseRouteConsideringQueues` (GDD "Gäste brechen ab, wenn Geduld ausgeht").
+- **Running-average stats**: `js/game/occupancy.js#createStatTracker()` (new, generic key→mean) backs
+  `agents.waitStats()` (routeId → mean real seconds waited, sampled at every successful claim/abandon)
+  and `agents.fearStats()` (elementId → accumulated freeze/panic count) – both read once a frame by
+  js/builder/builder.js's overlay refresh, both keep accumulating while builder "editing" mode freezes
+  the simulation itself.
+- **Resolution API**: `resolvePanic(guestId, {success})` (js/game/rescue.js's outcome), `evacuate()`
+  (js/game/operations.js's storm rising edge – every non-wander/return agent releases what it holds and
+  heads for the hub immediately, the same walk every guest already does at a route's own end), and
+  `debugForcePanic()` (`WIPFEL.debug.forcePanic()` – panics whichever agent is already crossing an
+  element, or drops the first agent onto its own route's first element if none is, so the mechanic is
+  reliably demonstrable regardless of simulation phase).
+
+### `js/game/rescue.js`
+```js
+createRescue({ player, input, events, hud, terrain, root?, getParkDef, getAgents,
+  isBuilderOpen?, autoplay?, onResolved? }) →
+  { state, remainingSeconds, talkdownSecondsLeft, isTarget(elementId), update(dt), forcePanic(), dispose() }
+```
+`idle → pending → active → talkdown → idle`. No new player state – reaching the panicked guest is
+ordinary walking/climbing (the same "reuse normal play, nothing to switch away from" idea
+js/builder/builder.js's own walkthrough already leans on, just with no camera to switch here since the
+player is already in normal first/third-person control the whole time). `pending` shows a toast
+(`hud.setNotice`) and waits for the player to stand within `RESCUE.postInteractRange` of any
+`parkDef.rescuePosts` entry and press `interact` (`nearAnyPost`); `active` starts a real-time countdown
+(`RESCUE.timerGameMinutes * TIME.gameHourMinutes` seconds, the same game-minute→real-second conversion
+the ticket clock uses) and shares the target element's occupancy slot with the guest
+(`js/player/interaction.js`'s `rescue` param: `elementBlockedByGuest`/`stepOntoElement` both check
+`rescue.isTarget(element.id)`, the player never formally claims it) – reaching the guest's own element
+within `RESCUE.talkdownRange` while `player.mode === "element"` swaps the prompt to "talk down" and, on
+`interact`, starts a fixed `RESCUE.talkdownSeconds` breathing beat whose outcome (success) is already
+decided; timer expiry resolves as a failure instead. Both outcomes call `agents.resolvePanic` – success
+lets the guest finish the crossing normally and then "descend" (an ordinary `beginReturn`, the same
+teleport-free walk-back every guest already does, just triggered mid-route instead of at the route's own
+end – documented, no new animation), failure releases them from wherever they were stuck immediately
+("rescued off-screen"). `root` is optional so `tests/unit/rescue.test.mjs` can exercise the whole state
+machine headless, no DOM, the same reason `js/game/ticket.js` stays DOM-free. `autoplay`/`isBuilderOpen`
+make `update()` (and, for autoplay, the `npc:panic` listener itself) a complete no-op.
+
+### `js/game/operations.js`
+```js
+createOperations({ save, seed, wind? }) →
+  { day, season, dayInSeason, ppeWear, ppeInspectionDue, forecast, isStormDay, stormWarningLine,
+    isEvacuating(), update(dtReal, gameHour), beginDay(guestCount?), resetPpe(), debugForceStorm() }
+forecastForDay(seed, day) → one of OPERATIONS.forecasts   // pure, deterministic
+seasonOf(day) / dayInSeasonOf(day)                        // pure, 1-based, OPERATIONS.seasonDays long
+applyDailyWear(previousWear, guestCount) → wear            // pure, clamped 0..1
+```
+A season is 8 in-game days, one per kassa "New day" (`js/main.js`'s stamp-card `onNewDay` calls
+`beginDay(modelledGuestCount)`, which advances the day, wears the PPE by that traffic
+(`OPERATIONS.ppeWearPerGuestDay`/`ppeWearPerPlayerDay`) and rerolls the forecast). PPE inspection becomes
+due at `OPERATIONS.ppeInspectionThreshold` (85%) – the real annual-inspection ritual compressed to a
+single day's wear budget, documented simplification. Weather is `forecastForDay(seed, day)` – pure, so a
+shared/exported park "remembers" its own weather pattern. **Evacuation is its own real-time countdown**,
+not a comparison against the game clock: `update(dtReal, gameHour)` (called every gameplay frame with
+whichever clock is live, `ticket.timeOfDay` or `sky.timeOfDay`) only uses `gameHour` to catch the
+*rising* edge into `OPERATIONS.stormHour` on a storm day, then counts down `dtReal` alone for
+`OPERATIONS.stormDurationHours` (converted to real seconds) – because js/main.js pauses the ticket clock
+for the whole storm (GDD "ticket clock pauses"), comparing against that same now-frozen clock would keep
+the window open forever the instant it actually gets paused. `debugForceStorm()`
+(`WIPFEL.debug.forceStorm()`) forces both the forecast and the evacuation immediately.
+
+### `js/game/economy.js`
+```js
+createEconomy({ save }) → { cash, rating, hasChargedRoute(id), setSignatureActive(bool),
+  spend(amount), earn(amount), chargeRouteOpened(id, category, lengthM) → cost,
+  chargeRescuePost()/chargePpeReset()/chargeDailyFixedCost(),
+  admitGuests(ticketType, guestCount) → income, nextDayGuestCount(seed, day) → count,
+  onRouteCompleted()/onRescueOutcome(success)/onAccident()/onEvacuation()/onDayAvailability(bool) }
+computeRouteBuildCost(category, lengthM) / admissionIncome(type, count) /
+computeNextDayGuestCount({seed,day,rating}) / applyRatingDelta(rating, delta, {signature?})   // pure
+```
+Fixed costs upfront, ~0 variable per guest (RESEARCH-DATA §7) – `chargeRouteOpened` is charged exactly
+once per route id (`js/builder/builder.js#finishWalkthrough` checks `walked` *before* calling
+`markWalked`, so a re-walked already-open route never double-charges), scaled within GDD's own
+"~40-50k" band by category + length. `nextDayGuestCount` is deterministic word-of-mouth (seed+day+rating
+→ 8..16 guests) – intentionally decoupled from the live NPC roster size (`js/npc/agents.js`), which
+stays a fixed-per-session simulation rather than being rebuilt every in-game day (documented scope cut).
+Rating starts at 3.5/5, clamped into `[ratingMin, ratingMax]`, the ceiling raised by
+`ECONOMY.signatureBonusCap` while `setSignatureActive(true)` (a route with > 100 m total zip length, or
+the legendary route unlocked – `js/main.js#refreshSignatureBonus`, recomputed at boot/rebuild/day-start).
+
+### `js/builder/operator-panel.js` + overlay/toolbar extensions
+`createOperatorPanel({root}) → { setVisible(on), render(view), dispose() }` – a stateless top bar
+(day/season, weather, guests, Ø wait, rating, cash, a PPE-inspect button once due, a storm-warning line)
+mounted by `js/builder/builder.js` alongside (not inside) `js/builder/builder-ui.js`, visible only in
+"editing" mode. Four overlay toggles (`js/builder/builder-ui.js`'s `OVERLAYS` row, independent booleans
+unlike the mutually-exclusive tool buttons) drive `js/builder/builder-overlays.js`'s new
+`setWaitOverlay`/`setFearOverlay`/`setTreeHealthOverlay` (colour-coded instanced-sphere heat layers,
+0..1 value → green→red, points computed by `js/builder/builder.js` from `agents.waitStats()`/
+`fearStats()`/`draft.heroTrees[].health`) and `setRescueOverlay` (hut cones + a translucent coverage
+ring per rescuer post, every platform recoloured by coverage). A fifth toolbar tool, "rescue"
+(`js/builder/builder-tool-panels.js#rescuePanel`), lists placement candidates (every hub + every route's
+own entry – reusing existing points rather than a free 3-D pick, this builder's established convention)
+and lets the operator place/remove up to `RESCUE.maxPosts` (3) rescuer posts; `js/builder/builder-state.js`
+owns `rescuePosts` (`addRescuePost`/`removeRescuePost`/`rescuePostCandidates`), included verbatim in
+`toParkDef()`/`serialize()` so they persist and reach the live `parkDef` the runtime `rescue.js` reads.
+`js/builder/builder-metrics.js#rescueCoverage({routes, heroTrees, rescuePosts})` is a graph/ground-
+distance *approximation*, not a real pathfind: per route, straight-line distance from the nearest post to
+that route's own entry, plus the route's own cumulative tree-to-tree spans out to each platform – a
+junction platform (listed by two routes) keeps whichever route found it the shorter path, for free, by
+iterating every route without special-casing it. The inspector's "Retter-Abdeckung" line
+(`js/builder/builder-inspector.js`) reads this filtered to the selected route's own platforms.
+
+**Bug found verifying M3b (pre-existing since M3a, fixed here):** `js/builder/builder-ui.js`'s outer
+`.builder-ui` container was never given an initial `hidden = true` – `setVisible()` is the only place
+that ever touched it, and that is only ever called from `js/builder/builder.js#enter()`/`exit()`,
+neither of which runs on a fresh "closed" boot. The whole builder toolbar/route-list/inspector was
+therefore visible, overlapping the normal gameplay HUD, on **every single boot**, `?builder=1` or not –
+invisible to earlier verification because M3a's own screenshots only ever covered `?builder=1` boots.
+Fixed by initialising `container.hidden = true` at construction, matching how
+`js/builder/builder-zip-tool.js`'s own panel already did it correctly.
+
+### Sharing (ADR-029, `js/ui/options.js`)
+A new "Share park" options section: **Export** downloads `save.data.customPark` (schema-tagged
+`{schema: CUSTOM_PARK_SCHEMA, kind:"wipfel-park", author, parkDef, routeStatus}`, `CUSTOM_PARK_SCHEMA`
+now exported from `js/core/save.js` so both sides check the identical marker) as a JSON file via a
+throwaway `Blob` + `<a download>` – no server, no CDN, ADR-001 intact. **Import** (`<input type="file">`)
+re-uses `js/core/save.js#isValidCustomPark` (also newly exported) for the structural gate ("invalid
+file" = malformed JSON/wrong schema/missing arrays, a readable i18n error), forces every imported
+route's `routeStatus` to `{walked: false}` regardless of what the file itself claims (GDD's inspection-
+before-opening rule, ADR-029's own wording), and – if `terrain` was passed to `createOptions` – runs the
+real per-route validation (`js/builder/builder-validate.js#validateRoute`/`validatePark`, the identical
+rules the builder itself is held to) purely to report an up-front issue count; it never blocks the
+import itself, the same way a hand-edited route with issues already stays importable as a "Draft".

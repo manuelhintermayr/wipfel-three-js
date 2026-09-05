@@ -8,41 +8,83 @@
 // real, playable park – this module never touches forest/course/session/etc. construction itself.
 import * as THREE from "three";
 import { t } from "../core/i18n.js";
-import { CATEGORY_BY_ID } from "../config.js";
+import { CATEGORY_BY_ID, ECONOMY } from "../config.js";
 import { LAYOUT_LIMITS, farFromOtherRoutes } from "../park/layout-validate.js";
 import { createBuilderDraft } from "./builder-state.js";
 import { createBuilderCamera } from "./builder-camera.js";
 import { createBuilderOverlays } from "./builder-overlays.js";
 import { createBuilderUi } from "./builder-ui.js";
+import { createOperatorPanel } from "./operator-panel.js";
 import { createRouteRun } from "../game/route.js";
 import { createAutoplay } from "../game/autoplay.js";
 
+const OVERLAY_DEFAULTS = Object.freeze({ wait: false, fear: false, rescue: false, treeHealth: false });
+// Fixed heat-scale ceilings for the wait/fear overlays (js/builder/builder-overlays.js's 0..1 "value")
+// – documented design assumptions, not measured against real data: two minutes' average wait already
+// reads as "bad", six lifetime freeze/panic events on one element already reads as "worst".
+const WAIT_SECONDS_CEILING = 120;
+const FEAR_EVENTS_CEILING = 6;
+
 /**
  * @param {{ scene, terrain, rng, player, camera, renderer, input, events, loop, save, ticket, kassa,
- *   briefing, belay, hud, root: HTMLElement,
+ *   briefing, belay, hud, root: HTMLElement, operations, economy,
  *   world: { getParkDef(): object, getCourse(): object, getGuests(): {agents, guestRig},
  *     getInteraction(): object, applyParkDef(next: object): { course: object, parkDef: object } } }} options
+ *   `operations`/`economy` (M3b, js/game/operations.js / js/game/economy.js) drive the operator panel's
+ *   top bar and the one-time cash charge when a route's walkthrough opens it for the first time.
  */
-export function createBuilder({ scene, terrain, rng, player, camera, renderer, input, events, loop, save, ticket, kassa, briefing, belay, hud, root, world }) {
+export function createBuilder({ scene, terrain, rng, player, camera, renderer, input, events, loop, save, ticket, kassa, briefing, belay, hud, root, world, operations, economy }) {
   const cameraCtl = createBuilderCamera({ camera, input, dom: renderer.domElement, terrain });
   const overlays = createBuilderOverlays({ scene });
   const labels = createLabelLayer(root);
   const ui = createBuilderUi({ root, dispatch });
+  const operatorPanel = createOperatorPanel({ root });
 
   let mode = "closed";
   let draft = null;
-  let selection = { routeId: null, activeTool: null, treesMode: null };
+  let selection = { routeId: null, activeTool: null, treesMode: null, overlays: { ...OVERLAY_DEFAULTS } };
   let walkthrough = null;   // { routeId, run, offs: Array<()=>void>, bot: ReturnType<createAutoplay>|null }
 
   // --- rendering the draft --------------------------------------------------------------------------
   function refreshOverlays() {
     overlays.setRoute(selection.routeId ? routeGeometry(draft, terrain, selection.routeId) : null);
     overlays.setCandidates(candidateGeometry(draft, terrain));
+    refreshOperatorOverlays();
   }
-  function refreshUi() { ui.render(draft, selection); refreshOverlays(); }
+
+  /** M3b: the four independent toggle layers (GDD "Overlays Warten·Angst·Rettung" + tree health) –
+   *  read from the live guest simulation (js/npc/agents.js, frozen while editing but its own running
+   *  averages survive the freeze) and the draft's own tree/rescuer-post data. Each layer is only ever
+   *  computed while its toggle is on, and cleared (a `null`/`.setXOverlay([])`) the moment it is off. */
+  function refreshOperatorOverlays() {
+    const { agents } = world.getGuests();
+    overlays.setWaitOverlay(selection.overlays.wait ? waitOverlayPoints(draft, terrain, agents) : []);
+    overlays.setFearOverlay(selection.overlays.fear ? fearOverlayPoints(draft, terrain, agents) : []);
+    overlays.setTreeHealthOverlay(selection.overlays.treeHealth ? treeHealthPoints(draft, terrain) : []);
+    overlays.setRescueOverlay(selection.overlays.rescue ? rescueOverlayView(draft, terrain) : null);
+  }
+
+  function refreshOperatorPanel() {
+    if (mode !== "editing" || !operations || !economy) { operatorPanel.setVisible(false); return; }
+    const { agents } = world.getGuests();
+    const waitStats = agents ? agents.waitStats() : {};
+    const values = Object.values(waitStats);
+    const averageWaitSeconds = values.length ? values.reduce((s, v) => s + v, 0) / values.length : 0;
+    operatorPanel.setVisible(true);
+    operatorPanel.render({
+      season: operations.season, dayInSeason: operations.dayInSeason, forecast: operations.forecast,
+      guestsToday: agents ? agents.count : 0, averageWaitSeconds,
+      rating: economy.rating, cash: economy.cash,
+      ppeWear: operations.ppeWear, ppeInspectionDue: operations.ppeInspectionDue, ppeCost: ECONOMY.ppeResetCost,
+      stormWarningLine: operations.stormWarningLine,
+      onInspectPpe: () => { economy.chargePpeReset(); operations.resetPpe(); refreshOperatorPanel(); },
+    });
+  }
+
+  function refreshUi() { ui.render(draft, selection); refreshOverlays(); refreshOperatorPanel(); }
 
   function selectRoute(id) {
-    selection = { routeId: id, activeTool: selection.activeTool, treesMode: null };
+    selection = { ...selection, routeId: id, treesMode: null };
     refreshUi();
   }
 
@@ -92,6 +134,17 @@ export function createBuilder({ scene, terrain, rng, player, camera, renderer, i
       case "setCategory": draft.setCategory(action.routeId, action.category); refreshUi(); persistDraft(); return;
       case "setRouteName": draft.setRouteName(action.routeId, action.name); refreshUi(); persistDraft(); return;
       case "validate": draft.revalidate(action.routeId || selection.routeId); refreshUi(); return;
+      case "toggleOverlay":
+        selection = { ...selection, overlays: { ...selection.overlays, [action.overlay]: !selection.overlays[action.overlay] } };
+        refreshUi();
+        return;
+      case "addRescuePost": {
+        const result = draft.addRescuePost(action.candidateId);
+        if (result.ok && economy) economy.chargeRescuePost();
+        refreshUi(); persistDraft();
+        return;
+      }
+      case "removeRescuePost": draft.removeRescuePost(action.postId); refreshUi(); persistDraft(); return;
       case "walk": if (selection.routeId) startWalkthrough(selection.routeId, { bot: false }); return;
       case "exit": exit(); return;
       case "resetToGenerated": save.clearCustomPark(); window.location.reload(); return;
@@ -119,7 +172,7 @@ export function createBuilder({ scene, terrain, rng, player, camera, renderer, i
     const saved = save.data.customPark && save.data.customPark.parkDef.id === parkDef.id ? save.data.customPark : null;
     const walkedStatus = saved ? Object.fromEntries(Object.entries(saved.routeStatus).map(([id, s]) => [id, s.walked])) : {};
     draft = createBuilderDraft({ parkDef, terrain, rng: rng.fork("draft"), walkedStatus });
-    selection = { routeId: draft.routes[0] ? draft.routes[0].id : null, activeTool: null, treesMode: null };
+    selection = { routeId: draft.routes[0] ? draft.routes[0].id : null, activeTool: null, treesMode: null, overlays: selection.overlays };
     hideLive();
     document.body.classList.add("builder-editing-active");   // hides the normal HUD (css/builder.css)
     ui.setVisible(true);
@@ -142,6 +195,7 @@ export function createBuilder({ scene, terrain, rng, player, camera, renderer, i
     persistDraft();
     cameraCtl.exit();
     ui.setVisible(false);
+    operatorPanel.setVisible(false);
     showLive();
     document.body.classList.remove("builder-editing-active");
     loop.paused = false;
@@ -211,7 +265,17 @@ export function createBuilder({ scene, terrain, rng, player, camera, renderer, i
 
   function finishWalkthrough(routeId) {
     if (!walkthrough || walkthrough.routeId !== routeId) return;
+    // M3b economy (GDD §4 "Fixkosten … je Parcours"): charged exactly once, the moment a route first
+    // becomes open – re-walking an already-open route (allowed; the Walk button only checks validation
+    // issues, not `walked`) must never charge it twice. `draft.getRoute` still reports the *previous*
+    // state here, before `markWalked` below flips it.
+    const wasOpen = draft.getRoute(routeId).walked;
     draft.markWalked(routeId);
+    if (!wasOpen && economy) {
+      const route = draft.getRoute(routeId);
+      const est = draft.estimate(routeId);
+      economy.chargeRouteOpened(routeId, route.category, est ? est.lengthM : 0);
+    }
     persistDraft();
     endWalkthrough();
     hud.setNotice(t("builder.walk.completed"), 5);
@@ -256,6 +320,7 @@ export function createBuilder({ scene, terrain, rng, player, camera, renderer, i
       cameraCtl.dispose();
       overlays.dispose();
       ui.dispose();
+      operatorPanel.dispose();
       labels.dispose();
     },
   };
@@ -295,6 +360,66 @@ function candidateGeometry(draft, terrain) {
       const status = c.health < 0.55 ? "weak" : farFromOtherRoutes(c.x, c.z, heroTrees, LAYOUT_LIMITS.routeTreeClearance) ? "ok" : "conflict";
       return { x: c.x, y: terrain.heightAt(c.x, c.z), z: c.z, status };
     });
+}
+
+/** Route-entry markers coloured by that route's own average queue wait (js/npc/agents.js#waitStats),
+ *  normalised against a fixed ceiling for a stable heat scale. */
+function waitOverlayPoints(draft, terrain, agents) {
+  if (!agents) return [];
+  const stats = agents.waitStats();
+  return draft.routes.filter((r) => r.entry).map((r) => ({
+    x: r.entry.x, y: terrain.heightAt(r.entry.x, r.entry.z) + 1.6, z: r.entry.z,
+    value: Math.min(1, (stats[r.id] || 0) / WAIT_SECONDS_CEILING),
+  }));
+}
+
+/** One marker per element that has ever recorded a freeze/panic (js/npc/agents.js#fearStats), placed
+ *  at that element's own midpoint. */
+function fearOverlayPoints(draft, terrain, agents) {
+  if (!agents) return [];
+  const stats = agents.fearStats();
+  const points = [];
+  for (const route of draft.routes) {
+    const platformById = new Map(route.platforms.map((p) => [p.id, p]));
+    for (const edge of route.edges) {
+      const count = stats[edge.id];
+      if (!count) continue;
+      const a = platformById.get(edge.from), b = platformById.get(edge.to);
+      const treeA = a && draft.heroTrees[a.treeIndex], treeB = b && draft.heroTrees[b.treeIndex];
+      if (!treeA || !treeB) continue;
+      const x = (treeA.x + treeB.x) / 2, z = (treeA.z + treeB.z) / 2;
+      points.push({ x, y: terrain.heightAt(x, z) + 3, z, value: Math.min(1, count / FEAR_EVENTS_CEILING) });
+    }
+  }
+  return points;
+}
+
+/** Every hero tree, coloured by 1 - health (a sick/thin tree reads red, a healthy one green). */
+function treeHealthPoints(draft, terrain) {
+  return draft.heroTrees.map((tree) => ({
+    x: tree.x, y: terrain.heightAt(tree.x, tree.z) + 1, z: tree.z,
+    value: 1 - Math.max(0, Math.min(1, tree.health)),
+  }));
+}
+
+/** Rescuer posts + every platform recoloured by js/builder/builder-metrics.js#rescueCoverage's verdict
+ *  (a junction platform, listed by two routes, is pushed twice – a harmless duplicate marker at the
+ *  same spot, not worth de-duplicating for at most a couple of dozen platforms). */
+function rescueOverlayView(draft, terrain) {
+  const coverage = draft.rescueCoverage();
+  const platforms = [];
+  for (const route of draft.routes) {
+    for (const platform of route.platforms) {
+      const tree = draft.heroTrees[platform.treeIndex];
+      if (!tree) continue;
+      platforms.push({
+        x: tree.x, y: terrain.heightAt(tree.x, tree.z) + platform.deckHeight, z: tree.z,
+        covered: coverage.covered.has(platform.id),
+      });
+    }
+  }
+  const posts = draft.rescuePosts.map((p) => ({ x: p.x, y: terrain.heightAt(p.x, p.z), z: p.z }));
+  return { posts, radiusM: coverage.radiusM, platforms };
 }
 
 /** Screen-space `<span>` pool for the overlays' world-space length labels – reused across frames. */

@@ -100,8 +100,18 @@ function factsSection(derived, view) {
     fact(t("builder.inspector.length"), derived.estimate ? `${derived.estimate.lengthM} m` : "– m"),
   );
   section.appendChild(facts);
-  section.appendChild(el("div", "builder-rescuer-note", t("builder.inspector.rescuerPlaceholder")));
+  const note = el("div", "builder-rescuer-note", rescueNote(derived, view));
+  if (derived.rescuePostCount && view.platforms.some((p) => derived.rescueCoverage.uncovered.has(p.id))) note.classList.add("warn");
+  section.appendChild(note);
   return section;
+}
+
+/** GDD §4 "Retter-Abdeckung" – js/builder/builder-metrics.js#rescueCoverage's park-wide verdict,
+ *  filtered down to this one route's own platforms. */
+function rescueNote(derived, view) {
+  if (!derived.rescuePostCount) return t("builder.inspector.rescueNoPosts");
+  const covered = view.platforms.filter((p) => derived.rescueCoverage.covered.has(p.id)).length;
+  return t("builder.inspector.rescueCoverage", { covered, total: view.platforms.length });
 }
 
 function fact(label, value, tone = "") {

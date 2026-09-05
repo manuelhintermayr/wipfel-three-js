@@ -20,12 +20,14 @@ const BELAY_COPY = Object.freeze({
 const NO_GEAR = "none";   // group()'s selectable-id convention has no room for `null` itself
 
 /**
- * @param {{ root: HTMLElement, save?, defaultChoice?: { type?, sizeClassId?, belayMode?, equipmentId? },
+ * @param {{ root: HTMLElement, save?, operations?, defaultChoice?: { type?, sizeClassId?, belayMode?, equipmentId? },
  *   onConfirm: (choice: {type: string, sizeClassId: string, belayMode: string, equipmentId: string|null}) => void }} options
  *   `save` is read-only here (gates the equipment row's visibility, seeds its default selection).
+ *   `operations` (M3b, optional, js/game/operations.js): shows today's storm warning line, re-checked
+ *   on every `show()` like the equipment row above – omit it and the kassa never warns about weather.
  * @returns {{ visible: boolean, show(): void, hide(): void, confirmDefaults(): void, dispose(): void }}
  */
-export function createKassa({ root, save = null, defaultChoice = {}, onConfirm }) {
+export function createKassa({ root, save = null, operations = null, defaultChoice = {}, onConfirm }) {
   const choice = {
     type: defaultChoice.type || TICKET_TYPES[0].id,
     sizeClassId: defaultChoice.sizeClassId || "adult",
@@ -37,6 +39,11 @@ export function createKassa({ root, save = null, defaultChoice = {}, onConfirm }
   screen.hidden = true;
   const sheet = el("div", "panel kassa-sheet");
   sheet.append(el("h1", "", t("kassa.title")), el("p", "", t("kassa.subtitle")));
+  // M3b storm warning (GDD §4, ROADMAP "Storm day at kassa shows a warning line") – re-checked in show()
+  // below, exactly like the equipment/night-ticket rows already re-check their own unlock condition.
+  const stormLine = el("div", "kassa-storm-note");
+  stormLine.hidden = true;
+  sheet.appendChild(stormLine);
 
   const ticketGroup = group(t("kassa.ticketLabel"), TICKET_TYPES.map((tt) => ({
     id: tt.id, name: t(tt.labelKey), desc: t(tt.descKey),
@@ -82,6 +89,8 @@ export function createKassa({ root, save = null, defaultChoice = {}, onConfirm }
         equipmentGroup.hidden = !save.hasCompletedAnyRoute();
         if (nightButton) nightButton.hidden = !save.hasCompletedAnyRoute();
       }
+      if (operations && operations.isStormDay) { stormLine.textContent = operations.stormWarningLine; stormLine.hidden = false; }
+      else stormLine.hidden = true;
       screen.hidden = false;
     },
     hide() { screen.hidden = true; },

@@ -5,6 +5,7 @@
 import { metricSum } from "../park/layout-validate.js";
 import { catalogueEntry } from "../elements/catalogue-data.js";
 import { routesFromPark } from "../game/route.js";
+import { RESCUE, TIME } from "../config.js";
 
 /** Sum of each of the four 0-5 axes across every edge – a route-level difficulty profile, not the
  *  per-edge budget check (that lives in js/builder/builder-validate.js). */
@@ -58,4 +59,45 @@ export function jamRisk(route) {
 export function estimate(route, heroTrees) {
   const defs = routesFromPark({ heroTrees, routes: [route] });
   return defs[0] || null;
+}
+
+/**
+ * Rescue coverage (GDD §4 "Retter-Abdeckung", RESEARCH-DATA §7 "jede Station in ≤ 10 min erreichbar") –
+ * a graph/ground-distance approximation, not a real pathfind: for every route, walk from whichever
+ * rescuer post is nearest that route's own entry (straight line – "to the trailhead"), then add up the
+ * route's own tree-to-tree spans out to each platform in turn ("along the route" – there is no shortcut
+ * through the canopy). A junction platform, listed by two routes, keeps the *shorter* of the two
+ * distances found for it, which falls out for free from iterating every route without special-casing it.
+ * @param {{ routes: object[], heroTrees: Array<{x,z}>, rescuePosts: Array<{x,z}> }} draftLike
+ * @returns {{ radiusM: number, covered: Set<string>, uncovered: Set<string>, distanceOf: Record<string, number> }}
+ */
+export function rescueCoverage({ routes, heroTrees, rescuePosts }) {
+  const radiusM = RESCUE.walkSpeedMps * RESCUE.timerGameMinutes * TIME.gameHourMinutes;
+  const distanceOf = new Map();   // platformId -> shortest known distance from any rescuer post
+  if (rescuePosts.length) {
+    for (const route of routes) {
+      if (!route.entry) continue;
+      let nearestPostToEntry = Infinity;
+      for (const post of rescuePosts) nearestPostToEntry = Math.min(nearestPostToEntry, Math.hypot(post.x - route.entry.x, post.z - route.entry.z));
+      let cumulative = 0;
+      let prev = { x: route.entry.x, z: route.entry.z };
+      for (const platform of route.platforms) {
+        const tree = heroTrees[platform.treeIndex];
+        if (!tree) continue;
+        cumulative += Math.hypot(tree.x - prev.x, tree.z - prev.z);
+        const total = nearestPostToEntry + cumulative;
+        const known = distanceOf.get(platform.id);
+        if (known == null || total < known) distanceOf.set(platform.id, total);
+        prev = { x: tree.x, z: tree.z };
+      }
+    }
+  }
+  const covered = new Set(), uncovered = new Set();
+  for (const route of routes) {
+    for (const platform of route.platforms) {
+      const d = distanceOf.get(platform.id);
+      (d != null && d <= radiusM ? covered : uncovered).add(platform.id);
+    }
+  }
+  return { radiusM, covered, uncovered, distanceOf: Object.fromEntries(distanceOf) };
 }
