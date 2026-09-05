@@ -1,6 +1,6 @@
 // Boot: params → Rapier → renderer → world (sky, terrain, forest) → player → loop.
 import * as THREE from "three";
-import { GAME, TIME, TICKET, TICKET_TYPES, RULES, NIGHT } from "./config.js";
+import { GAME, TIME, TICKET, TICKET_TYPES, RULES, NIGHT, GRAPHICS } from "./config.js";
 import { readParams } from "./core/params.js";
 import { installGlobalHandlers, showFatal, log } from "./core/errors.js";
 import { Loop } from "./core/loop.js";
@@ -54,6 +54,7 @@ import { createKassa } from "./ui/kassa.js";
 import { createBriefing } from "./game/briefing.js";
 import { createStampCard } from "./ui/stamp-card.js";
 import { createOptions } from "./ui/options.js";
+import { createBuilder } from "./builder/builder.js";
 import { sfxCarabinerOpen, sfxCarabinerLock, sfxHarnessCatch } from "./audio/sfx.js";
 
 async function boot() {
@@ -90,19 +91,24 @@ async function boot() {
   const skyline = createSkyline({ scene, rng: rng.fork("skyline") });
   const terrain = createTerrain({ rng, physics, scene });
   const groundDetail = createGroundDetail({ rng: rng.fork("ground-detail"), scene, terrain, wind });
-  // `?routes=6` (M2a "quick dev"): the old M1 six-route park instead of the 15-route+legendary default.
-  const parkDef = generateParkLayout({ seed: params.seed, terrain, config: params.routes === 6 ? PARK_CONFIG_SMALL : PARK_CONFIG });
-  const forest = createForest({ rng: rng.fork("forest"), scene, physics, terrain, wind, heroTrees: parkDef.heroTrees });
+  // M3a builder (js/builder/builder-state.js#serialize): a previously saved custom park def is preferred
+  // over a freshly generated one whenever present – js/core/save.js#normalize() already refused anything
+  // structurally unsound, so `save.data.customPark` is either null or safe to hand straight to loadPark.
+  // `?routes=6` (M2a "quick dev") only ever affects the *generated* fallback.
+  let parkDef = save.data.customPark
+    ? save.data.customPark.parkDef
+    : generateParkLayout({ seed: params.seed, terrain, config: params.routes === 6 ? PARK_CONFIG_SMALL : PARK_CONFIG });
+  let forest = createForest({ rng: rng.fork("forest"), scene, physics, terrain, wind, heroTrees: parkDef.heroTrees });
 
   // --- park (M1.1: generated layout → routes; M1.2: signage; M2a: 15 routes + legendary + junctions) -----
   const wood = getWoodTextures(params.seed);
-  const course = loadPark(parkDef, { scene, physics, terrain, forest, rng: rng.fork("course"), textures: wood });
-  const signs = createSigns({ parkDef, scene, terrain, textures: wood, rng: rng.fork("signs") });
+  let course = loadPark(parkDef, { scene, physics, terrain, forest, rng: rng.fork("course"), textures: wood });
+  let signs = createSigns({ parkDef, scene, terrain, textures: wood, rng: rng.fork("signs") });
   // The legendary finale has no parkplan entry at all (GDD §3.12) – the park board and course map both
   // read this filtered copy instead of `parkDef` directly (js/park/signs.js filters internally instead,
   // since it also needs the un-filtered park for its per-hub route grouping).
-  const publicParkDef = { ...parkDef, routes: parkDef.routes.filter((r) => r.category !== "legendary") };
-  const parkBoard = createParkBoard({
+  let publicParkDef = { ...parkDef, routes: parkDef.routes.filter((r) => r.category !== "legendary") };
+  let parkBoard = createParkBoard({
     root: document.getElementById("hud"), scene, physics, parkDef: publicParkDef, terrain, rng: rng.fork("park-board"), textures: wood,
   });
   const wichtel = createWichtelCourses({ scene, physics, terrain, parkDef, rng: rng.fork("wichtel"), textures: wood });
@@ -114,8 +120,8 @@ async function boot() {
 
   // --- NPC guests (M1.6): occupancy is shared with the player's own belay/interaction below --------
   const occupancy = createOccupancy();
-  const agents = params.npc ? createAgents({ course, parkDef, terrain, rng: rng.fork("npc"), occupancy, events }) : null;
-  const guestRig = agents ? createGuestRig({ scene, guestCount: agents.count }) : null;
+  let agents = params.npc ? createAgents({ course, parkDef, terrain, rng: rng.fork("npc"), occupancy, events }) : null;
+  let guestRig = agents ? createGuestRig({ scene, guestCount: agents.count }) : null;
   if (agents) log.info(`guests: ${agents.count}`);
 
   // --- player + belay + HUD ----------------------------------------------------------------------------
@@ -142,8 +148,8 @@ async function boot() {
   // --- kassa + Einschulung + ticket clock + stamp card (M1.3/M1.5) --------------------------------------
   const overlay = document.getElementById("overlay");
   const ticket = createTicketClock();
-  const interaction = createInteraction({ player, input, belay, course, hud, events, vitals, save, ticket, occupancy });
-  const courseMap = createCourseMap({ root: overlay, parkDef: publicParkDef, terrain, save, player, getAgents: () => (agents ? agents.list : []) });
+  let interaction = createInteraction({ player, input, belay, course, hud, events, vitals, save, ticket, occupancy });
+  let courseMap = createCourseMap({ root: overlay, parkDef: publicParkDef, terrain, save, player, getAgents: () => (agents ? agents.list : []) });
   if (params.map) courseMap.open();
 
   // M2b night debug hook (`WIPFEL.debug.setNight`): while true, the periodic ticket→sky sync in the
@@ -192,7 +198,7 @@ async function boot() {
     onNewDay() { save.endTicket(); kassa.show(); },
     onContinue() { ticket.end(); save.endTicket(); },
   });
-  const session = createSession({ player, course, parkDef, events, hud, save, root: document.getElementById("hud"), ticket, input, stampCard, flow });
+  let session = createSession({ player, course, parkDef, events, hud, save, root: document.getElementById("hud"), ticket, input, stampCard, flow });
   const briefing = createBriefing({
     root: document.getElementById("hud"), scene, physics, terrain, parkDef, textures: wood,
     rng: rng.fork("briefing"), belay, player, input, save, events,
@@ -218,12 +224,66 @@ async function boot() {
     session.forceDayEnd();
     return true;
   }
+  // --- M3a builder (GDD §4 "Betreiber-Gameplay") -------------------------------------------------------
+  // Applying an edited draft means rebuilding every system that was constructed from the *old* parkDef/
+  // course – the same construction calls boot() already ran once above, just callable again. `forest`
+  // is only rebuilt when the draft actually grew `heroTrees` (a brand-new platform tree needs to exist
+  // as a real, collidable, instanced tree) – a route/edge/zip-only edit never touches it.
+  let rebuildSeq = 0;
+  function rebuildFromParkDef(nextParkDef) {
+    rebuildSeq += 1;
+    const heroCountChanged = nextParkDef.heroTrees.length !== parkDef.heroTrees.length;
+    if (agents) { agents.dispose(); agents = null; }
+    if (guestRig) { guestRig.dispose(); guestRig = null; }
+    courseMap.dispose();
+    session.dispose();
+    interaction.dispose();
+    parkBoard.dispose();
+    signs.dispose();
+    course.dispose();
+    if (heroCountChanged) {
+      forest.dispose();
+      forest = createForest({ rng: rng.fork(`forest-rebuild-${rebuildSeq}`), scene, physics, terrain, wind, heroTrees: nextParkDef.heroTrees });
+      // Keep whatever graphics preset was already active (js/ui/options.js) applied to the new instance
+      // instead of silently reverting to forest.js's own High-quality defaults.
+      const preset = GRAPHICS.presets[save.data.settings.graphics] || GRAPHICS.presets.high;
+      forest.setLodDistances({ near: Math.round(preset.impostorNear * 0.45), mid: preset.impostorNear });
+    }
+    parkDef = nextParkDef;
+    course = loadPark(parkDef, { scene, physics, terrain, forest, rng: rng.fork(`course-rebuild-${rebuildSeq}`), textures: wood });
+    signs = createSigns({ parkDef, scene, terrain, textures: wood, rng: rng.fork(`signs-rebuild-${rebuildSeq}`) });
+    publicParkDef = { ...parkDef, routes: parkDef.routes.filter((r) => r.category !== "legendary") };
+    parkBoard = createParkBoard({ root: document.getElementById("hud"), scene, physics, parkDef: publicParkDef, terrain, rng: rng.fork(`park-board-rebuild-${rebuildSeq}`), textures: wood });
+    interaction = createInteraction({ player, input, belay, course, hud, events, vitals, save, ticket, occupancy });
+    session = createSession({ player, course, parkDef, events, hud, save, root: document.getElementById("hud"), ticket, input, stampCard, flow });
+    courseMap = createCourseMap({ root: overlay, parkDef: publicParkDef, terrain, save, player, getAgents: () => (agents ? agents.list : []) });
+    agents = params.npc ? createAgents({ course, parkDef, terrain, rng: rng.fork(`npc-rebuild-${rebuildSeq}`), occupancy, events }) : null;
+    guestRig = agents ? createGuestRig({ scene, guestCount: agents.count }) : null;
+    return { course, parkDef };
+  }
+  const builder = createBuilder({
+    scene, terrain, rng: rng.fork("builder"), player, camera, renderer, input, events, loop,
+    save, ticket, kassa, briefing, belay, hud, root: overlay,
+    world: {
+      getParkDef: () => parkDef, getCourse: () => course, getGuests: () => ({ agents, guestRig }),
+      // `interaction` is rebuilt right alongside `course` (both close over the old, disposed course
+      // otherwise) – a getter here, not a plain constructor param, so js/builder/builder.js's own
+      // walkthrough bot always binds to whichever instance is actually live.
+      getInteraction: () => interaction,
+      applyParkDef: (nextParkDef) => rebuildFromParkDef(nextParkDef),
+    },
+  });
+
   const options = createOptions({
     root: overlay, save, input, camera: player.camera, loop, ticket,
     onEndDay: endTicketNow,
     onCourseMap: () => courseMap.open(),
-    // M2b Graphics section: any/all may be omitted (see js/ui/options.js's own header) – all four exist here.
-    renderer, sky, forest, groundDetail,
+    onBuilder: () => builder.enter(),
+    // M2b Graphics section: any/all may be omitted (see js/ui/options.js's own header) – all four exist
+    // here. `forest` is a small live-forwarding proxy (not the object itself) because js/builder/
+    // builder.js may rebuild the real one after a hero-tree-adding edit – the proxy always calls
+    // whichever instance is current instead of latching onto the one that existed at boot.
+    renderer, sky, forest: { setLodDistances: (v) => forest.setLodDistances(v) }, groundDetail,
   });
   options.applyAll();   // settings from a previous visit, applied once before the first frame
 
@@ -274,8 +334,14 @@ async function boot() {
     ? createTouchControls({ root: document.getElementById("hud"), input })
     : null;
 
-  const resuming = !params.autoplay && !params.kassa && !!save.data.ticket;
-  if (resuming) resumeDay();
+  const resuming = !params.autoplay && !params.kassa && !params.builder && !!save.data.ticket;
+  if (params.builder) {
+    // `?builder=1` (verification/testing, GDD §4): straight into builder mode, no kassa at all.
+    // `?autowalk=<routeId>` additionally starts that route's walkthrough with the `?autoplay=1` bot
+    // immediately – no human at the keyboard needed to prove the obligation actually opens a route.
+    if (params.autowalk) builder.startAutowalk(params.autowalk);
+    else builder.enter();
+  } else if (resuming) resumeDay();
   else if (!params.autoplay) kassa.show();
   if (params.options) { kassa.hide(); options.open(); }   // ?options=1: screenshots (M1.7)
 
@@ -324,11 +390,15 @@ async function boot() {
     input.poll();
     if (touchControls) touchControls.update();   // pushes the overlay's held state in before anything reads it
     if (autoplay) autoplay.update(frameDt);   // synthesises key events – must run before consumers read edges
+    builder.onInputPhase(frameDt);   // same rule: drives a `?builder=1&autowalk=` bot's own key events
     if (input.pressed("debug")) debug.toggle();
     if (input.pressed("physdebug")) physics.setDebug(scene, !physics.debugEnabled);
+    // M3a: none of the screens below make sense while the builder owns the camera/HUD ("editing") or
+    // is mid-walkthrough ("walking") – Esc gets its own two builder-specific branches instead.
+    const builderOpen = builder.mode !== "closed";
     // Photo mode (M2b): one `toggle()` per press, guarded the same way "pause" above is – never while
     // another screen owns the input, never during `?autoplay=1`.
-    if (input.pressed("photo") && !photoMode.active && !options.visible && !courseMap.visible && !params.autoplay) {
+    if (input.pressed("photo") && !photoMode.active && !options.visible && !courseMap.visible && !params.autoplay && !builderOpen) {
       photoMode.enter();
       document.body.classList.add("photo-mode-active");
       setPhotoHintText();
@@ -343,7 +413,7 @@ async function boot() {
       // jump-buffer once the loop unpauses (that buffer does not decay while physics is not stepping).
       if (input.pressed("jump")) photoMode.requestSnapshot();
       input.consume("jump");
-    } else if (input.pressed("map") && !options.visible) {
+    } else if (input.pressed("map") && !options.visible && !builderOpen) {
       courseMap.toggle();
     }
     if (courseMap.visible) {
@@ -355,7 +425,11 @@ async function boot() {
     } else if (options.visible) {
       // Options itself sets loop.paused (M1.7) – Esc here only toggles its own visibility.
       if (input.pressed("pause")) options.close();
-    } else if (!params.autoplay && !photoMode.active && input.pressed("pause")) {
+    } else if (builder.mode === "editing" && input.pressed("pause")) {
+      builder.exit();   // Esc is the same "leave the builder" affordance as the toolbar's Exit button
+    } else if (builder.mode === "walking" && input.pressed("pause")) {
+      builder.requestAbortWalk();   // a manual escape hatch if a walkthrough attempt gets stuck
+    } else if (!params.autoplay && !photoMode.active && !builderOpen && input.pressed("pause")) {
       options.open();   // `?autoplay=1` never presses this action, but never trust that silently.
     }
     if (input.pressed("camera")) player.setThirdPerson(player.camera.isFirstPerson);
@@ -365,6 +439,10 @@ async function boot() {
     physics.step();
   });
   loop.on("gameplay", (dt, elapsed) => {
+    // M3a: the builder's own top-down "editing" mode freezes the whole simulation (player/guests hidden,
+    // loop.paused already stops physics) – "walking" (the walkthrough) runs every line below completely
+    // normally, exactly like the ordinary game, only `agents` stays frozen (see below).
+    if (builder.mode === "editing") return;
     player.update(dt);
     ticket.update(dt);
     // Sky follows the ticket's own clock once a day is running (M2b: this is what makes the night
@@ -379,7 +457,7 @@ async function boot() {
     const onElement = player.mode === "element" || player.mode === "zipline" || player.mode === "tarzan";
     flow.update(dt, { progressing: onElement, frozen: vitals.nerves.frozen, nervesValue: vitals.nerves.value });
     interaction.update(dt);       // the player's own occupancy claim/release happens here first –
-    if (agents) {                 // guests below only ever see a slot the player has already taken.
+    if (agents && builder.mode === "closed") {   // guests below only ever see a slot the player has already taken.
       const t0 = performance.now();
       agents.update(dt, player.position);
       npcMs = performance.now() - t0;
@@ -397,9 +475,13 @@ async function boot() {
     lampions.update(sky.night, camera.position);
   });
   loop.on("render", (alpha, dt) => {
-    player.render(alpha, dt);
-    if (photoMode.active) photoMode.update(dt);   // overrides the camera js/player/render just set
-    if (guestRig) guestRig.update(agents.list, player.position, dt, sky.night);
+    if (builder.mode === "editing") {
+      builder.onRenderPhase(dt);   // orbit camera + span/length labels – owns the shared `camera` instead
+    } else {
+      player.render(alpha, dt);
+      if (photoMode.active) photoMode.update(dt);   // overrides the camera js/player/render just set
+      if (guestRig && builder.mode === "closed") guestRig.update(agents.list, player.position, dt, sky.night);
+    }
     physics.updateDebug();
     renderer.render(scene, camera);
     if (photoMode.consumeSnapshotRequest()) photoMode.takeSnapshot();
@@ -415,13 +497,20 @@ async function boot() {
 
   window.WIPFEL = {
     version: GAME.version, params, loop, physics, scene, camera, renderer, rng, input, events,
-    terrain, forest, sky, wind, player, parkDef, course, signs, belay, hud, interaction, vitals, session, save, autoplay,
-    kassa, briefing, stampCard, ticket, options,
-    parkBoard, courseMap, occupancy, agents, guestRig,
+    terrain, sky, wind, player, belay, hud, vitals, save, autoplay,
+    kassa, briefing, stampCard, ticket, options, occupancy,
+    // M3a's builder can rebuild any of these mid-session (js/main.js#rebuildFromParkDef) – getters so
+    // this debug surface always reads whichever instance is actually live, never one it disposed.
+    get forest() { return forest; }, get parkDef() { return parkDef; }, get course() { return course; },
+    get signs() { return signs; }, get interaction() { return interaction; }, get session() { return session; },
+    get parkBoard() { return parkBoard; }, get courseMap() { return courseMap; },
+    get agents() { return agents; }, get guestRig() { return guestRig; },
     // M2a
     flow, clipMeter, wichtel,
     // M2b
     accidentReport, photoMode, headlamp, lampions, touchControls,
+    // M3a
+    builder,
     debug: {
       /** Force the slip a play-test needs on demand (screenshots, smoke runs). */
       forceSlip(angle = 1) {

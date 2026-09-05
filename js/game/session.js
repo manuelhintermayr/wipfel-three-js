@@ -67,7 +67,12 @@ export function createSession({ player, course, parkDef, events, hud, save, root
       const d = player.position.distanceTo(route.entryDeck.clipAnchor);
       if (d <= nearestD) { nearest = route; nearestD = d; }
     }
-    return nearest ? runs.get(nearest.id) : shown;   // nothing nearby: keep showing the last route
+    // `runs.get(nearest.id)` is normally guaranteed (this module is always built from the same parkDef
+    // as `course`) – the fallback only matters the instant M3's builder rebuilds `course` around an
+    // edited/new route before rebuilding this module too (js/main.js#applyParkDef does both together,
+    // so it is defence in depth, never the expected path): keep showing whatever was already shown
+    // rather than handing the HUD an `undefined` run.
+    return nearest ? (runs.get(nearest.id) || shown) : shown;
   }
 
   // The run arms at its deck, counts down while climbing that route's ladder, and the timer starts at GO.

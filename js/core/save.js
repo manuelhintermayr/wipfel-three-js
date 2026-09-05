@@ -40,7 +40,15 @@ const DEFAULTS = Object.freeze({
   // M2a (ROADMAP, GDD §3.12 "Ausrüstung als Sidegrade") – null until unlocked *and* chosen at the kassa;
   // js/player/sidegrade.js reads this only through js/main.js's own setSidegrade() call, never directly.
   equipmentId: null,
+  // M3a builder (ROADMAP "Der Betreiber", GDD §4): null until the builder is opened and something is
+  // saved. `{ schema, parkDef, routeStatus }` – `parkDef` is a js/park/layout.js#generateParkLayout-
+  // shaped object js/park/loader.js can load unchanged; `routeStatus[routeId] = { walked: boolean }` is
+  // the walkthrough obligation's own bookkeeping (js/builder/builder-state.js), kept separate from
+  // parkDef because it is not part of what the generator itself ever emits. js/main.js prefers this over
+  // a freshly generated park at boot when present and structurally valid.
+  customPark: null,
 });
+const CUSTOM_PARK_SCHEMA = 1;
 
 const SETTINGS_BOOLEANS = Object.freeze(["invertY", "reducedCameraMotion", "reducedMotion", "assist"]);
 const clampVolume = (v) => Math.max(0, Math.min(100, v));
@@ -168,6 +176,18 @@ export function createSave(storage = defaultStorage()) {
       return data.stats.accidents;
     },
 
+    /** M3a builder (js/builder/builder-state.js#serialize()) – overwrites the whole thing every time,
+     *  same "one owner, no partial merge" shape `data.ticket` already uses. */
+    setCustomPark(payload) {
+      data.customPark = { schema: CUSTOM_PARK_SCHEMA, parkDef: payload.parkDef, routeStatus: payload.routeStatus };
+      flush();
+    },
+    /** "Reset to generated park" – js/main.js falls back to a freshly generated layout again. */
+    clearCustomPark() {
+      data.customPark = null;
+      flush();
+    },
+
     /** A JSON string snapshot of the whole save (M3/M4: share/back up a profile). */
     export() { return JSON.stringify(data); },
 
@@ -257,7 +277,26 @@ function normalize(parsed) {
     }
   }
   if (typeof parsed.equipmentId === "string" || parsed.equipmentId === null) data.equipmentId = parsed.equipmentId ?? null;
+  // M3a builder: a light structural check only – js/park/loader.js and js/builder/builder-state.js are
+  // themselves tolerant of an incomplete-but-well-shaped parkDef, so this just refuses to hand a
+  // corrupt/foreign blob any further (same "malformed collapses to the default" rule every field here
+  // follows) rather than re-validating every geometry rule save.js has no business knowing about.
+  if (isValidCustomPark(parsed.customPark)) {
+    const cp = parsed.customPark;
+    const routeStatus = {};
+    if (cp.routeStatus && typeof cp.routeStatus === "object") {
+      for (const [id, s] of Object.entries(cp.routeStatus)) routeStatus[id] = { walked: !!(s && s.walked) };
+    }
+    data.customPark = { schema: CUSTOM_PARK_SCHEMA, parkDef: cp.parkDef, routeStatus };
+  }
   return data;
+}
+
+function isValidCustomPark(cp) {
+  return !!cp && typeof cp === "object" && cp.schema === CUSTOM_PARK_SCHEMA
+    && !!cp.parkDef && typeof cp.parkDef === "object"
+    && typeof cp.parkDef.id === "string" && Number.isFinite(cp.parkDef.seed)
+    && Array.isArray(cp.parkDef.heroTrees) && Array.isArray(cp.parkDef.routes);
 }
 
 function defaultStorage() {

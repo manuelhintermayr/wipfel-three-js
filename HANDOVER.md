@@ -5,6 +5,72 @@
 > `ROADMAP.md`. Eine neue Session muss allein mit dieser Datei + `ROADMAP.md` weiterarbeiten können.
 
 ## Aktueller Meilenstein
+**M3a (Builder-Hälfte von „Der Betreiber") FERTIG** (uncommitted, oben auf dem gesamten M0–M2b-Stapel
+darunter): Builder-Modus, Parcours-Inspektor, Begehungspflicht – der zweite Akt aus GDD §4, erste
+Hälfte (Gäste-Simulation/Guide/Retter/Inspektionen/Ökonomie/Teilen bleiben M3b). ADR-003 zahlt sich aus:
+der Builder editiert genau dieselbe `parkDef`-Form, die `js/park/layout.js#generateParkLayout` erzeugt,
+`js/park/loader.js#loadPark` brauchte keine einzige Änderung, um einen handgebauten Park zu laden.
+
+Neun neue Module unter `js/builder/`: `survey-trees.js` (reiner, deterministischer Baum-Gutachten-Scan
+– Rasterabtastung mit denselben Hub/Weg/Hangregeln wie der Generator, jeder Kandidat bekommt eine
+erfundene, aber reproduzierbare `health` 0..1, unter 0,55 kein Podest – GDD „dünne/kranke tragen kein
+Podest"), `builder-validate.js` (reine Wiederverwendung von `layout-validate.js`s Prädikaten pro Route
++ Gesundheits-/Podestzahl-/Zip-Existenz-Checks), `builder-state.js` (der Entwurf: Draft-Klon von
+`parkDef` mit Baum-`health`+Routen-`_status{walked,issues}`, alle Editier-Operationen – Route/Podest/
+Übung/Zip/Kategorie/Name –, Zustand `draft`/`needsWalkthrough`/`open` **abgeleitet**, nie gespeichert,
+Export/Persistenz), `builder-metrics.js` (Achsen/Dramaturgiekurve/Variation/Stauresiko/Richtzeit-
+Schätzung fürs Inspektor-Panel, aus `builder-state.js` ausgelagert), `builder-camera.js` (Vogelperspektive:
+WASD/Ziehen schwenkt, Rad zoomt, Q/E rotiert), `builder-overlays.js` (3-D-Geister: Baum-Kandidaten
+grün/grau/rot, ausgewählte Route als glühende Lifeline aus den Draft-Daten – funktioniert auch für eine
+brandneue, noch nicht gebaute Route), `builder-zip-tool.js` (2-D-Top-down-Canvas fürs Flying-Fox-
+Werkzeug: Ziehen zeigt live Gefälle/Länge/Ankunftstempo über eine echte `zipline/physics.js`-Simulation,
+außerhalb 3–6 % wird „Setzen" deaktiviert), `builder-inspector.js` + `builder-tool-panels.js` +
+`builder-ui.js` (DOM: Routenliste links, Inspektor rechts, Werkzeugleiste unten mit vier
+Datenpanels + Zip-Werkzeug, zustandslos – jeder Klick ruft nur `dispatch(action)`), `builder.js`
+(Orchestrierung: Zustandsautomat `closed`/`editing`/`walking`, Begehungsablauf, `?autowalk=`-Bot-Bindung).
+
+Integration in `js/main.js`: Boot bevorzugt einen validen `save.data.customPark` vor einem frisch
+generierten Park; `rebuildFromParkDef()` (neu) entsorgt und baut `agents/guestRig → courseMap/session/
+interaction/parkBoard/signs/course → (nur bei gewachsenen heroTrees) forest → …` neu auf, mit denselben
+Konstruktionsaufrufen, die `boot()` schon einmal gemacht hat (dafür wurden die betroffenen `const` zu
+`let`, `window.WIPFEL`s Debug-Oberfläche liest sie jetzt über Getter, damit sie nie veraltet). Loop-
+Verdrahtung: Gameplay-Phase kehrt sofort zurück, solange `builder.mode === "editing"`; Render-Phase
+ruft `builder.onRenderPhase(dt)` statt `player.render()`; Input-Phase ruft `builder.onInputPhase()`
+immer (treibt den `?autowalk=`-Bot) und sperrt Foto/Parkplan/Pause-Umschaltung, solange der Builder
+offen ist – Esc verlässt `editing` direkt, bricht `walking` manuell ab. `js/game/autoplay.js` bekam
+einen optionalen `route`-Parameter (`routeCtx = route || course`) – derselbe Bot läuft jetzt jede
+beliebige Route, nicht nur `blue-1`; `js/game/session.js#activeRun()` bekam eine einzeilige defensive
+Absicherung. `js/core/save.js#data.customPark` (additiv, eigenes Mini-Schema `{schema, parkDef,
+routeStatus}`), `setCustomPark()`/`clearCustomPark()`. `js/park/layout-route.js` exportiert neu
+`ZIP_GRADIENT`/`buildEntry` (keine Verhaltensänderung) zur Wiederverwendung durch den Builder.
+Namensgebung ohne neuen i18n-Mechanismus: `setRouteName()` schreibt den literalen Text direkt in
+`route.nameKey` – `t()`s dokumentierte „fehlender Key rendert als Key"-Regel zeigt ihn dadurch überall
+unverändert an. `css/builder.css` (neu, in `index.html` verlinkt) – ein echter Bug beim Verifizieren
+gefunden: die volltransparente Label-Ebene schluckte jeden Klick auf die Werkzeugleiste darunter, weil
+`css/base.css`s `#overlay > * { pointer-events: auto; }` (ID-Selektor) ein einfaches klassenbasiertes
+`pointer-events: none` immer schlägt – behoben mit ID-qualifizierten Gegenregeln.
+
+**Geprüft** (echter Chromium via Playwright MCP): frischer `?builder=1`-Boot **0 Konsolenfehler/
+-warnungen, 0 externe Requests**, alle 16 Routen gelistet, Inspektor/Achsen/Dramaturgie rendern. Ein
+echter Klick (Werkzeugleiste → Kategorie & Name → „Schwarz") auf Blau-I kippt sie auf **Draft** mit vier
+echten `deckHeightOutOfWindow`-Verstößen und deaktiviert „Begehen" – dabei einen echten Bug gefunden und
+behoben (die Zip-Landung wurde fälschlich gegen den GESAMTEN Park statt nur gegen die beim Bau dieser
+Route schon existierenden Bäume geprüft, s. `docs/architecture.md`; ein Unit-Test „jede generierte Route
+startet verstoßfrei" hat das vor dem Browser-Durchlauf gefunden, ein Sweep über Seeds 1–8 × beide
+Park-Configs bestätigte danach null Falschmeldungen). `?builder=1&autowalk=blue-1&fast=1` gegen ein
+frisch geleertes Save: der Bot schließt die Route ab, `save.data.customPark.routeStatus["blue-1"].
+walked` kippt auf `true`, der Builder kehrt automatisch zu „editing" zurück – zweimal sauber reproduziert
+(je 0 Konsolenfehler/-warnungen, 0 externe Requests); einer von drei Versuchen lief in eine
+vorbestehende `?autoplay=1`-Bot-Grenze (s. „Was halb fertig ist"), keine Builder-Regression. Normales
+`?autoplay=1&fast=1` (kein `?builder=1`, frisches Save) schließt Blau-I weiterhin normal ab
+(„route completed in 395.20 s · falls 0 · best true"), `save.data.customPark` bleibt dabei durchgehend
+`null`. Die „Park builder"-Zeile im Optionsbildschirm plus Esc-Ausstieg wurden ebenfalls per echtem
+Klick/echtem Tastendruck geprüft. `check-all` **156/156**, `node --test` **206/206** (186 + 20 neue
+Builder-State-Tests). Screenshots `docs/screenshots/m3-builder.png` (Route ausgewählt, Inspektor mit
+Achsen/Dramaturgie, 3-D-Lifeline mit Spannweiten-Labels über dem Gelände), `m3-validate.png` (Verstoßs-
+Anzeige nach dem Kategorie-Klick oben) – beide < 300 KB (PIL: 760 px Kantenlänge, 112-Farben-Palette).
+
+## Aktueller Meilenstein (M2b – vollständig, s. oben für M3a)
 **M2b ABGESCHLOSSEN – damit ist M2 „Ein Park" komplett** (uncommitted, oben auf dem ebenfalls noch
 uncommitteten M2a: 15 gesicherte Routen + legendäre Route, Kreuzungspodeste, Wichtel-Parcours,
 Saisonpass, Zeitläufe, Flow, Meisterschaftsstufen, Sidegrades – Verträge in `docs/architecture.md`
@@ -468,8 +534,39 @@ PIL: 900 px Kantenlänge, 128–160-Farben-Palette).
   `ui/touch-controls.js`. Details/Prüfnachweis: oben unter „Aktueller Meilenstein“, Verträge in
   `docs/architecture.md#Belay modes complete, night climbing, photo mode, catalogue variants, graphics
   options, touch (M2b)`.
+- **Builder-Modus, Parcours-Inspektor, Begehungspflicht (M3a):** `js/builder/{survey-trees,builder-
+  validate,builder-state,builder-metrics,builder-camera,builder-overlays,builder-zip-tool,builder-
+  inspector,builder-tool-panels,builder-ui,builder}.js`, `css/builder.css`. Erreichbar über die „Park
+  builder"-Zeile im Optionsbildschirm oder `?builder=1` (+ `?autowalk=<routeId>` für den Bot).
+  `js/core/save.js#data.customPark` (additiv), `js/main.js#rebuildFromParkDef` (Wiederaufbau-Kaskade
+  bei angewendetem Entwurf), `js/game/autoplay.js`s optionaler `route`-Parameter. Details/Prüfnachweis:
+  oben unter „Aktueller Meilenstein", Verträge in `docs/architecture.md#Builder (M3a …)`.
 
 ## Was halb fertig ist
+- **M3a Builder:** Podest-Bearbeitung ist bewusst nur „anhängen/letztes entfernen" (Kette wächst/schrumpft
+  ausschließlich am Ende) plus „verschieben" (beliebige Position, anderer Baum) – kein Einfügen/Löschen
+  mitten in der Kette; das deckt „add/remove/move platform" aus dem Auftragstext ab, ohne die
+  Kanten-Neuverkettung zu bauen, die ein Mitten-Einfügen bräuchte. Baum-/Übungsart-/Kategorie-Auswahl
+  läuft über DOM-Listen/Dropdowns in der Werkzeugleiste, nicht über 3-D-Klicks/Ziehen auf dem Gelände
+  selbst (die 3-D-Overlays sind reine Visualisierung, keine Klickziele) – bewusste Vereinfachung angesichts
+  der Zeit für Raycasting/Drag-Handles; das Flying-Fox-Werkzeug ist die eine Ausnahme mit echtem Ziehen,
+  aber auf einer 2-D-Top-down-Canvas statt der 3-D-Ansicht. `rebuildFromParkDef()` baut `forest/course/
+  signs/parkBoard/interaction/session/courseMap/agents/guestRig` neu auf, aber **nicht**
+  `briefing`/`lampions`/`wichtel` – `briefing`s Übungsstand-Platzierung ist einmalig und bleibt gültig
+  (Terrain ändert sich nie), `lampions` könnten nach einer Blau-Routen-Bearbeitung leicht von der neuen
+  Geometrie abweichen (rein optisch, keine Kollision). Retter-Abdeckung im Inspektor ist ein reiner
+  Platzhalter („kommt mit M3b"), nie berechnet. Der Builder erstellt nie eigene Kreuzungspodeste
+  (`kind: "junction"`) – nur eine Schutzfunktion gegen versehentliches Zerstören einer geerbten
+  Kreuzung aus dem generierten Park (`removeRoute` verweigert das Löschen des Host, `movePlatform`/
+  `removePlatform` verweigern eine Kreuzungs-Plattform). Guide-/Retter-Rolle, PSA-Alterung, Wetter/
+  Räumung, Ökonomie/Ticketmodelle, Teilen – alle explizit M3b/M3c (GDD §4, zweite Hälfte).
+  **Beim Verifizieren beobachtet, kein Builder-Bug:** der `?autoplay=1`-Bot (auch über `?builder=1&
+  autowalk=`) hält bei einem Sturz nur `Space` (Hochziehen) – wird die Kraft dabei leer UND die Nerven
+  frieren gleichzeitig ein (`nerves.frozen`), bleibt der Bot hängen, weil er nie „Retter [E]" drückt oder
+  „Atmen [R]" hält; einmal von drei Begehungs-Läufen beobachtet (die anderen zwei liefen sauber durch,
+  ebenso wie ein separater `?autoplay=1&fast=1`-Normallauf). Vorbestehende Grenze in `js/game/
+  autoplay.js`s Sturzbehandlung (unverändert von dieser Session), keine Regression durch die
+  `route`-Parametrisierung – aber nicht behoben, da außerhalb des Builder-Auftragsumfangs.
 - **M1.4/M1.6:** Gäste behandeln Tarzansprung und Skateboard wie eine normale kontinuierliche Übung
   (Fallback-Tempo `NPC.elementSpeedFallback`, `element.pointAt` statt der echten Sprung-/Schub-Mechanik)
   – sieht aus wie ein gewöhnliches Queren, nicht wie ein Sprung; eigene Gast-Posen für diese zwei Arten
@@ -525,9 +622,22 @@ konnte die Figur damit mit **25 m/s** wegschleudern. Jetzt gilt: ein Hindernis k
 wegnehmen, nie hinzufügen (`asked`-Klemme).
 
 ## Dateien, an denen gerade gearbeitet wird
-– keine offene Baustelle, aber **alles seit Tag `m0` (`d20789e`) ist uncommitted**, inklusive M2b (diese
-Session), M2a (davor, nie eigens eingetragen, s. „Aktueller Meilenstein"), M1.8 (bereits HEAD `43993bb`,
-s. u.), M1.1, M1.2, M1.3/M1.5, M1.4/M1.6 und M1.7.
+– keine offene Baustelle, aber **alles seit Tag `m0` (`d20789e`) ist uncommitted**, inklusive M3a (diese
+Session), M2b, M2a (davor, nie eigens eingetragen, s. „Aktueller Meilenstein"), M1.8 (bereits HEAD
+`43993bb`, s. u.), M1.1, M1.2, M1.3/M1.5, M1.4/M1.6 und M1.7.
+M3a laut geänderten Dateien: neu
+`js/builder/{survey-trees,builder-validate,builder-state,builder-metrics,builder-camera,builder-overlays,
+builder-zip-tool,builder-inspector,builder-tool-panels,builder-ui,builder}.js`, `css/builder.css`,
+`tests/unit/builder-state.test.mjs`, `docs/screenshots/{m3-builder,m3-validate}.png`; geändert
+`js/main.js` (`let`-Bindungen für alles, was `rebuildFromParkDef` neu aufbaut, diese Funktion selbst,
+`builder`-Konstruktion, Loop-Verdrahtung Input/Gameplay/Render-Phase, `window.WIPFEL`-Getter, Boot-Wahl
+`save.data.customPark` vs. frisch generiert), `js/core/save.js` (`data.customPark`, `setCustomPark`/
+`clearCustomPark`, Validierung in `normalize()`), `js/core/params.js` (`?builder=`, `?autowalk=`),
+`js/game/autoplay.js` (optionaler `route`-Parameter, `routeCtx = route || course`), `js/game/session.js`
+(einzeilige defensive Absicherung in `activeRun()`), `js/park/layout-route.js` (`ZIP_GRADIENT`/
+`buildEntry` exportiert, keine Verhaltensänderung), `js/ui/options.js` (`onBuilder`-Zeile im Menü),
+`index.html` (`css/builder.css` verlinkt), `assets/strings/{en,de}.json` (~80 neue Keys je Sprache,
+Parität geprüft), `docs/architecture.md`, `HANDOVER.md`.
 M2b laut geänderten Dateien: neu
 `js/player/accident.js`, `js/ui/accident-report.js`, `js/game/photo-mode.js`, `js/player/headlamp.js`,
 `js/park/lampions.js`, `js/ui/touch-controls.js`, `tests/unit/brakes-hand.test.mjs`,
@@ -619,18 +729,23 @@ geändert `js/world/{terrain,ground-detail,forest}.js`, `js/world/terrain/materi
 
 ## Wichtige Architekturentscheidungen
 `docs/architecture.md` (Modulverträge – Park/Belay/HUD/Audio seit M0.4 eingetragen, Course-Map/Parkplan-
-Tafel/Gäste-Occupancy seit M1.4/M1.6, Optionen + Settings seit M1.7), `docs/DECISIONS.md` ADR-001…012,
-020…027 (Mockup 1:1, UI EN+DE, Kategorien mit Green). Offen: ADR-013 (Three.js 0.185.1 – faktisch
-entschieden, eintragen), ADR-014 (Rapier compat 0.20.0 – dito), 015–019.
+Tafel/Gäste-Occupancy seit M1.4/M1.6, Optionen + Settings seit M1.7, **Builder seit M3a**),
+`docs/DECISIONS.md` ADR-001…012, 020…029 (Mockup 1:1, UI EN+DE, Kategorien mit Green, M3 wird gebaut,
+M4-Koop lokal). Offen: ADR-013 (Three.js 0.185.1 – faktisch entschieden, eintragen), ADR-014 (Rapier
+compat 0.20.0 – dito), 015–018.
 
 ## Bekannte Bugs
 – keine reproduzierten. Zu prüfen: Kamera-Kollision mit Kronen im echten Wald (nur in Dev-Seite getestet).
+Beobachtet (kein Bug dieser Session, s. „Was halb fertig ist"): der `?autoplay=1`-Bot kann selten in
+einem Sturz hängen bleiben, wenn Kraft leer und Nerven gleichzeitig einfrieren (drückt nie „Retter [E]").
 
 ## Unmittelbar nächste Aufgabe
-**M2 „Ein Park" ist mit M2b komplett** (M2a + M2b zusammen liefern alle ROADMAP-M2-Punkte – Checkboxen
-in `ROADMAP.md` bewusst nicht gesetzt, das übernimmt der Lead zusammen mit Commit/Tag `m2`). Als
-Nächstes **M3** (`ROADMAP.md` prüfen für den genauen Umfang – zum Zeitpunkt dieses Eintrags noch nicht
-im Detail gegen diese Datei abgeglichen, s. „Nächste fünf Aufgaben" Punkt 1).
+**M3a (Builder-Hälfte von „Der Betreiber") ist fertig** (Checkbox in `ROADMAP.md` bewusst nicht gesetzt,
+das übernimmt der Lead zusammen mit Commit). Als Nächstes **M3b**: Gäste-Simulation mit Profilen/
+Overlays (Warten/Angst/Rettung/Bäume), Begehung/Guide-/Retter-Rolle in der laufenden Gästesimulation
+(dieselbe Kamerawechsel-Mechanik wie die Builder-Begehung – `js/builder/builder.js`s Begehungsablauf ist
+bewusst so gebaut, dass er sich auf Guide/Retter übertragen lassen sollte), Inspektionen/PSA-Alterung,
+Wetter/Räumung, Ökonomie/Ticketmodelle, Teilen mit Bewertung/Bestzeit (GDD §4, zweite Hälfte).
 
 Offene Entscheidung aus M1.3 (weiterhin unentschieden): Größenklasse (`RULES.sizeClasses[].allowed`) ist
 an der Kassa wählbar und persistiert (`save.data.ticket.sizeClassId`), treibt aber **nur** die Zip-Masse
@@ -640,26 +755,22 @@ beides). Noch keine ADR; wenn gewünscht, gehört der Check neben `lockedCategor
 `player/interaction.js`, mit einer eigenen Prompt-Zeile.
 
 ## Nächste fünf Aufgaben
-1. M3-Kickoff: `ROADMAP.md`s M3-Block („Der Betreiber", ADR-019) ist ein echter Richtungswechsel –
-   Builder-Modus (Bäume mit Gutachten, Podeste, Katalog, Flying-Fox-Werkzeug), Parcours-Inspektor,
-   Gäste-Simulation mit Profilen/Overlays (Warten/Angst/Rettung/Bäume), Begehung als Freigabepflicht,
-   Guide-/Retter-Rolle, Inspektionen, PSA-Alterung, Wetter/Räumung, Ökonomie/Ticketmodelle, Teilen mit
-   Bewertung/Bestzeit – braucht vor dem ersten Code vermutlich eine eigene ADR, welcher Teil zuerst
-   (Builder vs. Betreiber-Simulation sind zwei sehr unterschiedliche Spielmodi, die sich beide auf
-   `parkDef`/`course` stützen würden, aber in entgegengesetzte Richtungen erweitern).
-2. Autoplay-Regressionscheck nachholen: der volle `?autoplay=1&fast=1`-Lauf bis „blue-1 completed" wurde
-   diese Session **nicht** erneut bestätigt (s. „Aktueller Meilenstein", die Playwright-MCP-Verbindung
-   hat sich dabei aufgehängt) – vor dem nächsten Commit einmal sauber nachziehen, idealerweise mit einem
-   deutlich kleineren manuellen `loop._tick()`-Tick-Budget als der Versuch dieser Session (40 000 Ticks
-   war zu viel für den headless-Software-Renderer).
-3. Größenklasse → Kategorie-Zugang entscheiden und ggf. verdrahten (weiterhin offen seit M1.3, s. u.).
+1. M3b-Kickoff: Gäste-Simulation mit echten Profilen (Kind+Begleitung, Jugendliche, Schulklasse,
+   Firmengruppe, …) und Overlays (Warten/Angst/Rettung/Baumgesundheit) – baut auf `js/npc/agents.js`
+   (M1.6) auf, aber mit Mut/Erwartung/Angst-Ereignissen statt der drei einfachen M1.6-Profile.
+2. Guide- und Retter-Rolle: dieselbe Kamerawechsel-Mechanik wie die Builder-Begehung
+   (`js/builder/builder.js#startWalkthrough`) auf „Gruppe führen" (Guide) und „Gast in Panik, 10-Minuten-
+   Timer" (Retter) übertragen – prüfen, wie viel von `builder.js`s Begehungsablauf sich direkt
+   wiederverwenden lässt, bevor eine zweite, ähnliche Implementierung entsteht.
+3. Größenklasse → Kategorie-Zugang entscheiden und ggf. verdrahten (weiterhin offen seit M1.3, s. o.).
 4. Podest-Typen nachziehen (Übergang, Kreuzung, Rast, Hub – aus der ursprünglichen M1.2-Liste
-   zurückgestellt, s. „Was halb fertig ist"): `platform.js#kind` kennt bisher nur
-   „standard"/„transition"/„junction" (M2a); ob M3s Builder-Modus eigene Podest-Typen ohnehin
-   mitbringt, ist eine Frage für Aufgabe 1.
-5. Touch-Steuerung von „bewusst einfach" zu „richtig nutzbar" ausbauen (M2b hat nur das Nötigste
-   verdrahtet, s. „Offen / Provisorisch" – größere Tastatur, Geräte-Tuning, ein echtes Einstellungs-Panel
-   dafür sind explizit zurückgestellt), falls M3 mobile/Tablet-Spielweise überhaupt vorsieht.
+   zurückgestellt, s. „Was halb fertig ist"): `platform.js#kind` kennt weiterhin nur
+   „standard"/„transition"/„junction" – der M3a-Builder fügt bewusst keine neuen Podest-Bautypen hinzu.
+5. Autoplay-Sturz-Grenze (s. „Was halb fertig ist"/„Bekannte Bugs"): der Bot presst im Sturz nie
+   „Retter [E]" oder „Atmen [R]" – ein kleiner, gezielter Fix in `js/game/autoplay.js`s
+   Sturzbehandlung (Retter drücken, sobald `canRescue` UND Kraft leer sind) würde sowohl den normalen
+   `?autoplay=1`-Smoke-Test als auch künftige Builder-Begehungen robuster machen, ist aber ein eigener,
+   von M3 unabhängiger Auftrag.
 
 ## Offen / Provisorisch
 - ~~M2b-Autoplay-Recheck ausstehend~~ – vom Lead nachgeholt (2026-08-26): blue-1 `done` 5/5, 0 Stürze,
@@ -887,11 +998,20 @@ Manuelle Smoke-Checkliste: `docs/testing.md`.
 **`?npc=0`** (Gäste komplett deaktivieren, M1.6) · **`?map=1`** (Course Map beim Boot öffnen, M1.4,
 für Screenshots) · **`?options=1`** (Pause/Optionen beim Boot öffnen, M1.7, für Screenshots – blendet
 eine sonst gleichzeitig sichtbare Kassa aus) · **`?touch=1`** (M2b: Touch-Overlay erzwingen, auch ohne
-`pointer: coarse`-Gerät) ·
+`pointer: coarse`-Gerät) · **`?builder=1`** (M3a: direkt in den Builder statt zur Kassa booten) ·
+**`?autowalk=<routeId>`** (M3a: zusammen mit `?builder=1` – startet sofort die Begehung dieser Route mit
+dem `?autoplay=1`-Bot, z. B. `?builder=1&autowalk=blue-1&fast=1`) ·
 `window.WIPFEL` = {loop, physics, scene, camera, renderer, rng, input, events, terrain, forest, sky,
 wind, player, parkDef, course, **signs**, belay, hud, interaction, vitals, session, save, autoplay,
 kassa, briefing, stampCard, ticket, **options**, **parkBoard, courseMap, occupancy, agents, guestRig**,
-**accidentReport, photoMode, headlamp, lampions, touchControls** (M2b), debug}.
+**accidentReport, photoMode, headlamp, lampions, touchControls** (M2b), **builder** (M3a), debug}.
+**M3a:** **`WIPFEL.builder.mode`** (`"closed"|"editing"|"walking"`), **`WIPFEL.builder.enter()`**/
+**`exit()`** (dasselbe wie die „Park builder"-Zeile im Optionsbildschirm / Esc), **`WIPFEL.builder.
+startAutowalk(routeId)`** (der `?builder=1&autowalk=`-Pfad, auch von Hand aufrufbar),
+**`WIPFEL.builder.requestAbortWalk()`** (bricht eine laufende Begehung ab, ohne die Route zu öffnen).
+Der Entwurf selbst (`draft`) ist bewusst **nicht** auf `WIPFEL.builder` exponiert (nur der
+Zustandsautomat) – Einblick über die DOM-UI (`.builder-route-row`, `.builder-issue`, …) oder
+`WIPFEL.save.data.customPark` nach einem Edit (jede Editier-Aktion persistiert sofort).
 Skripten/Testen: `WIPFEL.player.teleport(x, y, z)`, `WIPFEL.player.setState("ground")`,
 `WIPFEL.course.{anchors, elements, platforms, graph, zipline, zipLanding, zipPlan}`,
 `WIPFEL.course.elements[i].getEntryAnchor().stand`,

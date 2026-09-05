@@ -1,5 +1,5 @@
 // URL parameters → runtime flags. ?debug=1 ?autoplay=1 ?seed=42 ?fast=1 ?locale=de ?kassa=1 ?briefing=0
-// ?npc=0 ?map=1 ?options=1 ?routes=6 ?touch=1
+// ?npc=0 ?map=1 ?options=1 ?routes=6 ?touch=1 ?builder=1 ?autowalk=<routeId>
 import { BELAY_MODES, DEFAULTS } from "../config.js";
 
 export function readParams(search = location.search) {
@@ -30,5 +30,10 @@ export function readParams(search = location.search) {
     // M2b: force the touch overlay on for desktop testing (js/ui/touch-controls.js) – normally it only
     // appears on a `pointer: coarse` device (matchMedia).
     touch: flag("touch"),
+    // M3a builder (js/builder/builder.js): boot straight into builder mode instead of the kassa –
+    // `?autowalk=<routeId>` additionally starts that route's walkthrough with the `?autoplay=1` bot
+    // immediately (verification/testing, GDD §4's walkthrough obligation with no human at the keyboard).
+    builder: flag("builder"),
+    autowalk: q.get("autowalk") || null,
   });
 }

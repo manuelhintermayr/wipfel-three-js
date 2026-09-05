@@ -1,0 +1,175 @@
+/* Builder mode (M3a, GDD §4/§5): left = route list, right = inspector, bottom = toolbar + tool panels.
+   Same dark-panel language as css/screens.css's kassa/options sheets, laid out with position:absolute
+   the way every other full-mode overlay in this file already is (course map, options). */
+
+.builder-ui { position: absolute; inset: 0; }
+.builder-ui[hidden] { display: none; }
+/* Unlike every other full-screen overlay here (kassa/options/course-map are modal and WANT to catch
+   every click), the builder is not modal – drag-to-pan needs clicks in the empty middle of the screen
+   to reach the canvas underneath (js/builder/builder-camera.js listens on the renderer's own element).
+   css/base.css's `#overlay > * { pointer-events: auto; }` would otherwise make this full-screen div
+   itself the hit target everywhere a panel is not; each actual panel below re-enables pointer-events on
+   itself, so clicking a panel still works fine. */
+#overlay > .builder-ui { pointer-events: none; }
+
+/* Builder replaces the whole HUD while editing (GDD "HUD replaced by builder UI") – same pattern
+   css/screens.css's course-map-open rule already uses for its own full-mode overlay. Walking (the
+   walkthrough) does NOT get this class – the point there is the ordinary climbing HUD. */
+.builder-editing-active .hud-route, .builder-editing-active .hud-ticket, .builder-editing-active .hud-flow,
+.builder-editing-active .hud-prompt, .builder-editing-active .hud-vitals, .builder-editing-active .hud-speed,
+.builder-editing-active .hud-tip, .builder-editing-active .board-prompt { visibility: hidden; }
+
+.builder-hint {
+  position: absolute; left: 50%; top: var(--hud-pad); transform: translateX(-50%);
+  font: 600 0.72rem/1 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--hud-muted); background: var(--hud-bg); border: 1px solid var(--hud-line);
+  border-radius: var(--radius); padding: 0.35rem 0.9rem; pointer-events: none;
+}
+
+.builder-route-list, .builder-inspector {
+  position: absolute; top: calc(var(--hud-pad) + 2.2rem); bottom: calc(var(--hud-pad) + 4.2rem);
+  width: 17.5rem; overflow-y: auto; pointer-events: auto;
+  background: var(--hud-bg-strong); border: 1px solid var(--hud-line); border-radius: var(--radius);
+  padding: 0.8rem 0.9rem;
+}
+.builder-route-list { left: var(--hud-pad); }
+.builder-inspector { right: var(--hud-pad); }
+.builder-route-list h3, .builder-section h3 {
+  font: 700 0.72rem/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--hud-accent); margin: 0 0 0.5rem;
+}
+
+.builder-route-rows { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.6rem; }
+.builder-route-row {
+  display: flex; align-items: center; gap: 0.45rem; text-align: left; cursor: pointer;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--hud-line); border-left: 3px solid var(--c, var(--cat-blue));
+  border-radius: var(--radius); padding: 0.4rem 0.55rem; color: var(--hud-text); font-family: var(--font-ui);
+}
+.builder-route-row.selected { background: rgba(255,255,255,0.12); }
+.builder-cat-symbol { color: var(--c, var(--cat-blue)); font-size: 1rem; line-height: 1; }
+.builder-route-row-name, .builder-route-name { flex: 1 1 auto; font: 600 0.78rem/1.3 var(--font-ui); }
+.builder-inspector-head { display: flex; align-items: center; gap: 0.5rem; border-left: 3px solid var(--c, var(--cat-blue)); padding-left: 0.5rem; margin-bottom: 0.7rem; }
+.builder-inspector-head .builder-cat-symbol { font-size: 1.2rem; }
+.builder-inspector-head .builder-route-name { font: 700 0.95rem/1.2 var(--font-display); letter-spacing: 0.02em; }
+
+.builder-status { font: 600 0.6rem/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; padding: 0.22em 0.5em; border-radius: var(--radius); white-space: nowrap; }
+.builder-status-draft { background: rgba(224,86,76,0.22); color: var(--hud-danger); }
+.builder-status-needsWalkthrough { background: rgba(240,163,58,0.22); color: var(--hud-warn); }
+.builder-status-open { background: rgba(88,197,107,0.22); color: var(--hud-ok); }
+
+.builder-park-warning { font: 500 0.72rem/1.35 var(--font-ui); color: var(--hud-danger); margin: 0.4rem 0; }
+.builder-add-route { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin: 0.5rem 0; }
+.builder-form-label { font: 600 0.68rem/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--hud-muted); }
+.builder-category-pill {
+  width: 1.9rem; height: 1.9rem; border-radius: 50%; display: grid; place-items: center;
+  background: var(--hud-bg); border: 2px solid var(--c, var(--hud-line)); color: var(--c, var(--hud-text));
+  cursor: pointer; font-size: 1rem;
+}
+/* A filled background (category colour) would make the black category's own near-black symbol
+   disappear against dark text – a glow ring instead keeps the symbol legible in its own colour on
+   every category, black included. */
+.builder-category-pill.selected { box-shadow: 0 0 0 2px var(--c, var(--hud-accent)); background: var(--hud-bg-strong); }
+.builder-category-pill.small { width: 1.6rem; height: 1.6rem; font-size: 0.85rem; }
+
+.builder-empty, .builder-empty-small { color: var(--hud-muted); font: 400 0.8rem/1.4 var(--font-ui); }
+.builder-empty-small.ok { color: var(--hud-ok); }
+
+.builder-section { margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px solid var(--hud-line); }
+.builder-section:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+.builder-axes { display: flex; flex-direction: column; gap: 0.3rem; }
+.builder-axis-row { display: grid; grid-template-columns: 6rem 1fr 2rem; align-items: center; gap: 0.5rem; }
+.builder-axis-label { font: 500 0.68rem/1 var(--font-ui); color: var(--hud-muted); text-transform: capitalize; }
+.builder-axis-track { height: 0.4rem; background: rgba(255,255,255,0.08); border-radius: var(--radius); overflow: hidden; }
+.builder-axis-fill { height: 100%; background: var(--hud-accent); }
+.builder-axis-value { font: 600 0.72rem/1 var(--font-display); text-align: right; font-variant-numeric: tabular-nums; }
+
+.builder-dramaturgy { display: flex; align-items: flex-end; gap: 0.3rem; height: 72px; }
+.builder-dram-col { flex: 1 1 auto; display: flex; justify-content: center; }
+.builder-dram-bar { width: 100%; max-width: 1.1rem; background: var(--hud-accent); border-radius: 2px 2px 0 0; }
+.builder-dram-bar.zip { background: #3fa7ff; }
+
+.builder-facts { display: flex; flex-wrap: wrap; gap: 0.9rem; margin-bottom: 0.5rem; }
+.builder-fact { min-width: 4.2rem; }
+.builder-fact b { display: block; font: 700 1rem/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.builder-fact span { font: 600 0.6rem/1.6 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--hud-muted); }
+.builder-fact.warn b { color: var(--hud-warn); }
+.builder-rescuer-note { font: 400 0.7rem/1.4 var(--font-ui); color: var(--hud-muted); font-style: italic; }
+
+.builder-issues-section h3 { color: var(--hud-danger); }
+.builder-issues { display: flex; flex-direction: column; gap: 0.3rem; }
+.builder-issue { font: 500 0.72rem/1.35 var(--font-ui); color: var(--hud-danger); border-left: 2px solid var(--hud-danger); padding-left: 0.45rem; }
+
+.builder-toolbar {
+  position: absolute; left: 50%; bottom: var(--hud-pad); transform: translateX(-50%);
+  display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center; pointer-events: auto; max-width: 90vw;
+}
+.builder-tool-btn.active { background: var(--hud-accent); color: #0d1210; border-color: var(--hud-accent); }
+.builder-walk-btn { background: var(--hud-ok); color: #0d1210; border-color: var(--hud-ok); }
+.builder-walk-btn:disabled { background: var(--hud-bg); color: var(--hud-text); }
+
+.builder-tool-area {
+  position: absolute; left: 50%; bottom: calc(var(--hud-pad) + 3.4rem); transform: translateX(-50%);
+  width: min(30rem, 92vw); max-height: 40vh; overflow-y: auto; pointer-events: auto;
+  background: var(--hud-bg-strong); border: 1px solid var(--hud-line); border-radius: var(--radius);
+  padding: 0.8rem 0.9rem;
+}
+.builder-panel h3 { font: 700 0.72rem/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--hud-accent); margin: 0 0 0.5rem; }
+
+.builder-tree-list, .builder-platform-list, .builder-element-list { display: flex; flex-direction: column; gap: 0.35rem; }
+.builder-tree-row {
+  display: flex; align-items: center; gap: 0.5rem; text-align: left; cursor: pointer;
+  background: rgba(255,255,255,0.05); border: 1px solid var(--hud-line); border-radius: var(--radius);
+  padding: 0.35rem 0.6rem; color: var(--hud-text); font-family: var(--font-ui);
+}
+.builder-tree-row.weak, .builder-tree-row:disabled { opacity: 0.5; cursor: not-allowed; }
+.builder-tree-species { font: 600 0.75rem/1 var(--font-ui); min-width: 4.5rem; }
+.builder-tree-meta { flex: 1 1 auto; font: 400 0.7rem/1.3 var(--font-ui); color: var(--hud-muted); }
+.builder-health-pip { font: 700 0.65rem/1 var(--font-display); padding: 0.15em 0.45em; border-radius: var(--radius); }
+.builder-health-pip.good { background: rgba(88,197,107,0.22); color: var(--hud-ok); }
+.builder-health-pip.ok { background: rgba(240,163,58,0.22); color: var(--hud-warn); }
+.builder-health-pip.weak { background: rgba(224,86,76,0.22); color: var(--hud-danger); }
+
+.builder-platform-row, .builder-element-row { display: flex; align-items: center; gap: 0.5rem; }
+.builder-platform-index, .builder-element-index { min-width: 1.6rem; font: 600 0.72rem/1 var(--font-display); color: var(--hud-muted); }
+.builder-platform-kind { flex: 1 1 auto; font: 500 0.72rem/1.3 var(--font-ui); color: var(--hud-muted); text-transform: capitalize; }
+.builder-height-input { width: 4rem; font: 600 0.78rem/1 var(--font-mono); background: var(--hud-bg); color: var(--hud-text); border: 1px solid var(--hud-line); border-radius: var(--radius); padding: 0.25em 0.4em; }
+.builder-unit { font: 500 0.68rem/1 var(--font-ui); color: var(--hud-muted); }
+.builder-element-row select { flex: 1 1 auto; font: 500 0.75rem/1.3 var(--font-ui); background: var(--hud-bg); color: var(--hud-text); border: 1px solid var(--hud-line); border-radius: var(--radius); padding: 0.3em 0.4em; }
+.btn.small { padding: 0.35em 0.65em; font-size: 0.7rem; }
+.btn.warn { border-color: var(--hud-danger); color: var(--hud-danger); }
+
+.builder-form-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; }
+.builder-form-row input[type="text"] { flex: 1 1 auto; font: 500 0.8rem/1.3 var(--font-ui); background: var(--hud-bg); color: var(--hud-text); border: 1px solid var(--hud-line); border-radius: var(--radius); padding: 0.35em 0.5em; }
+.builder-category-pills { display: flex; gap: 0.35rem; }
+
+/* Flying-Fox tool (js/builder/builder-zip-tool.js) */
+.builder-zip-dock { position: absolute; left: 50%; bottom: calc(var(--hud-pad) + 3.4rem); transform: translateX(-50%); pointer-events: auto; }
+.zip-tool { width: min(20rem, 92vw); background: var(--hud-bg-strong); border: 1px solid var(--hud-line); border-radius: var(--radius); padding: 0.8rem; text-align: center; }
+.zip-tool[hidden] { display: none; }
+.zip-tool-title { font: 700 0.72rem/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--hud-accent); margin-bottom: 0.5rem; }
+.zip-tool canvas { border-radius: var(--radius); cursor: crosshair; }
+.zip-tool-readout { margin-top: 0.5rem; font: 600 0.72rem/1.4 var(--font-ui); color: var(--hud-text); }
+.zip-tool-readout.bad { color: var(--hud-danger); }
+.zip-tool-hint { margin-top: 0.25rem; font: 400 0.68rem/1.3 var(--font-ui); color: var(--hud-muted); }
+.zip-tool-actions { margin-top: 0.6rem; }
+
+/* Walkthrough obligation (GDD §4 "Inspektion vor Inbetriebnahme") – top-centre so it never collides
+   with the bottom-centre briefing/park-board prompts, visible while the builder's own UI is hidden. */
+.builder-walk-banner {
+  position: absolute; left: 50%; top: var(--hud-pad); transform: translateX(-50%);
+  background: var(--hud-accent); color: #0d1210; font: 700 0.8rem/1 var(--font-display);
+  letter-spacing: 0.12em; text-transform: uppercase; padding: 0.5rem 1.1rem; border-radius: var(--radius);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.4);
+}
+.builder-walk-banner[hidden] { display: none; }
+
+/* Both are direct children of #overlay – css/base.css's `#overlay > * { pointer-events: auto; }` beats a
+   plain class selector on specificity alone (1 ID > 1 class), so the click-through these two need has
+   to win on an ID-qualified selector instead, or the label layer silently eats every click underneath it. */
+#overlay > .builder-walk-banner, #overlay > .builder-label-layer { pointer-events: none; }
+
+.builder-label-layer { position: fixed; inset: 0; z-index: 5; }
+.builder-label {
+  position: absolute; transform: translate(-50%, -50%); font: 600 0.68rem/1 var(--font-mono);
+  color: var(--hud-text); background: rgba(13,18,16,0.72); border-radius: 2px; padding: 0.1em 0.35em; white-space: nowrap;
+}

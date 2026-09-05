@@ -15,8 +15,10 @@ import {
 // the note at the top of js/elements/catalogue-data.js). Keep the two numbers in sync by hand.
 const ZIP_HARDWARE = Object.freeze({ cableHeight: 2.05, seatDrop: 2.02 });
 /** Loader-side gradient window (RESEARCH-DATA §6: "3–6 % Gefälle") – wider than zip-plan.js's own
- *  4.5–6 % default, which was tuned for the single hand-built M0 course. */
-const ZIP_GRADIENT = Object.freeze({ min: 0.03, max: 0.06, ideal: 0.045 });
+ *  4.5–6 % default, which was tuned for the single hand-built M0 course. Exported so the M3 builder
+ *  (js/builder/builder-state.js) can refuse the same window live while dragging a landing point,
+ *  instead of duplicating the two numbers. */
+export const ZIP_GRADIENT = Object.freeze({ min: 0.03, max: 0.06, ideal: 0.045 });
 /**
  * Umsetzstation (ROADMAP M2b, GDD §3.6 "Umsetzstationen (Zwischenpodeste, Rolle wechseln)"): a black
  * route that manages to chain a second, independently validated Flying Fox leg off its first leg's own
@@ -141,8 +143,11 @@ function assignDeckHeights({ category, chainLength, rng, startHeight = null }) {
   return heights;
 }
 
-/** Entry deck position (an estimate – see ENTRY_DECK_OFFSET) and the shared entry/platform-1 facing. */
-function buildEntry(firstTree, spawnHub) {
+/** Entry deck position (an estimate – see ENTRY_DECK_OFFSET) and the shared entry/platform-1 facing.
+ *  Exported for js/builder/builder-state.js: a hand-added route's first platform needs the exact same
+ *  "face the hub" convention a generated route's does, or the loader would hand the entry deck a
+ *  facing that never matches the ladder side. */
+export function buildEntry(firstTree, spawnHub) {
   const facing = Math.atan2(spawnHub.x - firstTree.x, spawnHub.z - firstTree.z);   // tree → hub yaw
   return {
     x: firstTree.x + Math.sin(facing) * ENTRY_DECK_OFFSET,

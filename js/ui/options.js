@@ -21,15 +21,16 @@ const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 
 /**
  * @param {{ root: HTMLElement, save, input, camera, loop, ticket?, onEndDay: () => void,
- *   onCourseMap: () => void, renderer?, sky?, forest?, groundDetail? }} options
+ *   onCourseMap: () => void, onBuilder?: () => void, renderer?, sky?, forest?, groundDetail? }} options
  *   `camera` is the player's camera controller (`player.camera`, exposes `setReducedMotion`).
  *   `ticket` (optional) is the pure clock (js/game/ticket.js) – only its `.started` getter is read,
  *   to grey out "End day" when no ticket is running. `renderer`/`sky`/`forest`/`groundDetail` (M2b,
  *   all optional) are what the Graphics section actually adjusts – omit any of them and that one part
- *   of a preset silently does nothing, exactly like `ticket` above.
+ *   of a preset silently does nothing, exactly like `ticket` above. `onBuilder` (M3a, optional): shows
+ *   the "Park builder" menu row at all – omit it (older dev harnesses, tests) and the row never appears.
  * @returns {{ visible: boolean, open(): void, close(): void, toggle(): void, applyAll(): void, dispose(): void }}
  */
-export function createOptions({ root, save, input, camera, loop, ticket = null, onEndDay, onCourseMap, renderer = null, sky = null, forest = null, groundDetail = null }) {
+export function createOptions({ root, save, input, camera, loop, ticket = null, onEndDay, onCourseMap, onBuilder = null, renderer = null, sky = null, forest = null, groundDetail = null }) {
   const screen = el("div", "screen options-screen");
   screen.hidden = true;
   const sheet = el("div", "panel options-sheet");
@@ -102,6 +103,9 @@ export function createOptions({ root, save, input, camera, loop, ticket = null, 
     const active = !!(ticket && ticket.started);
     endDayBtn.disabled = !active;
     menu.appendChild(endDayBtn);
+    // M3a (GDD §4 "Betreiber-Gameplay"): the builder replaces the whole screen itself, so this just
+    // closes the pause panel and hands off – js/main.js wires `onBuilder` to `builder.enter()`.
+    if (onBuilder) menu.appendChild(button(t("options.builder"), () => { api.close(); onBuilder(); }));
     wrap.appendChild(menu);
     if (!active) wrap.appendChild(el("div", "opt-note", t("options.noActiveDay")));
     return wrap;

@@ -1270,3 +1270,276 @@ ride) reads one action model regardless of input source – no touch-awareness n
 No remapping, no haptics, no per-device tuning pass; verified via direct `pointerdown`/`pointerup`
 dispatch (button `down` class + `input.down("clip")` both flip correctly) rather than a real touch
 device.
+
+## Builder (M3a – first half of "Der Betreiber", GDD §4)
+
+ADR-003's whole premise pays off here: the builder is an editor for the exact same `parkDef` shape
+`js/park/layout.js#generateParkLayout` emits, so `js/park/loader.js#loadPark` never needed a single
+change to also build a hand-edited park. Reached via the options screen's "Park builder" row or
+`?builder=1` (boot straight into it, no kassa – `?autowalk=<routeId>` additionally starts that route's
+walkthrough with the `?autoplay=1` bot, for verification/testing without a human at the keyboard).
+
+### `js/builder/survey-trees.js` (pure)
+```js
+surveyTrees(terrain, rng, { count?, exclude?: Array<{x,z}>, excludeRadius? }) →
+  Array<{ id, x, z, species, height, trunkRadius, health }>   // health 0..1
+```
+GDD §4's "Beginn im Winter mit Baumliste (Art, Durchmesser, Gesundheit)": a deterministic grid scan
+(`SURVEY.gridStep` metres, jittered) of the terrain, rejecting cells that fail the same hub/path/slope
+rules `js/park/layout-validate.js`/`js/world/forest-placement.js` already use, each surviving cell
+getting a made-up-but-reproducible `health` (documented invention – GDD gives no real formula).
+`SURVEY.minHealthForPlatform` (0.55) is the GDD's "dünne/kranke tragen kein Podest" gate. Deliberately
+independent of the *live* `forest` instancing (a survey candidate does not need to already exist as a
+rendered tree – see `js/builder/builder-state.js`'s own header for why that is fine).
+
+### `js/builder/builder-validate.js` (pure)
+```js
+validateRoute(route, { terrain, heroTrees, otherRouteTreeIndexes }) → { ok, issues: [{code, target, data}] }
+validatePark({ heroTrees }) → { ok, issues }   // just the maxTotalPlatforms cap, park-wide
+```
+Re-runs `js/park/layout-validate.js`'s own predicates (span, deck window/rise, hub/path/route
+clearance, category exclude/metric budget, zip gradient window, zip landing clearance) plus the
+health/platform-count/zip-existence checks the generator never had to make because it always emits a
+complete route. One subtlety earned the hard way (a unit test caught it, see "Verified" below): the
+zip-landing tree-clearance check is scoped to `heroTrees` **up to and including this route's own last
+platform** (`Math.max(...treeIndex) + 1`), never the whole park – `js/park/layout-route.js#buildZip`
+only ever validated a route's landing against the trees that existed *before* it at generation time
+(`tests/unit/layout.test.mjs`'s own "replay that same prefix" comment), so checking against every
+route – including ones generated/added *after* – would flag long-valid routes the moment an unrelated
+later route's tree happened to land within range. `issue.code` is a bare string (`weakTree`,
+`deckHeightOutOfWindow`, `spanOutOfRange`, `zipGradientOutOfRange`, `missingZip`, …) with plain `data`;
+`js/builder/builder-inspector.js` turns that into `t("builder.issue.<code>", data)`.
+
+### `js/builder/builder-state.js` (pure – the draft data model)
+```js
+createBuilderDraft({ parkDef, terrain, rng, walkedStatus?: Record<string, boolean> }) → {
+  heroTrees, routes /* view: def + state + issues + walked */, candidates,
+  getRoute(id), parkStatus(), availableEdgeKinds(category),
+  aggregateAxes/dramaturgyCurve/variationScore/jamRisk/estimate(routeId),   // → js/builder/builder-metrics.js
+  addRoute(category), removeRoute(id),
+  addPlatform(routeId, candidateId), removePlatform(routeId), movePlatform(routeId, platformId, candidateId),
+  setDeckHeight(routeId, platformId, height), setEdgeKind(routeId, edgeId, kind),
+  setCategory(routeId, category), setRouteName(routeId, name),
+  evaluateZip(routeId, landing) → live read-out, commitZip(routeId, landing),
+  canWalk(routeId), markWalked(routeId), revalidate(routeId),
+  toParkDef(), serialize() → { schema, parkDef, routeStatus },
+}
+```
+Clones `parkDef` once (`heroTrees[i]` gains a builder-only `health`, default 1 for anything the
+generator already placed; every route gains a builder-only `_status = { walked, issues }`, stripped by
+`toParkDef()`). **State derivation, not a stored flag**: `route.state` is `"draft"` whenever
+`issues.length > 0`, else `"open"` if `walked` else `"needsWalkthrough"` – a route can never show "open"
+while it has a live violation, even if it was walked before the edit that broke it. Every *structural*
+edit (platform/edge/zip/category) calls `markDirty()`, which resets `walked = false` and re-validates –
+GDD's walkthrough obligation re-opens the moment anything could have changed what a climber meets;
+`setRouteName()` is the one exception (cosmetic, never resets `walked`). A fresh draft off an
+**untouched, already-shipped** parkDef starts every route `needsWalkthrough` regardless – the operator
+inspecting a park for the first time has not personally walked any of it yet either, generated or not.
+
+**Tree candidates**: `draft.candidates` is `heroTrees` (tagged `existing:true`, id `"tree:<index>"`) +
+the not-yet-adopted half of a lazily-built `surveyTrees()` pool (id = the survey candidate's own id,
+excluded from re-offering anything within `BUILDER.candidateExcludeRadius` of an existing tree).
+`addPlatform`/`movePlatform` resolve either id shape through `resolveTreeIndex()`, which **grows**
+`heroTrees` the first time a survey candidate is actually used (mirrors `js/park/layout.js` growing its
+own `heroTrees` one route at a time) and throws if the candidate's `health` is under the gate – a
+weak tree is refused at the edit call, not just flagged afterwards.
+
+**Chains only ever grow/shrink from the end**: `addPlatform` appends (and, on a route's very first
+platform, also sets `entry` via the newly-exported `js/park/layout-route.js#buildEntry` – same "face the
+hub" convention a generated route's first platform gets); `removePlatform` pops the last one and its
+incoming edge. `movePlatform` re-points *any* existing platform to a different tree without touching its
+position in the chain. All three refuse a `kind: "junction"` platform (ROADMAP M2a's shared-platform
+routes) – the builder never creates junctions of its own, but must not silently corrupt one it inherited
+from the generated park; `removeRoute` separately refuses to delete a route that **hosts** another
+route's junction platform (`hostsAJunction`).
+
+**Zip tool**: `evaluateZip` never mutates the draft – it re-derives departure height from
+`terrain.heightAt(tree)+deckHeight`, checks the 3–6 % window (`js/park/layout-route.js#ZIP_GRADIENT`,
+now exported instead of duplicated) and landing clearance, and runs a *real* `js/zipline/physics.js
+#createZipPhysics` simulation (`push()` then fixed-step `update()` until done/stalled/`zipMaxSimSeconds`)
+for the predicted arrival speed – the same model an actual ride uses, not a fudge. `commitZip` re-checks
+`evaluateZip(...).ok` before writing `route.zip` in the exact shape `layout-route.js#buildZip` produces.
+
+**Export/persistence**: `toParkDef()` strips `_status` and **filters out any route with `entry == null`**
+(a freshly `addRoute()`d route with zero platforms) – `js/park/loader.js` needs at least an entry deck to
+build a route at all, and `js/main.js#rebuildFromParkDef` applies the *whole* draft every time any one
+route is walked, so one half-started route must never break every other, already-valid one. A route with
+exactly one platform (`entry` set, no edges/zip) *is* included – `loadPark` already tolerates that (a bare
+platform + ladder, no exercises, no Flying Fox – the same tolerant path it takes for any route whose
+generator-side zip search failed). `serialize()` → `{ schema: 1, parkDef, routeStatus }` is exactly
+`js/core/save.js#data.customPark`'s shape; nothing else needs to be persisted – re-running `surveyTrees`
+against a restored `heroTrees` list naturally re-excludes every already-adopted position via the same
+`exclude`/`excludeRadius` mechanism, and platform/edge/route id counters are always derived fresh from
+current array lengths (append-only chains, never renumbered), so there is nothing else to remember.
+
+**Literal route names without a new i18n mechanism**: `setRouteName()` writes the literal text straight
+into `route.nameKey` – every existing consumer (`t(route.nameKey)` in `hud-route.js`, `signs.js`,
+`stamp-card.js`, `course-map.js`, …) already falls back to rendering an unresolved key verbatim
+(`js/core/i18n.js#t`'s documented "missing key renders as the key" rule), so a hand-typed name simply
+never matches a dictionary entry and prints exactly as typed – zero changes needed anywhere else.
+`addRoute()` seeds a fresh custom route's `nameKey` with its own id (`"custom-blue-1"`) for the same
+reason: a readable, honest placeholder until renamed, not a broken-looking i18n key.
+
+### `js/builder/builder-metrics.js` (pure)
+`aggregateAxes(route)` (sum of the four 0–5 axes across every edge), `dramaturgyCurve(route)` (one bar
+per edge – deck height + metric sum – plus a final zip bar, `isZip: true`), `variationScore(route)`
+(1.0 minus the fraction of adjacent same-kind edges), `jamRisk(route)` (longest run of consecutive
+`discrete` kinds – GDD's "Staurisiko"), `estimate(route, heroTrees)` (reuses `js/game/route.js
+#routesFromPark` for length/height/par-time instead of a second copy of that formula). Split out of
+`builder-state.js` purely to keep that file's own size down – no draft mutation happens here either.
+
+### `js/builder/builder-camera.js` (THREE)
+Top-down orbit: WASD/drag pans a ground-plane focus point, wheel zooms (`distance`, clamped), Q/E
+(`handL`/`interact` actions – safe to reuse, gameplay's own consumers of those never run while the
+builder owns input, see `js/main.js` below) rotates yaw at a fixed, steep pitch (`BUILDER_CAMERA.
+pitchDeg`). Drag-pan and wheel-zoom are the module's *own* raw `pointerdown`/`wheel` listeners on
+`renderer.domElement` (never the shared `Input` class – a free cursor over the canvas is exactly what
+builder mode has and gameplay never does, so pointer lock is never requested here).
+
+### `js/builder/builder-overlays.js` (THREE)
+`setCandidates(points)` – one `THREE.InstancedMesh` of small cone markers, coloured green/grey/red
+(ok/weak/conflict – `js/builder/builder.js#candidateGeometry` decides the colour, a coarse
+`farFromOtherRoutes` distance check against every current hero tree, purely a visual hint, never the
+actual gate). `setRoute(route|null)` – the selected route's lifeline as a `THREE.Line` (category colour)
+through instanced platform-position spheres, drawn straight from **draft** data so a brand-new,
+not-yet-built route previews correctly before the world ever rebuilds around it; a zip segment (if
+placed) draws as a separate dashed blue line. `getLabels()` returns world-space span-length label data
+(text + position) for every segment; `js/builder/builder.js`'s own small screen-space `<span>` pool
+projects them every frame (`Vector3.project(camera)`) – the *only* DOM this otherwise-pure-THREE module
+touches is none at all, the label layer lives in the orchestrator.
+
+### `js/builder/builder-zip-tool.js` (DOM + 2-D canvas)
+GDD §4 "Flying-Fox-Werkzeug zeigt live Gefälle, Durchhang, Ankunftstempo": a small top-down canvas
+centred on the departure platform (fixed `worldRadius` covering the 40–56 m search window), click/drag
+aims a landing point, `context.evaluate(landing)` (wired to `draft.evaluateZip`) drives a live
+length/gradient/arrival-speed readout and a green/red aim line; "Place" calls `context.onCommit(landing)`
+only once `evaluated.ok`. A flat 2-D canvas rather than a 3-D drag on the terrain mesh: precise 3-D
+picking through `js/builder/builder-camera.js`'s orbit view is fiddly at this scale, and this project
+already renders top-down maps exactly this way (`js/ui/map-render.js`).
+
+### `js/builder/builder-inspector.js` + `builder-tool-panels.js` + `builder-ui.js` (DOM)
+Split along the GDD's own toolbar/inspector line: the **inspector** (`builder-inspector.js`) is a
+read-only render of one route's `aggregateAxes`/`dramaturgyCurve`/`variationScore`/`jamRisk`/`estimate`
+plus its `issues` – no draft mutation happens here. The **tool panels** (`builder-tool-panels.js`) are
+four stateless "data + `dispatch(action)` → DOM" builders (Trees – candidate list sorted by distance
+from the route's last platform, health-gated rows; Platforms – per-platform deck-height input + Move/
+Remove-last; Elements – per-edge kind `<select>` restricted to `availableEdgeKinds(category)`; Category
+& Name) the toolbar swaps into one popover area. **`builder-ui.js`** is the stateless shell (route list,
+inspector dock, toolbar, the swappable tool-area, the zip tool's dock, the persistent walkthrough
+banner) – every click anywhere in here only ever calls the single `dispatch(action)` callback
+`js/builder/builder.js` owns; nothing in this trio mutates the draft directly. Category chips/route-row
+accents read `js/ui/map-render.js#mapColourOf`/`cssHex` (not the category's own `--cat-*` CSS variable)
+for the same reason the course map already needs it: the "black" category's real colour is itself
+near-black and disappears against these same dark panels without the map's existing light-grey stand-in.
+
+### `js/builder/builder.js` (orchestration)
+```js
+createBuilder({ scene, terrain, rng, player, camera, renderer, input, events, loop, save, ticket, kassa,
+  briefing, belay, hud, root, world }) →
+  { mode /* "closed"|"editing"|"walking" */, enter(), exit(), startAutowalk(routeId), requestAbortWalk(),
+    onInputPhase(frameDt), onRenderPhase(dt), dispose() }
+```
+`world` is four callbacks `js/main.js` implements (`getParkDef`, `getCourse`, `getGuests`,
+`getInteraction`, `applyParkDef`) – this module never constructs/disposes course/forest/session/etc.
+itself, only asks for the current one or hands over a finished draft to be applied. Three modes:
+**closed** (normal game). **editing** – `loop.paused = true`, the player rig and guests hidden
+(`document.body.classList.add("builder-editing-active")` also hides the normal HUD via `css/builder.css`,
+the same pattern `course-map-open` already uses), the orbit camera and builder UI own the screen.
+**walking** – the walkthrough obligation itself: `applyIfChanged()` first (only rebuilds if the draft's
+`toParkDef()` actually differs from what is live – a look-around costs nothing), teleports the player onto
+the route's entry deck (`js/game/autoplay.js`'s own "teleport onto the deck, start the ritual for real"
+convention), un-hides the normal HUD, shows the persistent "INSPECTION – walk {name} to open it" banner,
+and tracks completion with a **throwaway** `js/game/route.js#createRouteRun(estimate)` fed by the same
+low-level events `js/game/session.js` listens to (`player:ladder-exit`, `player:element-exit`,
+`zip:finished`) – deliberately *not* wired into the real `session`, so a brand-new custom route never
+needs that module rebuilt just to be walkable. `player:rescued` (or Esc/`requestAbortWalk`) aborts the
+attempt without marking the route open; finishing calls `draft.markWalked()`, persists, and returns to
+editing. `startAutowalk(routeId)` (`?builder=1&autowalk=<id>`) is `enter()` + `selectRoute()` +
+`startWalkthrough({bot:true})`, where the bot is the **existing** `js/game/autoplay.js`, parameterised
+(see below) to walk this one route instead of always course-level "blue-1"; it is handed
+`session: { run }` – the walkthrough's own throwaway run – so `autoplay.js#done()`'s one real dependency
+on a session (`session.run.completedIds`) is satisfied without touching `js/game/session.js` at all.
+
+### `js/game/autoplay.js` (extended)
+`createAutoplay({ …, route? })`: `const routeCtx = route || course;` – every place the bot used to read
+`course.ladderAnchorId`/`.ladder`/`.elements`/`.entryDeck` now reads `routeCtx.*` instead (identical
+field names; `js/park/loader.js#loadPark`'s per-route objects and its course-level "blue-1" spread both
+already expose the same shape). Omitting `route` (every existing `?autoplay=1` call site) is
+behaviour-identical to before.
+
+### `js/game/session.js` (one defensive line)
+`activeRun()`'s nearest-entry-deck fallback is now `runs.get(nearest.id) || shown` instead of a bare
+`runs.get(nearest.id)` – normally guaranteed (this module is always rebuilt from the same parkDef as
+`course`, see `rebuildFromParkDef` below), the fallback is defence in depth for the one instant a course
+rebuild could theoretically outrun this module's own rebuild, not an expected path.
+
+### `js/park/layout-route.js` (two new exports, no behaviour change)
+`ZIP_GRADIENT` (was module-private) and `buildEntry` (the "first platform → entry deck facing the hub"
+helper) – both reused verbatim by `js/builder/builder-state.js` instead of being duplicated.
+
+### `js/core/save.js` (extended)
+```js
+data.customPark = null | { schema: 1, parkDef, routeStatus: Record<string, {walked: boolean}> }
+save.setCustomPark({ parkDef, routeStatus })   // js/builder/builder-state.js#serialize()'s own shape
+save.clearCustomPark()                          // "Reset to generated park"
+```
+Additive, schema-versioned independently of the outer save schema (`CUSTOM_PARK_SCHEMA = 1`);
+`normalize()` only checks the shape is sound enough to hand to `loadPark` (`parkDef.id`/`seed`/
+`heroTrees`/`routes` all present and typed) – it does not re-run geometry validation (that is what
+`js/builder/builder-validate.js` is for, every time the builder is opened), matching every other field's
+"malformed collapses to defaults" rule instead of teaching save.js the generator's own geometry rules.
+
+### `js/main.js` (boot choice + rebuild cascade + loop gating)
+At boot, `save.data.customPark` (already validated) is preferred verbatim over
+`generateParkLayout(...)` – same construction call either way, so nothing downstream needs to know or
+care which. **`rebuildFromParkDef(nextParkDef)`**: disposes and reconstructs, in dependency order,
+`agents`/`guestRig` → `courseMap`/`session`/`interaction`/`parkBoard`/`signs`/`course` → (only if
+`heroTrees.length` grew) `forest`, re-applying whatever graphics preset was already active to the fresh
+instance → `course`/`signs`/`publicParkDef`/`parkBoard`/`interaction`/`session`/`courseMap`/`agents`/
+`guestRig`, all rebuilt with the exact same construction calls `boot()` already made once – every
+formerly-`const` binding in that chain is now `let` so this can reassign them, and `window.WIPFEL`'s
+own debug surface exposes them as getters (`get course() { return course; }`, …) so it never goes stale
+after a rebuild either. `options`'s Graphics section receives a tiny `{ setLodDistances }` forwarding
+proxy instead of the raw `forest` object for the same staleness reason (`forest` itself may be replaced).
+**Loop wiring**: the gameplay phase returns immediately while `builder.mode === "editing"` (physics is
+already not stepping – `loop.paused`) except `agents.update()`, additionally gated on
+`builder.mode === "closed"` so guests stay frozen through "walking" too; the render phase calls
+`builder.onRenderPhase(dt)` instead of `player.render()` while editing, otherwise renders the player
+normally (both "closed" and "walking" – the walkthrough is ordinary gameplay under the hood); the input
+phase calls `builder.onInputPhase(frameDt)` unconditionally (a no-op unless a `?autowalk=` bot is
+walking, but must run before any consumer reads this frame's edges, the same rule `autoplay.update()`
+already follows) and gates photo mode/course map/the plain pause-to-options toggle behind
+`builder.mode === "closed"`, adding two new branches: Esc during "editing" calls `builder.exit()` (the
+same affordance as the toolbar's own Exit button), Esc during "walking" calls
+`builder.requestAbortWalk()` (a manual escape hatch if an attempt gets stuck).
+
+### `css/builder.css`
+Same dark-panel/position:absolute language as `css/screens.css`'s existing overlays, with one structural
+difference: `.builder-ui` (and its `.builder-label-layer`/`.builder-walk-banner` siblings) are *not*
+modal like kassa/options/course-map – drag-to-pan needs clicks in the empty middle of the screen to
+reach `renderer.domElement` underneath. `css/base.css`'s existing `#overlay > * { pointer-events: auto;
+}` rule (an ID selector) otherwise silently wins over any plain class-based `pointer-events: none` on
+these three (a real bug hit during verification: the full-viewport label layer was swallowing every
+click on the toolbar beneath it), so all three are re-overridden with an ID-qualified selector
+(`#overlay > .builder-ui { pointer-events: none; }`) instead.
+
+### Verified (2026-08-27, real Chromium via Playwright MCP)
+Fresh `?builder=1` boot: **0 console errors/warnings, 0 external requests**, all 16 routes listed
+(needsWalkthrough), inspector/axes/dramaturgy render for the default-selected route. A real click
+(toolbar → Category & Name → the Black pill) on blue-1 flips it to **Draft** with four real
+`deckHeightOutOfWindow` issues and disables Walk – caught and fixed one real bug in the process (the
+zip-landing "prefix" scoping above; a unit test written for exactly "every generated route starts
+violation-free" is what surfaced it before this browser pass, then a manual sweep of seeds 1–8 × both
+`PARK_CONFIG`/`PARK_CONFIG_SMALL` confirmed zero false positives afterwards). `?builder=1&autowalk=
+blue-1&fast=1` against a **freshly cleared save**: the bot completes the route,
+`save.data.customPark.routeStatus["blue-1"].walked` flips to `true`, the builder returns to "editing"
+automatically – reproduced twice cleanly (0 console errors/warnings, 0 external requests both times);
+one of three total attempts hit a pre-existing `?autoplay=1` bot limitation (see "Was halb fertig ist" in
+`HANDOVER.md`), not a builder regression. Plain `?autoplay=1&fast=1` (no `?builder=1` at all, fresh save)
+still completes blue-1 normally (**"route completed in 395.20 s · falls 0 · best true"**) with
+`save.data.customPark` staying `null` throughout. The options screen's "Park builder" row and Esc-to-
+exit were also exercised directly (real click, real `KeyDown Escape`) – both flip `builder.mode`/the
+player rig's visibility/`loop.paused` correctly. Screenshots `docs/screenshots/m3-builder.png` (route
+selected, inspector with axes/dramaturgy/facts, 3-D lifeline highlight with span labels visible over the
+terrain), `m3-validate.png` (the Category & Name violation state above) – both < 300 KB (PIL: 760 px
+edge, 112-colour palette).

@@ -11,24 +11,29 @@ const BOT = Object.freeze({
 });
 
 /**
- * @param {{ player, course, interaction, input, events, belay?, session?, kassa?, briefing? }} o –
+ * @param {{ player, course, interaction, input, events, belay?, session?, kassa?, briefing?, route? }} o –
  *   `input` is the real Input; the bot presses synthetic keyboard events on `window` so remapping
  *   still applies. `kassa`/`briefing` (M1.3) are fast-forwarded once, on the very first update, via
  *   their bot hooks – no fragile DOM clicking or scripted walk-to-the-practice-stand navigation.
+ *   `route` (M3a, `?builder=1&autowalk=<id>`): walk this specific route object (js/park/loader.js's
+ *   per-route shape – `ladderAnchorId`/`ladder`/`elements`/`entryDeck`, same field names `course` itself
+ *   exposes at the top level for route "blue-1") instead of the course-level legacy surface – omit it
+ *   and the bot keeps walking blue-1 exactly as it always has.
  * @returns {{ state: string, log: string[], update(dt): void, dispose(): void }}
  */
-export function createAutoplay({ player, course, interaction, events, belay = null, session = null, kassa = null, briefing = null }) {
+export function createAutoplay({ player, course, interaction, events, belay = null, session = null, kassa = null, briefing = null, route = null }) {
+  const routeCtx = route || course;
   const belayAnchor = () => (belay ? belay.currentAnchor() : null);
   const done = (id) => (session ? session.run.completedIds.includes(id) : false);
-  /** The next thing on the route: the ladder, then each unfinished element in course order. */
+  /** The next thing on the route: the ladder, then each unfinished element in route order. */
   function nextStep() {
-    if (!done("ladder")) return { anchorId: course.ladderAnchorId, walkTo: course.ladder.rail.start, elementId: null };
-    for (const element of course.elements) {
+    if (!done("ladder")) return { anchorId: routeCtx.ladderAnchorId, walkTo: routeCtx.ladder.rail.start, elementId: null };
+    for (const element of routeCtx.elements) {
       if (done(element.id)) continue;
       const entry = element.getEntryAnchor();
       return { anchorId: element.lifeline.anchorId, walkTo: entry.stand || entry.position, elementId: element.id };
     }
-    return { anchorId: null, walkTo: course.ladder.rail.start, elementId: null };
+    return { anchorId: null, walkTo: routeCtx.ladder.rail.start, elementId: null };
   }
   const log = [];
   let state = "walk-to-deck";
@@ -39,13 +44,13 @@ export function createAutoplay({ player, course, interaction, events, belay = nu
   const target = new THREE.Vector3();
   // Approach the deck through the free lane: in front of the step, then onto the deck. The lane
   // runs on the deck's local +X half (the bench parks on -X); see js/park/entry-deck.js.
-  const deckGroup = course.entryDeck.group;
+  const deckGroup = routeCtx.entryDeck.group;
   const deckPoint = (x, z) => new THREE.Vector3(x, 0, z).applyEuler(deckGroup.rotation).add(deckGroup.position);
-  // The smoke bot's subject is the COURSE (ritual, ladder, elements, fall, zip), not open-ground
+  // The smoke bot's subject is the route (ritual, ladder, elements, fall, zip), not open-ground
   // steering: it starts on the entry deck (documented shortcut; the approach walk is verified
   // manually – see HANDOVER). Everything from the first clip onwards is played for real.
   const onDeck = deckPoint(0.55, 0.1);
-  player.teleport(onDeck.x, course.entryDeck.top + 0.05, onDeck.z);
+  player.teleport(onDeck.x, routeCtx.entryDeck.top + 0.05, onDeck.z);
   note("shortcut: started on the entry deck");
   let stuckCount = 0;
   let sidestepUntil = 0;
@@ -90,7 +95,7 @@ export function createAutoplay({ player, course, interaction, events, belay = nu
       }
       const step = nextStep();
       const offered = interaction.anchor ? interaction.anchor.id : null;
-      // nextStep() already returns the ladder's own anchor id (course.ladderAnchorId) until the
+      // nextStep() already returns the ladder's own anchor id (routeCtx.ladderAnchorId) until the
       // ladder is done, so the wanted clip target is always just step.anchorId – no route-specific
       // literal here, unlike the old single-route "deck" id.
       const wantedClip = step.anchorId;
@@ -103,7 +108,7 @@ export function createAutoplay({ player, course, interaction, events, belay = nu
       const entryOk = !entry || (entry.element && entry.element.id === step.elementId);
       if (prompt.includes("[E]") && entryOk) { releaseAll(); press("KeyE"); cooldown = 0.6; return; }
       // otherwise walk towards the step's stand (or the deck stub before the first clip)
-      target.copy(belayAnchor() == null ? course.entryDeck.clipAnchor : step.walkTo);
+      target.copy(belayAnchor() == null ? routeCtx.entryDeck.clipAnchor : step.walkTo);
       const flat = Math.hypot(target.x - player.position.x, target.z - player.position.z);
       steerToward(target, dt);
       if (flat <= BOT.arriveRange) release("KeyW"); else hold("KeyW");
