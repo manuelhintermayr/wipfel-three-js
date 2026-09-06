@@ -10,6 +10,7 @@
 // first completed route without needing the whole screen rebuilt.
 import { t } from "../core/i18n.js";
 import { RULES, BELAY_MODES, TICKET_TYPES, SIDEGRADES } from "../config.js";
+import { isGamepadConnected } from "../core/input-source.js";
 
 /** One-line name + description per belay mode (GDD §3.3) – UI copy, so it stays out of config.js. */
 const BELAY_COPY = Object.freeze({
@@ -33,6 +34,9 @@ export function createKassa({ root, save = null, operations = null, defaultChoic
     sizeClassId: defaultChoice.sizeClassId || "adult",
     belayMode: BELAY_MODES.includes(defaultChoice.belayMode) ? defaultChoice.belayMode : "smart",
     equipmentId: defaultChoice.equipmentId && SIDEGRADES[defaultChoice.equipmentId] ? defaultChoice.equipmentId : NO_GEAR,
+    // M4 (ROADMAP "Koop 2 lokal", GDD §3.11): only ever meaningful while a gamepad is actually
+    // connected (the row below hides otherwise) – js/main.js reads this to call js/game/coop.js#enable().
+    coop: false,
   };
 
   const screen = el("div", "screen kassa-screen");
@@ -69,6 +73,21 @@ export function createKassa({ root, save = null, operations = null, defaultChoic
   equipmentGroup.hidden = true;   // shown only once save.hasCompletedAnyRoute() – see show() below
   sheet.appendChild(equipmentGroup);
 
+  // M4 (ROADMAP "Koop 2 lokal", ADR-029): a plain toggle, not another card row – only ever offered
+  // when a gamepad is actually plugged in (re-checked on every show() below, same "unlock condition
+  // re-checked at show time" idea the equipment/night-ticket rows above already use). No rebinding UI:
+  // the gamepad is always player 2, keyboard+mouse is always player 1 (js/game/coop.js).
+  const coopRow = el("label", "opt-row opt-toggle kassa-coop-row");
+  const coopBox = document.createElement("input");
+  coopBox.type = "checkbox";
+  coopBox.checked = choice.coop;
+  coopBox.addEventListener("change", () => { choice.coop = coopBox.checked; });
+  coopRow.append(coopBox, el("span", "opt-label", t("kassa.coopToggle")));
+  const coopNote = el("div", "opt-note", t("kassa.coopToggleDesc"));
+  coopRow.hidden = true;
+  coopNote.hidden = true;
+  sheet.append(coopRow, coopNote);
+
   const confirm = el("button", "btn confirm", t("kassa.confirm"));
   confirm.type = "button";
   confirm.addEventListener("click", apply);
@@ -91,6 +110,12 @@ export function createKassa({ root, save = null, operations = null, defaultChoic
       }
       if (operations && operations.isStormDay) { stormLine.textContent = operations.stormWarningLine; stormLine.hidden = false; }
       else stormLine.hidden = true;
+      // M4: re-checked every time the kassa opens – a controller plugged in after boot (or unplugged
+      // since) must not need a reload to show/hide the row.
+      const gamepadIn = isGamepadConnected();
+      coopRow.hidden = !gamepadIn;
+      coopNote.hidden = !gamepadIn;
+      if (!gamepadIn) { choice.coop = false; coopBox.checked = false; }
       screen.hidden = false;
     },
     hide() { screen.hidden = true; },

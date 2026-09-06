@@ -35,10 +35,14 @@ export const PARK_CONFIG = Object.freeze({
   routes: Object.freeze([
     // --- hub 0 · spawn (6 routes: blue I-III, red I-III; red III is a junction off red II) ----------
     Object.freeze({ category: "blue", numeral: "I", chainLength: 4, hub: 0 }),
-    Object.freeze({ category: "blue", numeral: "II", chainLength: 3, hub: 0 }),
+    // M4 (ROADMAP "Koop-Übungen", GDD §3.11): `coopEdge` forces this route's edge #0 to a specific
+    // catalogue kind instead of the generator's usual random pool pick – js/park/layout-route.js#buildEdges
+    // honours it. One blue + one red route, deterministic across every seed (see js/park/layout-route.js's
+    // own header on why this is safe for the "same seed, same JSON" determinism test).
+    Object.freeze({ category: "blue", numeral: "II", chainLength: 3, hub: 0, coopEdge: { index: 0, kind: "team-bridge" } }),
     Object.freeze({ category: "blue", numeral: "III", chainLength: 3, hub: 0 }),
     Object.freeze({ category: "red", numeral: "I", chainLength: 3, hub: 0 }),
-    Object.freeze({ category: "red", numeral: "II", chainLength: 3, hub: 0 }),
+    Object.freeze({ category: "red", numeral: "II", chainLength: 3, hub: 0, coopEdge: { index: 0, kind: "counterweight-lift" } }),
     Object.freeze({ category: "red", numeral: "III", chainLength: 2, hub: 0, join: { hostNumeral: "II", hostPlatformIndex: 1 } }),
     // --- hub 1 · hut (blue IV-V, black I-II – black II is a junction off black I – + legendary) -----
     Object.freeze({ category: "blue", numeral: "IV", chainLength: 3, hub: 1 }),
@@ -193,6 +197,8 @@ function findRoute({ routeId, plan, slot, spread, baseBearing, terrain, routeRng
     const candidate = buildRouteCandidate({
       routeId, category: plan.category, chainLength: plan.chainLength, bearing,
       terrain, rng: routeRng, otherTrees, spawnHub, homePoint, join,
+      // M4 (ROADMAP "Koop-Übungen"): a fixed, seed-independent edge-kind override – see PARK_CONFIG above.
+      coopEdge: plan.coopEdge || null,
     });
     if (candidate) { if (!join) usedBearings.push(bearing); return candidate; }
   }

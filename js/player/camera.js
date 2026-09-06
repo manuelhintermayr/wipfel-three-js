@@ -46,6 +46,12 @@ export function createCameraController({ camera, physics, input = null, target =
   let breathPhase = 0;
   let pivotOffset = 0;                 // metres the pivot is pulled down (hanging in the harness)
   let reducedMotion = false;
+  // M4 co-op (ADR-030 "dynamic shared frame", js/player/coop-camera.js): while set, the third-person
+  // pivot follows this world position instead of `targetPos`, and the wanted arm length is this exact
+  // distance instead of the walk/sprint `CAMERA.distanceMin/Max` blend – co-op computes both fresh every
+  // frame from both climbers' positions. `null` (the default, and whenever co-op is off) is the original
+  // single-player behaviour, untouched.
+  let focusOverride = null;
 
   const forward = new THREE.Vector3(0, 0, 1);
   const right = new THREE.Vector3(-1, 0, 0);
@@ -109,11 +115,13 @@ export function createCameraController({ camera, physics, input = null, target =
   }
 
   function updateThirdPerson(dt, targetPos, sprintMix) {
-    const wantedY = targetPos.y + CAMERA.pivotHeight - pivotOffset;
+    const focusPos = focusOverride ? focusOverride.position : targetPos;
+    const wantedY = focusPos.y + CAMERA.pivotHeight - pivotOffset;
     pivotY = pivotY == null ? wantedY : damp(pivotY, wantedY, CAMERA.pivotYRate, dt);
-    pivot.set(targetPos.x, pivotY, targetPos.z);
+    pivot.set(focusPos.x, pivotY, focusPos.z);
 
-    distance = damp(distance, lerp(CAMERA.distanceMin, CAMERA.distanceMax, sprintMix), CAMERA.distanceRate, dt);
+    const wantedDistance = focusOverride ? focusOverride.distance : lerp(CAMERA.distanceMin, CAMERA.distanceMax, sprintMix);
+    distance = damp(distance, wantedDistance, CAMERA.distanceRate, dt);
     arm.copy(right).multiplyScalar(shoulderX).addScaledVector(UP, shoulderY).addScaledVector(look, -distance);
 
     const free = probe();
@@ -161,6 +169,18 @@ export function createCameraController({ camera, physics, input = null, target =
     setPivotOffset(metres) { pivotOffset = clamp(metres, -1, 1.5); },
     /** Accessibility switch (options screen, M1.7): no shake, no sway. */
     setReducedMotion(on) { reducedMotion = !!on; },
+
+    /**
+     * M4 co-op (js/player/coop-camera.js): follow `position` at exactly `distance` metres instead of the
+     * normal single-player pivot/arm-length. Pass `null` to hand third-person framing back to the player
+     * this controller actually belongs to (co-op disabled, or first person is active anyway).
+     * @param {THREE.Vector3|null} position
+     * @param {number} [distance] world metres – ignored when `position` is null
+     */
+    setFocusOverride(position, distance = CAMERA.distanceMin) {
+      focusOverride = position ? { position, distance } : null;
+    },
+    get hasFocusOverride() { return !!focusOverride; },
 
     /**
      * Once per rendered frame, after the target's interpolated position is known.

@@ -70,7 +70,7 @@ export function createHud(root) {
     shownPrompt = text;
     prompt.replaceChildren();
     if (!text) { prompt.hidden = true; return; }
-    for (const node of renderText(text)) prompt.appendChild(node);
+    for (const node of renderPromptNodes(text)) prompt.appendChild(node);
     prompt.hidden = false;
   }
 
@@ -144,8 +144,9 @@ export function createHud(root) {
 /** Wall clock – the notice is presentation, not simulation, so it does not use the fixed step. */
 const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
 
-/** Splits "Clip in [F]" into text nodes and <kbd> elements. */
-function renderText(text) {
+/** Splits "Clip in [F]" into text nodes and <kbd> elements. Exported (M4, js/game/coop.js) so player
+ *  2's own small prompt box can render the exact same "[key]" markup without a second implementation. */
+export function renderPromptNodes(text) {
   const nodes = [];
   let last = 0;
   KEY_PATTERN.lastIndex = 0;

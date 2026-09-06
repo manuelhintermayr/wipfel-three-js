@@ -120,7 +120,17 @@
 .photo-mode-active .hud-route, .photo-mode-active .hud-ticket, .photo-mode-active .hud-flow,
 .photo-mode-active .hud-prompt, .photo-mode-active .hud-vitals, .photo-mode-active .hud-modes,
 .photo-mode-active .hud-speed, .photo-mode-active .hud-tip, .photo-mode-active .board-prompt,
-.photo-mode-active .touch-controls { visibility: hidden; }
+.photo-mode-active .touch-controls, .photo-mode-active .p2-prompt { visibility: hidden; }
+
+/* Local co-op, player 2's own prompt box (M4, js/game/coop.js) – bottom-left so it never collides with
+   player 1's centred .hud-prompt, stacked above .hud-modes' icon row. A slim accent border (the same
+   cyan as js/player/rig.js's player-2 colour variant) is the only visual cue that ties the two together. */
+.p2-prompt {
+  position: absolute; left: var(--hud-pad); bottom: calc(var(--hud-pad) + 2.6rem);
+  background: var(--hud-bg); border: 1px solid #1c9bd8; border-radius: var(--radius);
+  padding: 0.35rem 0.8rem; font: 500 0.8rem/1 var(--font-display); letter-spacing: 0.05em; color: var(--hud-text);
+}
+.p2-prompt kbd { display: inline-block; min-width: 1.4em; padding: 0.15em 0.4em; margin: 0 0.15em; text-align: center; background: var(--hud-text); color: #14181a; border-radius: 2px; font: 700 0.75em/1 var(--font-display); }
 
 /* Rescuer role (M3b, js/game/rescue.js) – its own bespoke prompt line, same idea as .board-prompt: no
    ordering fight with js/player/interaction.js's own hud.setPrompt() call. */
@@ -136,4 +146,4 @@
 .accident-active .hud-route, .accident-active .hud-ticket, .accident-active .hud-flow,
 .accident-active .hud-prompt, .accident-active .hud-vitals, .accident-active .hud-modes,
 .accident-active .hud-speed, .accident-active .hud-tip, .accident-active .board-prompt,
-.accident-active .start-banner, .accident-active .countdown { visibility: hidden; }
+.accident-active .start-banner, .accident-active .countdown, .accident-active .p2-prompt { visibility: hidden; }

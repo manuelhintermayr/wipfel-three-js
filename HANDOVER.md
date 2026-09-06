@@ -5,6 +5,160 @@
 > `ROADMAP.md`. Eine neue Session muss allein mit dieser Datei + `ROADMAP.md` weiterarbeiten können.
 
 ## Aktueller Meilenstein
+**M4 („Die anderen") FERTIG – damit ist das Projekt (M0–M4) vollständig** (uncommitted, oben auf dem
+gesamten M0–M3-Stapel darunter). Lokales Koop für zwei Spieler an einem Gerät (ADR-029: Gamepad + Tastatur/
+Maus, keine Netzwerk-Komponente), geteilte Kamera statt Splitscreen (neu: ADR-030), zwei echte Koop-Übungen,
+geteilte Physik als Schalter, Zuschauer-Rufe, Begleitregel-Flavour beim Run. Ehrlich zugeschnitten: kein
+Splitscreen, keine vier Spieler (GDD nennt „2–4" für später/M4-„weitere Kapitel" – explizit außerhalb
+dieses Auftrags, s. Auftragstext), keine neuen Biome/Kapitel jenseits Sonnwendberg.
+
+**Input-Split** (`js/core/input.js` + `js/core/input-source.js`, neu): `Input#setGamepadEnabled(on)` –
+Spieler 1 liest den Gamepad nur noch, solange Koop aus ist (unverändertes M0–M3-Verhalten); sobald Koop an
+ist, gibt Spieler 1 den Gamepad ab (`setGamepadEnabled(false)`) und Spieler 2 bekommt ihn exklusiv über
+`createGamepadInputSource()` – dieselben Aktionsnamen wie `Input` (`down/pressed/released/consume/move/
+look/poll/endFrame`), keine Unterklasse (eigene Tastatur/Maus-DOM-Listener wären dort nutzlos). Eine echte,
+notwendige Lücke geschlossen: `DEFAULT_BINDINGS.gamepad.buttons` hatte laut GDD-Tabelle nie ein „Interagieren"
+(die Tabelle selbst listet Gamepad dafür als „–") – ohne das könnte ein reiner Gamepad-Spieler 2 nie
+einhängen, klettern oder eine Übung betreten. Taste 10 (Linker-Stick-Klick, „L3" in der Standard-Gamepad-
+Belegung) neu auf `"interact"` gelegt – bestehende Belegungen unverändert, kommt auch Solo-Gamepad-Spielern
+zugute. `createTestInputSource()` (neues, träges Double mit identischer Methodenmenge) für
+`WIPFEL.debug.enableCoopForTest()`/`tools/dev/verify-m4.mjs`, weil in einer Headless-Session kein echter
+Gamepad existiert.
+
+**Koop-Sitzung** (`js/game/coop.js`, neu, ~360 Zeilen; `js/game/coop-elements.js`, neu, rein/THREE-frei,
+alle Formeln von `tests/unit/coop.test.mjs` direkt geprüft): `createCoop({...}).enable()`/`.disable()`
+spawnt/entsorgt Spieler 2 vollständig – eigener `createPlayer()` (Rig-Farbvariante „p2" cyan statt orange,
+`js/player/rig.js#colourVariant`), eigenes `belay` (Modus vom Tagesstart übernommen; „unsafe"-Ereignis
+läuft NICHT über den geteilten `belay:unsafe`-Namen, weil main.js dort einen reinen Spieler-1-Unfall-Listener
+hängen hat – eigener Namensraum `coop:belay2-unsafe`, `open`/`click` bleiben gemeinsam für den Karabiner-Klick
+bei beiden), eigenes `vitals` (eigene Balance/Kraft/Nerven, kein eigenes HUD), eigene vier Zusatzzustände
+(element/fall/zipline/tarzan, 1:1 wie Spieler 1s eigene in main.js), eigene `createInteraction(...,
+holderId: "player2")` mit eigener kleiner `.p2-prompt`-Box unten links (`renderPromptNodes` aus
+`js/ui/hud.js` wiederverwendet, jetzt exportiert). Bewusst NICHT in den M3a-Builder integriert: der Builder
+baut `course`/`interaction` unter laufender Referenz neu auf – main.js ruft `coop.disable()`, sobald
+`builder.mode !== "closed"` wird (derselbe Kniff wie das bestehende Einfrieren von `agents`), statt den
+Builder um ein viertes „Spieler"-Objekt zu erweitern.
+
+**Occupancy verallgemeinert, rückwärtskompatibel** (`js/game/occupancy.js`): `claimElement(id, holderId,
+capacity = maxPerElement)` – die Ablage ist jetzt `Map<id, Set<holder>>` statt `Map<id, holder>`; mit dem
+Default (1) verhält sich ein `Set` der Größe 1 exakt wie die alte Einzelwert-Map, jeder bestehende Aufrufer
+(Gäste, Spieler 1) bleibt unverändert. Neu: `holdersOfElement(id)`. Nur die zwei Koop-Übungen setzen
+`element.occupancyCapacity = 2` und übergeben `capacity` explizit. `js/player/interaction.js` bekommt einen
+`holderId`-Parameter (Default `"player"`); Spieler 2s eigene Instanz übergibt `"player2"`.
+
+**Geteilte Kamera statt Splitscreen** (ADR-030, `js/player/coop-camera.js`, neu, rein): `computeCoopFrame
+(p1,p2)` – Fokuspunkt gewichtet zu Gunsten von, wer gerade „das Schwerere" tut (`COOP.camera.
+activityWeight`), Distanz wächst mit dem Abstand, geklemmt auf 4–18 m. `js/player/camera.js#
+setFocusOverride(position, distance)` (neu, additiv: `null` = unverändertes Solo-Verhalten) ist der einzige
+Eingriff in die bestehende Kamera. Spieler 2 bekommt eine ECHTE zweite Kamerasteuerung (volle,
+wiederverwendete `createCameraController`), aber gebunden an eine nie gerenderte `THREE.PerspectiveCamera` –
+einfacher und sicherer als ein Parallel-Stub, kostet nur einen zusätzlichen, harmlosen Shape-Cast pro Frame.
+Spieler 2s eigener Gamepad-Taste „camera" (RB) ist entfernt (`js/game/coop.js#P2_GAMEPAD_BINDINGS`), damit
+sie nie versehentlich die eigene (unsichtbare) Kamera auf Ego umschaltet und dabei laut `controller.js#
+render` das eigene Rig verschwinden lässt. **Die-Leine** (`js/game/coop-elements.js#leashFactor`): jenseits
+24 m Abstand wird Spieler 2s eigener Stick-Input skaliert (nie eingefroren, Boden 20 %), HUD-Hinweis „Stay
+together"/„Zusammenbleiben" in der P2-Box.
+
+**Zwei Koop-Übungen** (`js/elements/team-bridge.js` + `counterweight-lift.js`, neu; drittes Array
+`COOP_CATALOGUE` in `js/elements/catalogue-data.js` – NICHT in `CATALOGUE`/`CATALOGUE_VARIANTS`, die
+`tests/unit/catalogue.test.mjs` in ihrer Länge fixiert; `catalogueEntry()` findet beide trotzdem):
+- **Team-Brücke** (blau, `blue-2` Kante 0): strukturell ein Beam-Swing-Cousin (unabhängige Segment-Pendel,
+  durchgehend begangen, flache Bohlen statt runder Stämme), bewusst wackliger als jede andere Blau/Rot-
+  Übung. `element.setTensionHeld(bool)` dämpft jeden KÜNFTIGEN Tritt-Kick um 60 % (`COOP_ELEMENTS.
+  teamBridge.tensionKickScale`) – die andere Person hält F/die Gamepad-Entsprechung an Einstiegs- ODER
+  Ausstiegspodest.
+- **Gegengewichtslift** (rot, `red-2` Kante 0): ein Korb auf zwei Führungsseilen, keine Balance-Aufgabe
+  (GDD „Netze, Röhren" minus sogar den Kraft-Preis) – reine Tempo-Frage. `element.walkSpeed` wird live
+  gesetzt: `selfHaulSpeed` (immer da, solo schaffbar – „Sandsack vorgespannt"), plus zerfallender Bonus aus
+  `addHaulPower()` (die andere Person tippt [interact] am Einstiegspodest).
+- Beide bewusst solo-schaffbar (nur langsamer/wackliger), `occupancyCapacity: 2` (Fahrer/in + Helfer/in,
+  nie zwei Fahrer/innen auf derselben Bahnposition), Metrik-Summe innerhalb des Kategorie-Budgets (Team-
+  Brücke 10 ≤ Blau 11, Gegengewichtslift 9 ≤ Rot 15), platziert deterministisch über `PARK_CONFIG`s neues
+  `coopEdge: {index, kind}`-Feld (`js/park/layout.js`/`layout-route.js#buildEdges`), nie über den
+  Zufalls-Pool – `tests/unit/layout.test.mjs`s bestehender Budget-Test über alle acht Fixture-Seeds bleibt
+  unverändert grün.
+
+**Geteilte Physik als Schalter** (GDD §3.11/§4, Options-Bildschirm „Shared bridge physics", Default AN,
+`save.data.settings.sharedPhysics`, additiv): `js/game/coop-elements.js#applySharedPhysics` überträgt bei
+gemeinsam genutztem Baum/derselben Koop-Übung 60 % der Wackel-*Geschwindigkeit* der einen Übung auf die
+andere, dt-skaliert – dieselbe Form, die `js/elements/element.js#update` schon für seine eigene
+Wind-Böen-Kopplung nutzt (`excite(gust*gain*dt)`), also stabil und billig.
+
+**Zuschauer-Rufe** (GDD §3.11): periodisch (9–16 s, deterministisch über eine Session-`Rng`-Fork), wenn die
+andere Person ODER ≥ 1 Gast neben einer Übung steht, auf der gerade geklettert wird – vier Zuruf-Zeilen
+(i18n), plus eine kleine Nerven-Erleichterung über das bestehende `nerves.watchSuccess()` (M1.6), nicht neu
+gebaut.
+
+**Begleitregel-Flavour beim Run**: Beide klettern in denselben Lauf, sobald beide über dieselbe Route
+eingehängt sind (der bestehende, gemeinsame Event-Bus macht das ohnehin automatisch – Hindernisse/Stürze
+zählen für den einen Lauf, den es je Route gibt). Stürze werden JE SPIELER separat gezählt (reine Zustands-
+Flankenerkennung auf `player.mode==="fall"`, nicht über das anonyme `player:fell`-Ereignis). Eine additive
+Baustein-Ebene – KEIN Umbau der Lauf-Fertigstellung in `js/game/session.js`/`route.js` (bewusst, siehe
+„Was halb fertig ist") – markiert den zuletzt passenden Eintrag in `session.day.routes` mit `.companion =
+true`, sobald BEIDE dieselbe geteilte Route verlassen haben (erkannt über `sharedRouteId`/
+`justFinishedSharedZip`); `js/ui/stamp-card.js` zeigt dafür ein kleines „Finished together"/„Gemeinsam
+geschafft"-Abzeichen, wenn vorhanden.
+
+**Kassa + Optionen**: „Two climbers"/„Zwei Kletternde"-Schalter in `js/ui/kassa.js`, sichtbar nur bei
+verbundenem Gamepad (`isGamepadConnected()`, bei jedem `show()` neu geprüft) – `choice.coop` steuert
+`coop.enable()`/`.disable()` in `js/main.js#startDay`. Koop-Zustand ist bewusst NICHT gespeichert (jeder
+neue Tag startet mit ausgeschaltetem Häkchen, ein Reload/„Weiter im Park bleiben" nimmt Koop nie automatisch
+wieder auf).
+
+**Geprüft** (echter Chromium via system-Chrome + `playwright-core`, `tools/dev/verify-m4.mjs`; die
+Playwright-MCP-Browserverbindung blieb in dieser Session unbenutzt wie schon in M3a/M3b dokumentiert):
+Eine echte, umgebungsbedingte Falle gefunden und im Verify-Skript selbst umschifft (keine Spieländerung):
+der allererste `requestAnimationFrame`-Zeitstempel dieser Headless-Tabs stand in eklatantem Widerspruch zu
+`performance.now()` bei `loop.start()` (`loop.accumulator` sprang auf ca. −20 bis −36 und blieb dort –
+`js/core/loop.js`s Akkumulator holt das nur mit +1/60 s pro Frame auf, also praktisch nie), wodurch
+`physics.step()` nie auch nur einmal lief und der/die Spieler/in für immer im „air"-Zustand hing – exakt
+die Falle, die `HANDOVER.md`s eigener „Achtung headless"-Absatz seit M0.P beschreibt. Live bestätigt: Loop
+stoppen, Akkumulator auf 0, `loop.start()` neu – sofort normales Fallen-und-Landen. `verify-m4.mjs` fährt
+deshalb durchgehend mit einer vollständig manuellen Uhr (`pumpTicks()`: Loop anhalten, Akkumulator auf 0,
+`loop._tick(t)` selbst mit synthetischen, gleichmäßig getakteten Zeitstempeln aufrufen) statt auf ein
+echtes `requestAnimationFrame` zu hoffen.
+**(a)** frischer `?debug=1`-Boot: **0 Konsolenfehler/-warnungen, 0 externe Requests**.
+
+**Beim Verifizieren einen echten, vorbestehenden Bug gefunden und behoben** (seit M1/M1.3, `js/game/
+autoplay.js` – keine M4-Datei, keine Spielmechanik verändert): der `?autoplay=1`-Bot verließ sich im
+„fall"-Zustand ausschließlich auf `hold("Space")` („pull up"). `js/player/fall.js#canPullUp` erlaubt das
+aber nur nah genug unter der Übung (`underElement()`) – landet der Bot weiter mittig im Pendel, greift
+weder Pull-up noch (mangels W/S-Input) das zweite, immer verfügbare Auswegsystem des Falls (Seil zur
+Plattform hangeln). Live reproduziert: der Bot hing über 400 simulierte Sekunden regungslos an derselben
+Position, ohne jeden Fehler. Behoben mit einer Zeile (`hold("KeyW")` zusätzlich zu `hold("Space")`) –
+einer der beiden Wege löst danach immer auf. Danach **dreimal in Folge sauber durchgelaufen**.
+
+**(b)** `?autoplay=1&fast=1&seed=1` (Koop-AUS-Pfad, unverändert): **komplett durchgelaufen –
+`{state:"done", progress:"5/5", falls:0}`, `WIPFEL.coop.active` blieb die gesamte Sequenz `false`, 0
+Konsolenfehler, 0 externe Requests.** **(c)** Koop-Smoke ohne echten Gamepad:
+`WIPFEL.debug.enableCoopForTest()` → `true`, zwei Rigs im Szenengraph
+(`scene.children.filter(o=>o.name==="player-rig").length === 2`), `WIPFEL.coop.active === true`; beide
+Spieler an den Einstieg der zweiten Übung teleportiert (0,80 m Abstand; die erste Übung UND der
+Klettergurt-Einhängepunkt selbst liegen beide innerhalb `js/game/session.js`s `SESSION.bannerRange` von
+6 m – dort würde das große Routenstart-Banner den ganzen Bildschirm überdecken) – **beide** danach
+`mode: "ground"`, `grounded: true`, Spieler 1 zeigt „Clip in [F]", die eigene `.p2-prompt`-Box zeigt „P2:
+Clip in F", 0 Konsolenfehler über die gesamte Sequenz. Screenshot `docs/screenshots/m4-coop.png` (zwei
+Rigs nebeneinander auf dem Einstiegspodest der zweiten Übung, P1s zentraler Prompt UND P2s eigene Box
+beide sichtbar und mit echtem Inhalt; 192 KB). `check-all` **173/173**,
+`node --test --test-concurrency=1 tests/unit/*.test.mjs` **275/275** (254 + 21 neue `coop.test.mjs`-Tests:
+Input-Source-Vertragstreue, Aktivitätsgewichtung + Kamera-Frame-Berechnung inkl. Distanz-Clamp,
+Element-Verbindung + geteilte Physik, Lift-/Brücken-Mathematik, Leinen-Kurve, geteilter-Lauf-Erkennung;
+unverändert durch den autoplay.js-Fix – die Datei hat keine eigene Testdatei, DOM-/Tasten-getrieben).
+
+**Bekannte Einschränkungen (ehrlich, s. `docs/architecture.md`s „Known limitations" für Details):** Koop-
+Zustand nicht gespeichert; Spieler 2 ohne eigenes HUD-Vitals-Widget/Tacho, ohne Classic-Modus-Unfall-
+Behandlung, ohne Flow-Anzeige, mit auf Tastatur-Beschriftung („[F]"/„[E]") zurückfallenden Prompt-Strings
+auch am Gamepad (keine Geräte-Glyphen, i18n ist nicht pro Eingabegerät); das Begleit-Abzeichen kann eine
+echte gemeinsame Ankunft verpassen, wenn die zuerst fertige Person schon in die Leiter der NÄCHSTEN Route
+einhängt, bevor die zweite Person ankommt (das eigene „zuletzt eingehängt"-Tracking wandert dann weiter);
+zwei Spieler:innen KÖNNEN technisch gleichzeitig dieselbe Koop-Übung betreten (Occupancy erlaubt es,
+Kapazität 2) – nichts stürzt ab, aber die Helfer-Mechanik (Seil-Ziehen/Spannung) greift dann schlicht nicht
+für die Person, die nicht am Podest steht; die beiden Spieler-Collider kollidieren nicht miteinander
+(bestehende `GROUP.PLAYER`-Filterung, unverändert) – sie können sich gegenseitig durchqueren statt sich
+zu schubsen; kein Splitscreen (ADR-030, bewusst); keine dritte/vierte Person, keine weiteren Kapitel
+(explizit außerhalb dieses Auftrags).
+
+## Aktueller Meilenstein (M3b – vollständig, s. oben für M4)
 **M3b (zweite Hälfte von „Der Betreiber") FERTIG – damit ist M3 komplett** (uncommitted, oben auf dem
 gesamten M0–M3a-Stapel darunter): Gäste-Profile mit Mut/Kraft/Geduld und Angst-Ereignissen, Retter-Rolle
 (spielbar), Inspektionen/PSA-Alterung/Wetter-Räumung, Ökonomie/Bewertung, Betreiber-Kopfzeile +
@@ -615,6 +769,17 @@ PIL: 900 px Kantenlänge, 128–160-Farben-Palette).
   `js/world/wind.js` (`setDailyBias`), `js/core/save.js` (`data.operations`/`data.economy`,
   `CUSTOM_PARK_SCHEMA`/`isValidCustomPark` exportiert). Details/Prüfnachweis oben unter „Aktueller
   Meilenstein", Verträge in `docs/architecture.md#Operator simulation (M3b …)`.
+- **Lokales Koop, zwei Koop-Übungen, geteilte Kamera, geteilte Physik, Zuschauer-Rufe (M4):**
+  `js/game/{coop,coop-elements}.js` (neu), `js/core/input-source.js` (neu) + `js/core/input.js`
+  (`setGamepadEnabled`, neue Gamepad-Taste „interact"), `js/player/coop-camera.js` (neu, rein),
+  `js/elements/{team-bridge,counterweight-lift}.js` (neu, zwei Koop-Katalogarten), `js/elements/
+  catalogue-data.js` (`COOP_CATALOGUE`, drittes Array), `js/park/{layout,layout-route}.js`
+  (`coopEdge`-Feld, erzwungene Kanten-Art), `js/game/occupancy.js` (Kapazität > 1 verallgemeinert),
+  `js/player/interaction.js` (`holderId`), `js/player/{controller,rig,camera}.js` (`rigVariant`/
+  `colourVariant`, `setFocusOverride`), `js/ui/{kassa,options}.js` (erweitert), `js/core/save.js`
+  (`data.settings.sharedPhysics`), `js/ui/stamp-card.js` (Begleit-Abzeichen), `js/ui/hud.js`
+  (`renderPromptNodes` exportiert). Details/Prüfnachweis oben unter „Aktueller Meilenstein", Verträge in
+  `docs/architecture.md#Local co-op (M4 …)`.
 
 ## Was halb fertig ist
 - **M3b (s. oben für die volle Liste bewusster Vereinfachungen):** kein Screenshot für die Sturm-
@@ -1097,6 +1262,12 @@ Der erste Kurs steht auf der Hero-Kiefer-Kette am Spawn – hinlaufen oder
 `WIPFEL.player.teleport(x, y, z)` mit `WIPFEL.course.entryDeck.group.position` benutzen.
 NPC-Gäste laufen ab Boot von selbst (`?npc=0` schaltet sie ab); die Parkplan-Tafel steht neben dem
 Wegweiser-Cluster am Hub-Rand (`WIPFEL.parkBoard.standPosition`).
+**Koop (M4):** an der Kassa „Two climbers"/„Zwei Kletternde" ankreuzen (nur sichtbar bei angeschlossenem
+Gamepad) – der Gamepad steuert danach Spieler 2 exklusiv (dieselben Aktionen wie Tastatur/Maus:
+Stick = Bewegen, zweiter Stick = Blick, A Sprung/Abstoßen, X Umhängen, LT/RT Hand L/R, L3-Klick
+Interagieren, B Atmen). Spieler 2 erscheint neben Spieler 1, eigene Rüstungsfarbe cyan statt orange,
+eigene Prompt-Box unten links. Jenseits 24 m Abstand wird Spieler 2s Bewegung gedämpft
+(„Zusammenbleiben"). Options-Bildschirm → Gameplay → „Shared bridge physics" (Default an).
 
 ## Wie testen
 ```
@@ -1120,7 +1291,14 @@ dem `?autoplay=1`-Bot, z. B. `?builder=1&autowalk=blue-1&fast=1`) ·
 `window.WIPFEL` = {loop, physics, scene, camera, renderer, rng, input, events, terrain, forest, sky,
 wind, player, parkDef, course, **signs**, belay, hud, interaction, vitals, session, save, autoplay,
 kassa, briefing, stampCard, ticket, **options**, **parkBoard, courseMap, occupancy, agents, guestRig**,
-**accidentReport, photoMode, headlamp, lampions, touchControls** (M2b), **builder** (M3a), debug}.
+**accidentReport, photoMode, headlamp, lampions, touchControls** (M2b), **builder** (M3a),
+**operations, economy, rescue** (M3b), **coop** (M4), debug}.
+**M4:** **`WIPFEL.coop.active`**, **`WIPFEL.coop.available`** (Gamepad verbunden?),
+**`WIPFEL.coop.player2`** (voller `createPlayer()`-Rückgabewert, solange aktiv – sonst `null`;
+`WIPFEL.coop.player2.teleport(x,y,z)` zum Testen), **`WIPFEL.coop.falls`** (`{player1,player2}`),
+**`WIPFEL.coop.enable(opts?)`**/**`.disable()`** (auch von Hand aufrufbar, unabhängig von der Kassa),
+**`WIPFEL.debug.enableCoopForTest()`** (spawnt Spieler 2 mit einem trägen Test-Input statt echtem
+Gamepad – für Screenshots/Skripte, s. `tools/dev/verify-m4.mjs`).
 **M3a:** **`WIPFEL.builder.mode`** (`"closed"|"editing"|"walking"`), **`WIPFEL.builder.enter()`**/
 **`exit()`** (dasselbe wie die „Park builder"-Zeile im Optionsbildschirm / Esc), **`WIPFEL.builder.
 startAutowalk(routeId)`** (der `?builder=1&autowalk=`-Pfad, auch von Hand aufrufbar),
@@ -1165,6 +1343,18 @@ liefert – für scriptgesteuerte Läufe `loop.stop()`, `requestAnimationFrame` 
 `loop._tick(t)` mit festen 60-Hz-Zeitstempeln selbst aufrufen (siehe Session-Log). Screenshots zeigen
 immer das letzte vom Loop gerenderte Bild: für eine eigene Kameraposition erst `loop.stop()`, dann
 `renderer.render(scene, cam)`, dann den Screenshot.
+**Neu beobachtet in M4 (`tools/dev/verify-m4.mjs` beim Schreiben):** derselbe Kompositor-Kaltstart kann
+den allerersten `requestAnimationFrame`-Zeitstempel so weit von `performance.now()` bei `loop.start()`
+abweichen lassen, dass `loop.accumulator` auf ca. −20 bis −36 einschnappt und dort für zig Sekunden
+hängen bleibt (`js/core/loop.js`s Akkumulator holt das nur mit +1/60 s pro Frame auf) – `physics.step()`
+läuft dann de facto nie, der/die Spieler/in hängt für immer im `"air"`-Zustand, **reproduziert auch ganz
+ohne Koop** (reiner Solo-Boot). Behelf: `loop.stop(); loop.accumulator = 0; loop.start();` einmal direkt
+nach `WIPFEL.ready`. Zusätzlich beobachtet: ein Screenshot direkt danach kann trotzdem noch ein
+veraltetes Bild zeigen (Kamera scheinbar wild verdreht) – am zuverlässigsten ist die volle manuelle
+Variante: `loop.stop()`, `accumulator = 0`, `running = true`, dann `loop._tick(t)` selbst N-mal mit
+`t += 1000/60` aufrufen (loop bleibt danach `running = false`, kein neuer `requestAnimationFrame`
+registriert) – Zustand UND Screenshot entstehen dann garantiert im selben eingefrorenen Moment, ganz
+ohne auf den natürlichen rAF-Takt zu vertrauen. `tools/dev/verify-m4.mjs` macht das so.
 
 ## Aktueller Seed / Reproduktionsfälle
 Standard-Seed 1 (`DEFAULTS.seed`). Spawn (11.1, 4.8, −163.3) auf Hub `spawn`. Reproduktionsfälle: –

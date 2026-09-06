@@ -54,6 +54,11 @@ export function createStampCard({ root, save, onNewDay, onContinue }) {
       );
       if (route.mastery) stamp.appendChild(masteryPips(route.mastery));
       if (Number.isFinite(route.flowScore)) stamp.appendChild(el("div", "flow-score", t("stamp.flowScore", { score: route.flowScore })));
+      // M4 (ROADMAP "Koop 2 lokal", GDD §3.11 "companion rule flavour"): js/game/coop.js tags the day's
+      // most recent matching entry once *both* climbers reach the route's own finish – a best-effort
+      // badge (see that module's header for why it does not gate the run's own completion), absent for
+      // every solo route and every session before this milestone.
+      if (route.companion) stamp.appendChild(el("div", "companion-tag", t("stamp.companion")));
       stampsRow.appendChild(stamp);
     }
     if (!summary.routes.length) stampsRow.appendChild(el("div", "stamp-empty", t("stamp.none")));

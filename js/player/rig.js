@@ -12,7 +12,19 @@ import { JOINT_NAMES, POSE_SIZE, createPose, lerpPose, idlePose, gaitPose, airPo
 const { clamp, smoothstep, damp } = THREE.MathUtils;
 const TWO_PI = Math.PI * 2;
 
-function createMaterials() {
+/**
+ * M4 co-op (ROADMAP, GDD §3.11): the accent trim (webbing piping, harness rings, shoe/hand straps –
+ * "orange" in the base palette) is the one accessory-scale colour every gear piece already reuses
+ * (js/player/rig-gear.js), so re-tinting just that swatch is enough to read as "a different climber"
+ * at a glance without a second whole materials pass – the same "one recoloured swatch stands for the
+ * whole figure" trick js/npc/guest-rig.js already uses (torso colour = category colour) one level up.
+ */
+const COLOUR_VARIANTS = Object.freeze({
+  p1: 0xf0741c,   // the original orange – unchanged for player 1 / solo
+  p2: 0x1c9bd8,   // cool cyan-blue, unmistakable next to player 1's orange in the same shot
+});
+
+function createMaterials(colourVariant = "p1") {
   const std = (color, roughness, metalness = 0) => new THREE.MeshStandardMaterial({ color, roughness, metalness });
   return {
     skin: std(0xd2a07e, 0.62),
@@ -22,21 +34,23 @@ function createMaterials() {
     glove: std(0x2b2523, 0.7),
     shoe: std(0x2c2f2b, 0.75),
     webbing: std(0x2a2b2f, 0.85),
-    orange: std(0xf0741c, 0.7),
+    orange: std(COLOUR_VARIANTS[colourVariant] || COLOUR_VARIANTS.p1, 0.7),
     metal: std(0xb9bec6, 0.35, 0.9),
     rope: std(0x45464a, 0.8),
   };
 }
 
 /**
- * @param {{ rng: import("../core/rng.js").Rng }} options – rng only seeds idle phase offsets
+ * @param {{ rng: import("../core/rng.js").Rng, colourVariant?: "p1"|"p2" }} options – rng only seeds idle
+ *   phase offsets; `colourVariant` (M4, ROADMAP "Koop 2 lokal") re-tints the harness accent so player 2
+ *   is visually distinct next to player 1 – defaults to the original "p1" orange.
  * @returns {{ root: THREE.Group, joints: Record<string, THREE.Group>, attach: Record<string, THREE.Object3D>,
  *   setPose(name: string, weight: number): void, setMoveBlend(speedNormalized: number): void,
  *   registerPose(name: string, fn: (out: Float32Array) => void): void, update(dt: number): void,
  *   setVisible(on: boolean): void, dispose(): void }}
  */
-export function createRig({ rng }) {
-  const materials = createMaterials();
+export function createRig({ rng, colourVariant = "p1" }) {
+  const materials = createMaterials(colourVariant);
   const { root, joints, attach } = buildBody(materials);
   addHarness(joints, materials, attach);
   const lanyard = addLanyard(attach, materials);

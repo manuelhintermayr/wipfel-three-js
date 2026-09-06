@@ -120,7 +120,7 @@ an als Blau (Höhe, Bewegung, Kraft), nicht nur schwerer.
 - [x] Teilen von Parcours mit Bewertung/Bestzeit. **Tag `m3`.**
 
 ## M4 · „Die anderen“ (lokal – ADR-029)
-- [ ] Koop 2 lokal (Gamepad + Tastatur, Begleitregel), Zuschauer-Rufe, geteilte Physik, Koop-Übungen, weitere Kapitel bis zum
+- [x] Koop 2 lokal (Gamepad + Tastatur, Begleitregel), Zuschauer-Rufe, geteilte Physik, Koop-Übungen — weitere Kapitel bis zum
       Park, den niemand bauen könnte.
 
 ---

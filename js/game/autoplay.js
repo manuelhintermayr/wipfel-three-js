@@ -139,7 +139,12 @@ export function createAutoplay({ player, course, interaction, events, belay = nu
       hold("KeyW");
       return;
     }
-    if (mode === "fall") { hold("Space"); return; }     // pull back up
+    // Pull up (Space) only works close enough under the element (js/player/fall.js#underElement) – a
+    // fall that settles mid-span otherwise has no way out from Space alone (confirmed live: the bot can
+    // hang at the exact same swing position for minutes). Hold W too: it's a no-op unless pulling up is
+    // unavailable, in which case it hauls the carabiner along the cable towards a platform instead
+    // (`fall.js`'s own second, always-available way out) – one of the two always resolves.
+    if (mode === "fall") { hold("Space"); hold("KeyW"); return; }
   }
 
   return {

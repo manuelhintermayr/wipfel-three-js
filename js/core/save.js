@@ -28,6 +28,10 @@ const DEFAULTS = Object.freeze({
     assist: false,                // js/player/assist.js – gentler balance disturbance, wider slip window
     // M2b (ROADMAP "Grafikoptionen"): one of js/config.js#GRAPHICS.order ("high"|"medium"|"low").
     graphics: "high",
+    // M4 (ROADMAP "geteilte Physik", GDD §3.11/§4 "im Spiel erlaubt, wenn die Gruppe es einschaltet"):
+    // read live by js/game/coop.js every frame – true only ever matters while co-op is active, but the
+    // choice itself persists like every other options toggle. Default ON, per the milestone brief.
+    sharedPhysics: true,
   }),
   // M2b (ROADMAP "drei Sicherungsmodi"/GDD §3.3): classic-mode accidents (both carabiners open on an
   // element/ladder/zip) – js/player/accident.js records one every time it happens, never reset.
@@ -60,7 +64,7 @@ const DEFAULTS = Object.freeze({
 // share files against this exact same schema marker and shape check, instead of a second copy of it.
 export const CUSTOM_PARK_SCHEMA = 1;
 
-const SETTINGS_BOOLEANS = Object.freeze(["invertY", "reducedCameraMotion", "reducedMotion", "assist"]);
+const SETTINGS_BOOLEANS = Object.freeze(["invertY", "reducedCameraMotion", "reducedMotion", "assist", "sharedPhysics"]);
 const clampVolume = (v) => Math.max(0, Math.min(100, v));
 
 /** What completing a route in `category` unlocks next, or null (GDD §3.12: Blue → Red → Black). */

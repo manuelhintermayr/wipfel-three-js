@@ -163,6 +163,8 @@
   "options.gameplay.locale": "Language",
   "options.gameplay.localeNote": "Route names and prompts pick up the new language as they next redraw; a few one-time screens (kassa, stamp card) keep the old language until you reload.",
   "options.gameplay.colourShape": "Every route colour also carries its own shape (● ■ ◆) on signs, the course map and stamps – colour is never the only cue.",
+  "options.gameplay.sharedPhysics": "Shared bridge physics",
+  "options.gameplay.sharedPhysicsDesc": "Co-op only: on the two co-op obstacles, and on elements that share a support tree, each climber's steps also nudge the other's wobble a little. Off means every element wobbles only for whoever is actually on it.",
   "options.controls.note": "Read-only for now – remapping is prepared but not wired up yet.",
   "options.controls.move": "Move",
   "options.controls.sprint": "Sprint",
@@ -190,6 +192,8 @@
   "kassa.gear.shoes.desc": "Steadier balance – but a pull-up after a fall costs more strength.",
   "kassa.gear.trolley.name": "Fast trolley",
   "kassa.gear.trolley.desc": "More top speed on the Flying Fox – harder to brake cleanly.",
+  "kassa.coopToggle": "Two climbers",
+  "kassa.coopToggleDesc": "Controller joins as climber 2 – keyboard and mouse stay climber 1.",
 
   "hud.trialTag": "TRIAL",
   "hud.trialHint": "[{key}] Time trial",
@@ -205,6 +209,7 @@
 
   "stamp.trialTag": "TRIAL",
   "stamp.flowScore": "Flow score {score}",
+  "stamp.companion": "Finished together",
 
   "notice.continuousBelay": "Continuous belay – no re-clipping",
 
@@ -231,6 +236,8 @@
   "element.ringsFar": "far-spaced rings",
   "element.barrels3": "three-barrel roll",
   "element.skateLong": "fast skate board",
+  "element.teamBridge": "team bridge",
+  "element.counterweightLift": "counterweight lift",
 
   "photo.hint": "[P] Exit photo mode  ·  [Space] Snapshot",
 
@@ -390,5 +397,13 @@
   "options.sharing.importInvalid": "That file is not a valid Wipfel park.",
   "options.sharing.importSuccess": "Park imported – walk every route again before opening it.",
   "options.sharing.importSuccessIssues": "Park imported – {n} route(s) have issues to fix in the builder; walk every route again before opening it.",
-  "options.sharing.noCustomPark": "Build or edit something in the park builder first – there is nothing custom to export yet."
+  "options.sharing.noCustomPark": "Build or edit something in the park builder first – there is nothing custom to export yet.",
+
+  "coop.p2Prefix": "P2:",
+  "coop.leashHint": "Stay together",
+  "coop.bothFinished": "Both climbers finished – nice work!",
+  "coop.cheer.1": "You've got this!",
+  "coop.cheer.2": "Nice and steady!",
+  "coop.cheer.3": "Almost there!",
+  "coop.cheer.4": "Looking good up there!"
 }

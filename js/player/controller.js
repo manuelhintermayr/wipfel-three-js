@@ -25,10 +25,12 @@ const SPAWN_LIFT = 0.05;
  * @param {{ physics: import("../core/physics.js").Physics, scene: THREE.Scene, camera: THREE.PerspectiveCamera,
  *           input: import("../core/input.js").Input, terrain?: { heightAt(x:number,z:number): number, spawn?: {x,y,z} },
  *           rng: import("../core/rng.js").Rng, spawn?: {x:number,y:number,z:number},
- *           events?: { emit(name: string, payload?: object): void } }} options
- *   `spawn` is the feet position (defaults to terrain.spawn, then heightAt(0,0)).
+ *           events?: { emit(name: string, payload?: object): void }, rigVariant?: "p1"|"p2" }} options
+ *   `spawn` is the feet position (defaults to terrain.spawn, then heightAt(0,0)). `rigVariant` (M4,
+ *   js/game/coop.js): passed straight to js/player/rig.js#createRig's own colour-variant option – the
+ *   controller has no opinion on it besides carrying it through.
  */
-export function createPlayer({ physics, scene, camera, input, terrain = null, rng, spawn = null, events = null }) {
+export function createPlayer({ physics, scene, camera, input, terrain = null, rng, spawn = null, events = null, rigVariant = "p1" }) {
   const R = physics.RAPIER;
   const world = physics.world;
   const gravity = PHYSICS.gravity.y;
@@ -42,7 +44,7 @@ export function createPlayer({ physics, scene, camera, input, terrain = null, rn
     body,
   );
   const kcc = createCharacterController(world);
-  const rig = createRig({ rng });
+  const rig = createRig({ rng, colourVariant: rigVariant });
   scene.add(rig.root);
   const cameraCtl = createCameraController({ camera, physics, input, target: { body } });
 

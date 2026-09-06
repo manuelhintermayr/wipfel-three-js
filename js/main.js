@@ -58,6 +58,8 @@ import { createBuilder } from "./builder/builder.js";
 import { createOperations } from "./game/operations.js";
 import { createEconomy } from "./game/economy.js";
 import { createRescue } from "./game/rescue.js";
+import { createCoop } from "./game/coop.js";
+import { createTestInputSource } from "./core/input-source.js";
 import { sfxCarabinerOpen, sfxCarabinerLock, sfxHarnessCatch } from "./audio/sfx.js";
 
 async function boot() {
@@ -181,6 +183,15 @@ async function boot() {
   let courseMap = createCourseMap({ root: overlay, parkDef: publicParkDef, terrain, save, player, getAgents: () => (agents ? agents.list : []) });
   if (params.map) courseMap.open();
 
+  // Local co-op (M4, GDD §3.11, ADR-029/ADR-030): `getCourse`/`getSession`/`getAgents` are the same
+  // "closure over a not-yet-assigned `let`" forward reference `rescue` above already relies on for
+  // `builder` – `session` in particular is declared further down this file, safe for the same reason.
+  const coop = createCoop({
+    scene, physics, terrain, sky, events, hud, root: document.getElementById("hud"), rng: rng.fork("coop"),
+    player, input, belay, vitals, occupancy, save, ticket, rescue, operations,
+    getCourse: () => course, getSession: () => session, getAgents: () => agents,
+  });
+
   // M2b night debug hook (`WIPFEL.debug.setNight`): while true, the periodic ticket→sky sync in the
   // gameplay loop below stands down so a forced test/screenshot state is not immediately overwritten.
   let nightDebugOverride = false;
@@ -213,6 +224,11 @@ async function boot() {
     const endHour = openingHour + ticket.totalGameMinutes / 60;
     hud.setNotice(t("notice.ticketStarted", { time: formatClock(endHour) }), 6);
     if (!save.data.briefingDone) briefing.start();
+    // M4 (kassa "Two climbers" toggle, js/ui/kassa.js): co-op state is intentionally not persisted in
+    // the save (js/game/coop.js's own header) – every fresh day starts from whatever the kassa asked
+    // for this time, never carried over from yesterday.
+    if (choice.coop) coop.enable();
+    else if (coop.active) coop.disable();
   }
   /** Reopening the page with an active ticket (and no `?kassa=1`): resume the day, skip the kassa. */
   function resumeDay() {
@@ -441,6 +457,7 @@ async function boot() {
   // --- loop wiring -----------------------------------------------------------------------------------
   loop.on("input", (frameDt) => {
     input.poll();
+    coop.pollInput();
     if (touchControls) touchControls.update();   // pushes the overlay's held state in before anything reads it
     if (autoplay) autoplay.update(frameDt);   // synthesises key events – must run before consumers read edges
     builder.onInputPhase(frameDt);   // same rule: drives a `?builder=1&autowalk=` bot's own key events
@@ -449,6 +466,10 @@ async function boot() {
     // M3a: none of the screens below make sense while the builder owns the camera/HUD ("editing") or
     // is mid-walkthrough ("walking") – Esc gets its own two builder-specific branches instead.
     const builderOpen = builder.mode !== "closed";
+    // M4: the builder rebuilds `course`/`interaction` out from under anything holding a reference to the
+    // old ones (js/game/coop.js's own header) – player 2 is exactly such a thing, so co-op steps aside
+    // the instant the builder opens rather than trying to follow the rebuild.
+    if (builderOpen && coop.active) coop.disable();
     // Photo mode (M2b): one `toggle()` per press, guarded the same way "pause" above is – never while
     // another screen owns the input, never during `?autoplay=1`.
     if (input.pressed("photo") && !photoMode.active && !options.visible && !courseMap.visible && !params.autoplay && !builderOpen) {
@@ -489,6 +510,7 @@ async function boot() {
   });
   loop.on("physics", (dt) => {
     player.fixedUpdate(dt);
+    coop.fixedUpdate(dt);
     physics.step();
   });
   loop.on("gameplay", (dt, elapsed) => {
@@ -529,6 +551,7 @@ async function boot() {
       agents.update(dt, player.position);
       npcMs = performance.now() - t0;
     }
+    coop.update(dt);              // M4: player 2's own update/interaction, shared camera frame, leash, co-op elements
     parkBoard.update(player, input, () => courseMap.open());
     briefing.update();
     wind.update(dt);
@@ -546,6 +569,7 @@ async function boot() {
       builder.onRenderPhase(dt);   // orbit camera + span/length labels – owns the shared `camera` instead
     } else {
       player.render(alpha, dt);
+      coop.render(alpha, dt);     // M4: player 2's own rig/pose interpolation (camera frame is set in "gameplay")
       if (photoMode.active) photoMode.update(dt);   // overrides the camera js/player/render just set
       if (guestRig && builder.mode === "closed") guestRig.update(agents.list, player.position, dt, sky.night);
     }
@@ -556,6 +580,7 @@ async function boot() {
   loop.on("ui", (dt) => {
     debug.update(dt);
     courseMap.update();
+    coop.endFrame();
     input.endFrame();
   });
 
@@ -580,7 +605,16 @@ async function boot() {
     builder,
     // M3b
     operations, economy, rescue,
+    // M4
+    coop,
     debug: {
+      /**
+       * M4 verification (`tools/dev/verify-m4.mjs`): spawns player 2 with a synthetic, do-nothing input
+       * source instead of a real gamepad (js/core/input-source.js#createTestInputSource) – enough to
+       * prove the spawn/teardown/HUD wiring without a physical controller in the loop.
+       * @returns {boolean} false if there is no course yet to spawn player 2 into
+       */
+      enableCoopForTest() { return coop.enable({ inputSource: createTestInputSource() }); },
       /** Force the slip a play-test needs on demand (screenshots, smoke runs). */
       forceSlip(angle = 1) {
         const state = player.states.get("element");

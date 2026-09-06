@@ -40,6 +40,9 @@ const ELEMENT_LABEL_KEYS = Object.freeze({
   "rings-far": "element.ringsFar",
   "barrels-3": "element.barrels3",
   "skate-long": "element.skateLong",
+  // M4 co-op kinds (js/elements/{team-bridge,counterweight-lift}.js)
+  "team-bridge": "element.teamBridge",
+  "counterweight-lift": "element.counterweightLift",
 });
 export const PROMPTS = Object.freeze({
   get clipIn() { return t("prompt.clipIn"); },
@@ -66,11 +69,13 @@ export const PROMPTS = Object.freeze({
   get evacuated() { return t("notice.stormEvacuated"); },
 });
 
-/** The player's own id in js/game/occupancy.js's ledgers – guests are always "guest-<n>" (js/npc/agents.js). */
+/** The default holder id in js/game/occupancy.js's ledgers – guests are always "guest-<n>" (js/npc/
+ *  agents.js). M4 co-op (js/game/coop.js) builds a second `createInteraction` for player 2 with
+ *  `holderId: "player2"` instead – see the `holderId` option below. */
 const PLAYER_HOLDER_ID = "player";
 
 /**
- * @param {{ player, input, belay, course, hud?, events?, vitals?, save?, ticket?, occupancy?, rescue?, operations? }} options
+ * @param {{ player, input, belay, course, hud?, events?, vitals?, save?, ticket?, occupancy?, rescue?, operations?, holderId?: string }} options
  *   `save` gates category entry anchors (GDD §3.12) and the Einschulung practice gate (M1.3) – omit it
  *   (dev harnesses, older tests) and nothing is ever locked. `ticket` gates every anchor once a day is
  *   over (M1.5, js/game/ticket.js) – omit it and clipping is never refused for lack of a ticket.
@@ -79,11 +84,14 @@ const PLAYER_HOLDER_ID = "player";
  *   js/game/rescue.js) lets the player share a panicked guest's own element slot while an active rescue
  *   targets it – omit it and occupancy is never relaxed. `operations` (M3b, js/game/operations.js)
  *   refuses every new clip-in during a storm evacuation with its own notice – omit it and weather never
- *   gates the belay.
+ *   gates the belay. `holderId` (M4, js/game/coop.js): this instance's own id in the shared occupancy
+ *   ledgers – player 1 keeps the default `"player"`, player 2's own instance passes `"player2"` so the
+ *   two never fight over the same slot and a capacity-2 co-op element (`element.occupancyCapacity`,
+ *   js/elements/{counterweight-lift,team-bridge}.js) can hold both at once.
  * @returns {{ update(dt: number): void, prompt: string|null, anchor: object|null,
  *   entry: {element: object, end: string}|null, dispose(): void }}
  */
-export function createInteraction({ player, input, belay, course, hud = null, events = null, vitals = null, save = null, ticket = null, occupancy = null, rescue = null, operations = null }) {
+export function createInteraction({ player, input, belay, course, hud = null, events = null, vitals = null, save = null, ticket = null, occupancy = null, rescue = null, operations = null, holderId = PLAYER_HOLDER_ID }) {
   const chest = new THREE.Vector3();
   let prompt = null;
   let heldElementId = null;   // the element the player currently occupies, for js/game/occupancy.js
@@ -118,12 +126,17 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
    *  gated here (see this module's own header note on scope – guests queue for it among themselves,
    *  but a human is not expected to "wait its turn" behind an NPC on a rail as short as the ladder).
    *  M3b: an active rescue (js/game/rescue.js) shares its one target element's slot with the player –
-   *  "guests yield" for that element only, everywhere else the normal cap-1 rule still applies. */
+   *  "guests yield" for that element only, everywhere else the normal cap-1 rule still applies.
+   *  M4: `element.occupancyCapacity` (js/elements/{counterweight-lift,team-bridge}.js, 2 instead of the
+   *  default 1) lets a second holder – co-op's own instance already accounts for itself via `holderId`,
+   *  so this only refuses a slot once every seat is taken by someone *else*. */
   const elementBlockedByGuest = (element) => {
     if (!occupancy || !element) return false;
     if (rescue && rescue.isTarget(element.id)) return false;
-    const holder = occupancy.holderOfElement(element.id);
-    return holder != null && holder !== PLAYER_HOLDER_ID;
+    const capacity = element.occupancyCapacity || 1;
+    const holders = occupancy.holdersOfElement(element.id);
+    if (holders.includes(holderId)) return false;
+    return holders.length >= capacity;
   };
 
   /** The ladder the belay is currently clipped to, whichever of the six routes that is – or null. */
@@ -196,7 +209,7 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
     const { element, end } = startable();
     // M3b: a rescue target is shared with whichever guest still holds it (see `elementBlockedByGuest`)
     // – the player never claims it themselves, so releasing it later never fights the guest's own hold.
-    if (occupancy && !(rescue && rescue.isTarget(element.id))) { occupancy.claimElement(element.id, PLAYER_HOLDER_ID); heldElementId = element.id; }
+    if (occupancy && !(rescue && rescue.isTarget(element.id))) { occupancy.claimElement(element.id, holderId, element.occupancyCapacity || 1); heldElementId = element.id; }
     player.setState(element.playerState || "element", { element, fromEnd: end, t: end === "exit" ? 1 : 0 });
     if (events) events.emit("player:interact", { what: element.kind, element: element.id, end });
   }
@@ -260,7 +273,7 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
       // The rail state's own exit() already ran in the physics phase (js/player/on-element.js) by the
       // time this runs – release the slot exactly one frame later, however the climber left it
       // (finished, slipped into "fall", …): see js/game/occupancy.js's header for why that is fine.
-      if (occupancy && heldElementId && player.mode !== "element") { occupancy.releaseElement(heldElementId, PLAYER_HOLDER_ID); heldElementId = null; }
+      if (occupancy && heldElementId && player.mode !== "element") { occupancy.releaseElement(heldElementId, holderId); heldElementId = null; }
       const onFoot = player.mode === "ground";
       chest.copy(player.position);
       chest.y += INTERACTION.chestHeight;
@@ -276,7 +289,7 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
     },
 
     dispose() {
-      if (occupancy && heldElementId) { occupancy.releaseElement(heldElementId, PLAYER_HOLDER_ID); heldElementId = null; }
+      if (occupancy && heldElementId) { occupancy.releaseElement(heldElementId, holderId); heldElementId = null; }
       anchor = null; entry = null; prompt = null;
     },
   };

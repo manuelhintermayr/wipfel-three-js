@@ -80,6 +80,8 @@
 .stamp .mastery-pips .pip { opacity: 0.4; }
 .stamp .mastery-pips .pip.earned { opacity: 1; color: var(--hud-accent); }
 .stamp .flow-score { margin-top: 0.2rem; font: 600 0.68rem/1.4 var(--font-ui); color: var(--hud-muted); }
+/* M4 co-op companion badge (js/game/coop.js) – the same cyan as player 2's rig accent (js/player/rig.js). */
+.stamp .companion-tag { margin-top: 0.3rem; font: 700 0.62rem/1.3 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: #1c9bd8; }
 .stamp-empty { color: var(--hud-muted); font: 400 0.85rem/1.4 var(--font-ui); }
 .stamp-facts { display: flex; gap: 1.6rem; margin: 1rem 0; font-variant-numeric: tabular-nums; }
 .stamp-facts b { display: block; font: 700 1.2rem/1 var(--font-display); }
@@ -116,7 +118,8 @@
    sits in the same corners as this screen's title/filter chip – hide it while the map is open. */
 .course-map-open .hud-route, .course-map-open .hud-ticket, .course-map-open .hud-flow,
 .course-map-open .hud-prompt, .course-map-open .hud-vitals, .course-map-open .hud-modes,
-.course-map-open .hud-speed, .course-map-open .hud-tip, .course-map-open .board-prompt { visibility: hidden; }
+.course-map-open .hud-speed, .course-map-open .hud-tip, .course-map-open .board-prompt,
+.course-map-open .p2-prompt { visibility: hidden; }
 
 /* Diegetic park board prompt (M1.4b) – its own bespoke line, same idea as .briefing-panel: no
    ordering fight with js/player/interaction.js's own hud.setPrompt() call. */

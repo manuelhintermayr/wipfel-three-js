@@ -17,7 +17,8 @@
    walkthrough) does NOT get this class – the point there is the ordinary climbing HUD. */
 .builder-editing-active .hud-route, .builder-editing-active .hud-ticket, .builder-editing-active .hud-flow,
 .builder-editing-active .hud-prompt, .builder-editing-active .hud-vitals, .builder-editing-active .hud-speed,
-.builder-editing-active .hud-tip, .builder-editing-active .board-prompt { visibility: hidden; }
+.builder-editing-active .hud-tip, .builder-editing-active .board-prompt,
+.builder-editing-active .p2-prompt { visibility: hidden; }
 
 .builder-hint {
   position: absolute; left: 50%; top: var(--hud-pad); transform: translateX(-50%);

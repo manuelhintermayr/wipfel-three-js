@@ -19,12 +19,22 @@ const DEFAULT_BINDINGS = {
   mouse: { 0: "handR", 2: "handR" },
   gamepad: {
     axes: { moveX: 0, moveY: 1, lookX: 2, lookY: 3 },
-    buttons: { 0: "jump", 1: "breathe", 2: "clip", 3: "map", 4: "sprint", 5: "camera", 6: "handL", 7: "handR", 9: "pause", 8: "photo" },
+    // M4 (ROADMAP "Koop 2 lokal", ADR-030): index 10 (left-stick click, "L3" on a standard Gamepad API
+    // mapping) is otherwise unused by this project – GDD's own control table lists "interact" as "–" on
+    // gamepad (never mapped), which is fine for a keyboard-primary solo game but leaves a gamepad-only
+    // player 2 unable to clip in, climb a ladder or step onto anything at all. Added here rather than in
+    // a rebinding UI (none exists, and none is asked for) – every existing index is untouched, so solo
+    // gamepad play (already possible via js/core/input.js#Input before M4) only gains a button, it loses
+    // nothing.
+    buttons: { 0: "jump", 1: "breathe", 2: "clip", 3: "map", 4: "sprint", 5: "camera", 6: "handL", 7: "handR", 9: "pause", 8: "photo", 10: "interact" },
     deadzone: 0.15,
   },
   lookSensitivity: 0.0022,
   gamepadLookSpeed: 2.6, // rad/s at full stick
 };
+
+/** The gamepad half of the default bindings, reused as-is by js/core/input-source.js's player-2 facade. */
+export const DEFAULT_GAMEPAD_BINDINGS = DEFAULT_BINDINGS.gamepad;
 
 export class Input {
   constructor(target = window, bindings = DEFAULT_BINDINGS) {
@@ -46,8 +56,19 @@ export class Input {
     this.look = { x: 0, y: 0 };
     /** Accessibility (options screen, M1.7): flips vertical look – camera pitch, not the actions above. */
     this.invertY = false;
+    // M4 (js/game/coop.js): once co-op is enabled the gamepad drives player 2 exclusively (js/core/
+    // input-source.js#GamepadInputSource) – this instance (player 1) must stop reading it, or the same
+    // physical stick would move both climbers. Off by default: solo play keeps today's "gamepad is a P1
+    // alternative" behaviour untouched.
+    this._useGamepad = true;
     this._target = target;
     this._bind();
+  }
+
+  /** js/game/coop.js: false while co-op owns the gamepad for player 2; true (default) otherwise. */
+  setGamepadEnabled(on) {
+    this._useGamepad = !!on;
+    if (!this._useGamepad) { this._padAxes.moveX = this._padAxes.moveY = this._padAxes.lookX = this._padAxes.lookY = 0; this._padDown.clear(); }
   }
 
   _bind() {
@@ -89,7 +110,7 @@ export class Input {
 
   /** Read gamepad state; called once per frame in the input phase. */
   poll() {
-    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    const pads = this._useGamepad && navigator.getGamepads ? navigator.getGamepads() : [];
     const pad = Array.from(pads).find((p) => p && p.connected);
     const gb = this.bindings.gamepad;
     const prevPad = this._padDown;

@@ -163,6 +163,8 @@
   "options.gameplay.locale": "Sprache",
   "options.gameplay.localeNote": "Routennamen und Prompts übernehmen die neue Sprache beim nächsten Neuzeichnen; einzelne, nur einmal aufgebaute Bildschirme (Kassa, Stempelkarte) bleiben bis zum Neuladen in der alten Sprache.",
   "options.gameplay.colourShape": "Jede Routenfarbe trägt zusätzlich eine eigene Form (● ■ ◆) auf Schildern, im Parkplan und auf Stempeln – Farbe ist nie der einzige Hinweis.",
+  "options.gameplay.sharedPhysics": "Geteilte Brückenphysik",
+  "options.gameplay.sharedPhysicsDesc": "Wirkt nur im Koop: Auf den beiden Koop-Übungen und bei Übungen, die sich einen Tragbaum teilen, regen die Schritte der einen Person auch das Wackeln der anderen Übung leicht an. Aus bedeutet: Jede Übung wackelt nur für die Person, die tatsächlich darauf steht.",
   "options.controls.note": "Vorerst nur lesbar – Neubelegung ist vorbereitet, aber noch nicht verdrahtet.",
   "options.controls.move": "Bewegen",
   "options.controls.sprint": "Sprint",
@@ -190,6 +192,8 @@
   "kassa.gear.shoes.desc": "Ruhigeres Gleichgewicht – dafür kostet Hochziehen nach einem Sturz mehr Kraft.",
   "kassa.gear.trolley.name": "Schnelle Rolle",
   "kassa.gear.trolley.desc": "Mehr Tempo am Flying Fox – schwerer sauber zu bremsen.",
+  "kassa.coopToggle": "Zwei Kletternde",
+  "kassa.coopToggleDesc": "Der Controller steigt als zweite Kletterin ein – Tastatur und Maus bleiben die erste.",
 
   "hud.trialTag": "ZEITLAUF",
   "hud.trialHint": "[{key}] Zeitlauf",
@@ -205,6 +209,7 @@
 
   "stamp.trialTag": "ZEITLAUF",
   "stamp.flowScore": "Flow-Score {score}",
+  "stamp.companion": "Gemeinsam geschafft",
 
   "notice.continuousBelay": "Durchlaufende Sicherung – kein Umhängen",
 
@@ -231,6 +236,8 @@
   "element.ringsFar": "die weiten Ringe",
   "element.barrels3": "die drei Fässer",
   "element.skateLong": "das schnelle Skateboard",
+  "element.teamBridge": "die Team-Brücke",
+  "element.counterweightLift": "der Gegengewichtslift",
 
   "photo.hint": "[P] Fotomodus verlassen  ·  [Leertaste] Schnappschuss",
 
@@ -390,5 +397,13 @@
   "options.sharing.importInvalid": "Diese Datei ist kein gültiger Wipfel-Park.",
   "options.sharing.importSuccess": "Park importiert – jede Route muss vor der Öffnung erneut begangen werden.",
   "options.sharing.importSuccessIssues": "Park importiert – {n} Route(n) haben Verstöße, die im Builder zu beheben sind; jede Route muss vor der Öffnung erneut begangen werden.",
-  "options.sharing.noCustomPark": "Zuerst im Park-Builder etwas bauen oder bearbeiten – es gibt noch nichts Individuelles zu exportieren."
+  "options.sharing.noCustomPark": "Zuerst im Park-Builder etwas bauen oder bearbeiten – es gibt noch nichts Individuelles zu exportieren.",
+
+  "coop.p2Prefix": "P2:",
+  "coop.leashHint": "Zusammenbleiben",
+  "coop.bothFinished": "Beide Kletternde geschafft – gut gemacht!",
+  "coop.cheer.1": "Du schaffst das!",
+  "coop.cheer.2": "Ruhig und sicher!",
+  "coop.cheer.3": "Fast geschafft!",
+  "coop.cheer.4": "Sieht gut aus da oben!"
 }

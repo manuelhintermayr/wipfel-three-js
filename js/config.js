@@ -276,6 +276,62 @@ export const ECONOMY = Object.freeze({
   wordOfMouth: Object.freeze({ guestsAtFloor: 8, guestsAtCeil: 16, ratingFloor: 2.0, ratingCeil: 5.0 }),
 });
 
+/**
+ * Local co-op (ROADMAP M4, GDD §3.11, ADR-029/ADR-030). Logic: js/game/coop.js,
+ * js/player/coop-camera.js. Player 2 is always the first connected gamepad (js/core/input-source.js);
+ * player 1 keeps keyboard+mouse. `leash` is the "stay together" compromise ADR-030 documents instead of
+ * splitscreen: beyond `leashStartM` player 2's own movement input is scaled down, floored at
+ * `leashMinFactor` so it dampens rather than freezes; the HUD hint shows for as long as the leash is
+ * actively cutting in. `camera` feeds js/player/coop-camera.js's pure frame computation – distance is an
+ * absolute world distance (not a fraction of the solo `CAMERA.distance*` range in js/player/tuning.js),
+ * clamped to the spec's 4-18 m.
+ */
+export const COOP = Object.freeze({
+  camera: Object.freeze({
+    distanceMin: 4,
+    distanceMax: 18,
+    distanceBase: 5,          // metres at zero separation
+    distanceGain: 0.42,       // extra metres of distance per metre of separation
+    distanceRate: 3,          // 1/s smoothing of the wanted distance
+    pivotRate: 5,             // 1/s smoothing of the wanted focus point
+    // Activity weight (0..1) per player mode – "frame the climber" is a blend towards whoever weighs more.
+    activityWeight: Object.freeze({ element: 1.0, zipline: 1.0, tarzan: 1.0, fall: 0.9, ladder: 0.5, ground: 0.15 }),
+  }),
+  leash: Object.freeze({
+    startM: 24,               // separation beyond which player 2's own input starts being damped
+    maxExtraM: 8,             // additional separation (past startM) over which damping ramps to its floor
+    minFactor: 0.2,           // player 2's move input is never scaled below this fraction
+  }),
+  // Spectator calls (GDD §3.11 "Zuschauer-Rufe"): reuses js/config.js#NPC's own watch radius/height –
+  // "the player stands on the platform" proxy already tuned for the M1.6 trust hook – for "the *other*
+  // climber or a guest stands on the adjacent platform" while co-op is active.
+  spectator: Object.freeze({
+    intervalSecondsMin: 9,
+    intervalSecondsMax: 16,
+    nervesRelief: 0.05,       // smaller than a full js/player/nerves.js#watchSuccess() bump – this repeats
+  }),
+});
+
+/**
+ * The two co-op catalogue kinds (ROADMAP M4, GDD §3.11 "Koop-Übungen"). Logic: js/elements/
+ * counterweight-lift.js, js/elements/team-bridge.js. Both stay solo-passable (RULES/GDD "real parks
+ * forbid two people on one obstacle, the game allows it if the group enables it") – a helper only makes
+ * either one easier, never required. `helperRange` is how close the *other* climber must stand to the
+ * relevant platform anchor, on foot, to engage.
+ */
+export const COOP_ELEMENTS = Object.freeze({
+  helperRange: 2.2,
+  counterweightLift: Object.freeze({
+    selfHaulSpeed: 0.20,      // m/s, always available – RESEARCH-DATA §... "solo: sandbag preloaded"
+    haulTapBoost: 0.16,       // m/s added per W-tap from the platform, decaying away
+    haulDecayPerSecond: 0.11, // m/s lost per second (so repeated taps are needed to stay fast)
+    maxSpeed: 0.62,
+  }),
+  teamBridge: Object.freeze({
+    tensionKickScale: 0.4,    // -60% wobble impulse while the partner holds the tension rope
+  }),
+});
+
 /** Course Map overlay + diegetic park board (ROADMAP M1.4). Logic: js/ui/map-render.js. */
 export const MAP = Object.freeze({
   padding: 34,                 // px margin around the projected park bounds

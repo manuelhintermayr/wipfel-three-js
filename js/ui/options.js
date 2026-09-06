@@ -85,6 +85,10 @@ export function createOptions({ root, save, input, camera, loop, ticket = null, 
   const setReducedCameraMotion = (on) => { applyReducedCameraMotionLive(on); save.updateSettings({ reducedCameraMotion: on }); };
   const setReducedMotion = (on) => { applyReducedMotionLive(on); save.updateSettings({ reducedMotion: on }); };
   const setAssist = (on) => { applyAssistLive(on); save.updateSettings({ assist: on }); };
+  // M4 (ROADMAP "geteilte Physik", GDD §3.11/§4): js/game/coop.js reads `save.data.settings.
+  // sharedPhysics` live every frame – nothing to "apply" to the running game beyond the save write
+  // itself, unlike every other toggle above.
+  const setSharedPhysics = (on) => save.updateSettings({ sharedPhysics: on });
   const setGraphics = (id) => { applyGraphicsLive(id); save.updateSettings({ graphics: id }); render(); };
 
   /** Re-run initI18n and rebuild this panel's own labels immediately (js/core/i18n.js is a module-level
@@ -160,6 +164,12 @@ export function createOptions({ root, save, input, camera, loop, ticket = null, 
       el("h2", "", t("options.section.gameplay")),
       toggleRow(t("options.gameplay.assist"), save.data.settings.assist, setAssist),
       el("div", "opt-note", t("options.gameplay.assistDesc")),
+      // M4 (ROADMAP "Koop 2 lokal", GDD §3.11/§4 "im Spiel erlaubt, wenn die Gruppe es einschaltet"):
+      // shown regardless of whether co-op is active right now – it only ever *does* anything while
+      // js/game/coop.js is running, exactly like the night-ticket/equipment rows only ever matter once
+      // their own unlock condition holds, but there is no harm in the toggle simply existing meanwhile.
+      toggleRow(t("options.gameplay.sharedPhysics"), save.data.settings.sharedPhysics, setSharedPhysics),
+      el("div", "opt-note", t("options.gameplay.sharedPhysicsDesc")),
       localeRow,
       el("div", "opt-note", t("options.gameplay.localeNote")),
       el("div", "opt-note", t("options.gameplay.colourShape")),

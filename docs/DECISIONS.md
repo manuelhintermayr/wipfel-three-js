@@ -137,9 +137,28 @@ Gäste-Simulation, Begehungspflicht, Inspektionen, Ökonomie, Teilen. **Konseque
 echtes Online-Koop und ein Online-Parcours-Marktplatz sind damit nicht ehrlich lieferbar.
 **Entscheidung:** M4 = **lokales Koop** (2 Spieler an einem Gerät: Gamepad + Tastatur/Maus, geteilte
 Kamera oder Splitscreen nach Machbarkeit), geteilte Brückenphysik, Koop-Übungen, NPC-Zuschauer-Rufe;
-„Teilen“ = Park-/Parcours-Export als JSON-Datei bzw. Code zum Einfügen (Import validiert wie der
+„Teilen” = Park-/Parcours-Export als JSON-Datei bzw. Code zum Einfügen (Import validiert wie der
 Generator). **Alternativen:** WebRTC-P2P (braucht Signaling-Server – abgelehnt), eigener Server
 (ADR-001-Bruch – abgelehnt). **Konsequenzen:** Bestenlisten bleiben lokal pro Gerät.
+
+## ADR-030 · Geteilte Kamera statt Splitscreen im Koop · 2026-08-27 · angenommen
+**Kontext:** ADR-029 lässt „geteilte Kamera oder Splitscreen nach Machbarkeit” offen. Splitscreen
+verdoppelt Draw-Calls/Render-Kosten (zwei volle Kameradurchläufe statt einer) und bricht die enge
+Schulterkamera-Nähe, die das ganze Spielgefühl trägt (ADR-006) – zwei kleine, weit entfernte Viewports
+zeigen kaum noch, worauf es beim Balancieren ankommt.
+**Entscheidung:** **eine** geteilte, dynamische Kamera (`js/player/coop-camera.js#computeCoopFrame`):
+Fokuspunkt und Distanz werden jeden Frame aus beiden Spielerpositionen berechnet – gewichtet zu Gunsten
+von, wer gerade auf einer Übung/Zipline ist („frame the climber”), Distanz wächst mit dem Abstand,
+geklemmt auf 4–18 m (`js/config.js#COOP.camera`). Kein Splitscreen, keine zweite Renderkamera im Bild.
+Da Distanz allein keine beliebig große Trennung ausgleichen kann, ohne die Nähe zu verlieren, gehört die
+**„Zusammenbleiben”-Leine** dazu (`js/game/coop-elements.js#leashFactor`): jenseits von 24 m wird Spieler
+2s eigener Bewegungsinput dynamisch gedämpft (nie eingefroren, Boden bei 20 %), mit einem HUD-Hinweis.
+**Alternativen:** echter Splitscreen (Kosten/Nähe-Verlust wie oben – abgelehnt), harte Trennwand/Teleport
+zurück (fühlt sich nicht wie ein gemeinsamer Park an – abgelehnt), unbegrenzte Trennung ohne Leine (die
+Kamera müsste beliebig weit rauszoomen und würde nutzlos – abgelehnt).
+**Konsequenzen:** Spieler 2 bekommt nie „ihre eigene” Kamera zu sehen (die eigene, unsichtbare Kamera-
+Instanz dient nur der bewegungsrelativen Blickrichtung, s. `js/game/coop.js`); das Zusammenbleiben ist
+eine Spielregel, keine harte Wand – ehrliche, einfache Vereinfachung statt eines Kamera-Kunstgriffs.
 
 ---
 

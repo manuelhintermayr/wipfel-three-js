@@ -51,14 +51,17 @@ const LEGACY_BLUE_1 = Object.freeze({
  * @param {{ routeId: string, category: "blue"|"red"|"black"|"legendary", chainLength: number, bearing: number,
  *   terrain: { heightAt, isPath, slopeAt, hubs }, rng: import("../core/rng.js").Rng,
  *   otherTrees: Array<{x,z}>, spawnHub: {x,z,radius}, homePoint: {x,z},
- *   join?: { hostTree: object, hostTreeIndex: number, hostPlatformId: string, hostDeckHeight: number } }} options
+ *   join?: { hostTree: object, hostTreeIndex: number, hostPlatformId: string, hostDeckHeight: number },
+ *   coopEdge?: { index: number, kind: string } }} options
  *   `join` (M2a, GDD §3.9 "Kreuzungspodeste"): this route's first platform is an existing platform of
  *   an earlier route of the *same* category instead of a freshly placed tree – see js/park/layout.js#JUNCTIONS.
+ *   `coopEdge` (M4, ROADMAP "Koop-Übungen", GDD §3.11): edge `index` gets this exact catalogue kind
+ *   instead of `buildEdges`' usual random pool pick – see js/park/layout.js#PARK_CONFIG's blue-2/red-2.
  * @returns {{ trees: Array<{x,z,species,height,y}>, entry: {x,z,facing},
  *   platforms: Array<{id,treeIndex,deckHeight,kind,radius}>, edges: Array<{id,kind,from,to}>,
  *   zip: object, joinTreeIndex: number|null }|null}
  */
-export function buildRouteCandidate({ routeId, category, chainLength, bearing, terrain, rng, otherTrees, spawnHub, homePoint, join = null }) {
+export function buildRouteCandidate({ routeId, category, chainLength, bearing, terrain, rng, otherTrees, spawnHub, homePoint, join = null, coopEdge = null }) {
   const trees = buildChain({
     chainLength, bearing, terrain, rng, otherTrees, spawnHub,
     startTree: join ? join.hostTree : null,
@@ -76,7 +79,7 @@ export function buildRouteCandidate({ routeId, category, chainLength, bearing, t
     radius: i === 0 || i === trees.length - 1 ? PLATFORM_RADIUS.standard : PLATFORM_RADIUS.transition,
   }));
 
-  const edges = buildEdges(routeId, category, trees.length - 1, rng, join ? platforms[0].id : null);
+  const edges = buildEdges(routeId, category, trees.length - 1, rng, join ? platforms[0].id : null, coopEdge);
 
   const lastTree = trees[trees.length - 1];
   const platformTop = lastTree.y + heights[heights.length - 1];
@@ -175,8 +178,12 @@ function variantsAllowedFor(routeId, category) {
  * Catalogue kind per edge: within the category's difficulty budget, never the same kind twice running.
  * `firstPlatformId` (a junction, M2a): the first edge leaves from the host route's shared platform id
  * instead of this route's own `${routeId}-p1`, which was never built (see `buildRouteCandidate`).
+ * `coopEdge` (M4, ROADMAP "Koop-Übungen"): `edges[coopEdge.index]` gets `coopEdge.kind` verbatim instead
+ * of a pool pick – js/elements/{team-bridge,counterweight-lift}.js are never in `CATALOGUE`/
+ * `CATALOGUE_VARIANTS` (see js/elements/catalogue-data.js's own header on why), so the random pool below
+ * could never roll them on its own; this is the one deliberate placement each gets.
  */
-function buildEdges(routeId, category, edgeCount, rng, firstPlatformId = null) {
+function buildEdges(routeId, category, edgeCount, rng, firstPlatformId = null, coopEdge = null) {
   if (routeId === LEGACY_BLUE_1.routeId) {
     return LEGACY_BLUE_1.ids.slice(0, edgeCount).map((id, i) => ({
       id, kind: LEGACY_BLUE_1.kinds[i], from: `${routeId}-p${i + 1}`, to: `${routeId}-p${i + 2}`,
@@ -189,10 +196,15 @@ function buildEdges(routeId, category, edgeCount, rng, firstPlatformId = null) {
   const edges = [];
   let previousKind = null;
   for (let i = 0; i < edgeCount; i++) {
+    const from = i === 0 && firstPlatformId ? firstPlatformId : `${routeId}-p${i + 1}`;
+    if (coopEdge && i === coopEdge.index) {
+      previousKind = coopEdge.kind;
+      edges.push({ id: `${routeId}-e${i + 1}`, kind: coopEdge.kind, from, to: `${routeId}-p${i + 2}` });
+      continue;
+    }
     const choices = pool.filter((e) => e.kind !== previousKind);
     const chosen = rng.pick(choices.length ? choices : pool);
     previousKind = chosen.kind;
-    const from = i === 0 && firstPlatformId ? firstPlatformId : `${routeId}-p${i + 1}`;
     edges.push({ id: `${routeId}-e${i + 1}`, kind: chosen.kind, from, to: `${routeId}-p${i + 2}` });
   }
   return edges;

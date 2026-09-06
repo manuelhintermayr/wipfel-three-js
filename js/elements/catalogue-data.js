@@ -74,9 +74,24 @@ export const CATALOGUE_VARIANTS = Object.freeze([
   },
 ]);
 
-/** @returns {object|null} looks up both the base twelve and the eight M2b variants. */
+/**
+ * The two co-op catalogue kinds (ROADMAP M4, GDD §3.11 "Koop-Übungen"): js/elements/{team-bridge,
+ * counterweight-lift}.js. Kept as their own array rather than appended to `CATALOGUE` above –
+ * `tests/unit/catalogue.test.mjs` pins `CATALOGUE.length === 12` (the M1.8 twelve) on purpose, and
+ * these two are never offered to the generator's own random pool (js/park/layout-route.js#buildEdges
+ * places them deliberately via each route's `coopEdge` plan entry, js/park/layout.js#PARK_CONFIG) –
+ * they are not "one of the kinds any route might roll", so they do not belong in that count either.
+ * `catalogueEntry()` below still finds them, for the same label/metric lookups every other kind gets.
+ */
+export const COOP_CATALOGUE = Object.freeze([
+  { kind: "team-bridge", labelKey: "element.teamBridge", discrete: false, metrics: Object.freeze({ physical: 2, coordination: 4, psychological: 3, technical: 1 }) },
+  { kind: "counterweight-lift", labelKey: "element.counterweightLift", discrete: false, metrics: Object.freeze({ physical: 2, coordination: 2, psychological: 2, technical: 3 }) },
+]);
+
+/** @returns {object|null} looks up the base twelve, the eight M2b variants, and the two M4 co-op kinds. */
 export function catalogueEntry(kind) {
   for (const entry of CATALOGUE) if (entry.kind === kind) return entry;
   for (const entry of CATALOGUE_VARIANTS) if (entry.kind === kind) return entry;
+  for (const entry of COOP_CATALOGUE) if (entry.kind === kind) return entry;
   return null;
 }

@@ -18,13 +18,20 @@
 // instead of whichever one happens to run first in the update loop that frame. Player vs. guest
 // contention needs no queue: js/player/interaction.js already refuses the E press outright (a human
 // does not "queue" – they read the "wait for the climber ahead" prompt and try again).
+//
+// M4 (ROADMAP "Koop-Übungen", GDD §3.11): `claimElement`'s optional `capacity` argument lets exactly
+// two of the catalogue's twenty-plus kinds (js/elements/{counterweight-lift,team-bridge}.js,
+// `element.occupancyCapacity === 2`) hold two simultaneous holders – a rider plus a helper standing at
+// the platform end, never two riders on the same rail parameter (see each element's own header for why
+// that stays honest). Every existing caller omits `capacity` and keeps the original one-holder rule.
 import { RULES, NPC } from "../config.js";
 
 /**
  * @param {{ maxPerElement?: number, maxGuestsPerPlatform?: number }} [options]
  * @returns {{
  *   holderOfElement(id): string|null,
- *   claimElement(id, holderId): boolean,
+ *   holdersOfElement(id): string[],
+ *   claimElement(id, holderId, capacity?): boolean,
  *   releaseElement(id, holderId): void,
  *   guestsOnPlatform(id): number,
  *   claimPlatform(id, holderId, isGuest): boolean,
@@ -33,28 +40,41 @@ import { RULES, NPC } from "../config.js";
  * }}
  */
 export function createOccupancy({ maxPerElement = RULES.maxPerElement, maxGuestsPerPlatform = NPC.maxPerPlatformGuests } = {}) {
-  const elementHolder = new Map();     // elementId -> holderId (only ever one; maxPerElement is 1 in this game)
+  const elementHolders = new Map();     // elementId -> Set<holderId> (size 1 unless capacity > 1 is passed)
   const platformGuests = new Map();    // platformId -> Set<holderId> (guests only)
 
   return {
-    /** Who currently holds this element/ladder rail, or null if it is free. */
-    holderOfElement(id) { return elementHolder.get(id) ?? null; },
+    /** Who currently holds this element/ladder rail (the first holder, for the common one-holder case), or null. */
+    holderOfElement(id) {
+      const set = elementHolders.get(id);
+      return set && set.size ? set.values().next().value : null;
+    },
+    /** Every current holder – js/player/interaction.js reads this for capacity-2 co-op elements. */
+    holdersOfElement(id) {
+      const set = elementHolders.get(id);
+      return set ? Array.from(set) : [];
+    },
 
     /**
-     * @returns {boolean} true if `holderId` now holds (or already held) this element. Capacity is
-     *   `maxPerElement` (1) shared between the player and every guest – whoever asks first wins;
-     *   everyone else must wait for `releaseElement`.
+     * @param {number} [capacity] how many simultaneous holders this element allows – defaults to
+     *   `maxPerElement` (1, RULES.maxPerElement). A capacity-2 co-op element (js/config.js#COOP_ELEMENTS)
+     *   passes 2 explicitly; every other caller is unaffected.
+     * @returns {boolean} true if `holderId` now holds (or already held) this element.
      */
-    claimElement(id, holderId) {
-      const current = elementHolder.get(id);
-      if (current != null && current !== holderId) return false;
-      if (maxPerElement <= 0) return false;
-      elementHolder.set(id, holderId);
+    claimElement(id, holderId, capacity = maxPerElement) {
+      let set = elementHolders.get(id);
+      if (!set) { set = new Set(); elementHolders.set(id, set); }
+      if (set.has(holderId)) return true;
+      if (set.size >= capacity) return false;
+      set.add(holderId);
       return true;
     },
 
     releaseElement(id, holderId) {
-      if (elementHolder.get(id) === holderId) elementHolder.delete(id);
+      const set = elementHolders.get(id);
+      if (!set) return;
+      set.delete(holderId);
+      if (!set.size) elementHolders.delete(id);
     },
 
     guestsOnPlatform(id) { const set = platformGuests.get(id); return set ? set.size : 0; },
@@ -81,7 +101,7 @@ export function createOccupancy({ maxPerElement = RULES.maxPerElement, maxGuests
       if (set) set.delete(holderId);
     },
 
-    reset() { elementHolder.clear(); platformGuests.clear(); },
+    reset() { elementHolders.clear(); platformGuests.clear(); },
   };
 }
 

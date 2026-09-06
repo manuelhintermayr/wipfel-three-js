@@ -1705,3 +1705,166 @@ before-opening rule, ADR-029's own wording), and – if `terrain` was passed to 
 real per-route validation (`js/builder/builder-validate.js#validateRoute`/`validatePark`, the identical
 rules the builder itself is held to) purely to report an up-front issue count; it never blocks the
 import itself, the same way a hand-edited route with issues already stays importable as a "Draft".
+
+## Local co-op (M4 – "Die anderen", GDD §3.11, ADR-029/ADR-030)
+
+### `js/core/input.js` + `js/core/input-source.js` (the input split)
+`Input#setGamepadEnabled(on)` (new): when `false`, `poll()` skips reading `navigator.getGamepads()`
+entirely – player 1's own instance calls this with `false` the moment co-op starts, so the same physical
+stick cannot drive both climbers. `DEFAULT_GAMEPAD_BINDINGS` is now exported (`DEFAULT_BINDINGS.gamepad`)
+for reuse, and gained one new mapping: button 10 (left-stick click, "L3" on the Gamepad API's standard
+mapping) → `"interact"` – the GDD's own control table lists gamepad "interact" as "–" (never mapped),
+which is fine for a keyboard-primary solo game but leaves a gamepad-only player 2 unable to clip in,
+climb a ladder or step onto anything; every existing index is untouched, so solo gamepad play only
+*gains* a button. `js/core/input-source.js` (new) exports:
+- `isGamepadConnected()` – `js/ui/kassa.js`'s "Two climbers" row visibility gate.
+- `createGamepadInputSource(bindings?)` – an Input-*like* facade (not a subclass: `Input` also owns
+  keyboard/mouse DOM listeners this has no use for) with the exact same method names
+  (`down/pressed/released/consume/move/look/poll/endFrame`), reading the first connected gamepad
+  directly. `js/game/coop.js` gives player 2 its own copy of `DEFAULT_GAMEPAD_BINDINGS` with the
+  `"camera"` button stripped (see below).
+- `createTestInputSource()` – a do-nothing stand-in with the identical shape, for
+  `WIPFEL.debug.enableCoopForTest()` / `tools/dev/verify-m4.mjs` (no real gamepad in a headless run).
+
+### `js/game/occupancy.js` (capacity generalised, backward compatible)
+`claimElement(id, holderId, capacity = maxPerElement)`: the internal ledger became `Map<id, Set<holderId>>`
+instead of `Map<id, holderId>` – with the default `capacity` (1) a `Set` of size 1 behaves identically to
+the old single-value map, so every existing caller (guests, player 1) is unaffected. New
+`holdersOfElement(id)` returns every current holder; `holderOfElement(id)` (kept) returns the first, for
+every caller that only ever expected one. The two capacity-2 co-op elements
+(`element.occupancyCapacity === 2`) are the only ones that ever pass `capacity` explicitly.
+
+### `js/player/interaction.js` (`holderId` option)
+`createInteraction({ …, holderId = "player" })`: player 2's own instance passes `holderId: "player2"` so
+the two never fight over the same occupancy slot, and `elementBlockedByGuest` now reads
+`element.occupancyCapacity || 1` against `occupancy.holdersOfElement(id)` instead of a hard-coded
+single-holder check – the only place capacity-2 elements are actually exercised for the *rider's* own
+slot (a helper's slot is claimed directly by `js/game/coop.js`, never through this module – see below).
+
+### `js/player/{controller,rig,camera}.js` (small, additive hooks)
+`createPlayer({ …, rigVariant = "p1" })` threads straight through to `createRig({ rng, colourVariant })`
+(`js/player/rig.js`): the harness accent colour (the one swatch every gear piece already reuses,
+`js/player/rig-gear.js`) is re-tinted cyan (`0x1c9bd8`) for `"p2"`, orange unchanged for `"p1"`/solo – the
+same "one recoloured swatch reads as a different person" trick `js/npc/guest-rig.js` already uses one
+level up (torso colour = category colour). `js/player/camera.js#setFocusOverride(position, distance)`
+(new): while set, the third-person pivot follows `position` and the wanted arm length is `distance`
+verbatim instead of the walk/sprint `CAMERA.distanceMin/Max` blend – `null` (default, solo play) is the
+original behaviour, untouched. Player 2 gets its own *real* `createCameraController`, bound to a
+throwaway `THREE.PerspectiveCamera` that is never added to the renderer or rendered – reusing the whole
+tested module (yaw/pitch from stick input, forward/right for movement, its own collision-avoidance probe)
+is simpler and safer than a hand-rolled parallel stub, at the cost of one harmless extra shape-cast per
+frame while co-op is active. Its own `"camera"` gamepad button is stripped from player 2's bindings
+(`js/game/coop.js#P2_GAMEPAD_BINDINGS`) so it can never flip that invisible camera's `isFirstPerson` and
+hide player 2's own rig (`controller.js#render` ties body visibility to that flag).
+
+### `js/player/coop-camera.js` (pure – ADR-030)
+`activityWeight(mode)` / `computeCoopFrame(p1, p2)`: given both climbers' `{position, mode}`, blends
+towards whoever is doing the harder thing (`COOP.camera.activityWeight`, `js/config.js`) for "frame the
+climber, companion visible when possible", and grows the distance linearly with separation, clamped to
+`COOP.camera.distanceMin/Max` (4–18 m). `js/game/coop.js` calls this once a gameplay frame and hands the
+result straight to player 1's `camera.setFocusOverride`.
+
+### `js/game/coop-elements.js` (pure – every formula `tests/unit/coop.test.mjs` exercises directly)
+THREE-free by construction (`js/game/coop.js`, `js/elements/{team-bridge,counterweight-lift}.js` all pull
+in THREE transitively and cannot themselves be imported under plain `node --test` – see
+`js/elements/catalogue-data.js`'s own header for why): `currentElementOf`, `elementsShareSupport`,
+`applySharedPhysics` (the shared-physics coupling, §below), `isHelperInRange`, `findCoopElements`; the
+counterweight lift's `decayHaulCharge`/`addHaulCharge`/`counterweightSpeed`; the team bridge's
+`teamBridgeKickScale`; the leash's `leashFactor`; and the shared-run detection's `sharedRouteId`/
+`justFinishedSharedZip`. `js/game/coop.js` and the two element modules import these instead of inlining
+the arithmetic, so the numbers are tested once, directly, regardless of which THREE-dependent module
+actually calls them.
+
+### `js/elements/team-bridge.js` + `js/elements/counterweight-lift.js` (two new catalogue kinds)
+Registered the same way every other kind is (`registerElementKind`), **not** added to `CATALOGUE`/
+`CATALOGUE_VARIANTS` (`tests/unit/catalogue.test.mjs` pins those two arrays' lengths) but to a third,
+`COOP_CATALOGUE` (`js/elements/catalogue-data.js`) that `catalogueEntry()` also searches – so labels/
+metrics/i18n resolve exactly like any other kind, without ever being offered to the generator's own
+random pool. Both carry `element.occupancyCapacity = 2` (rider + a *helper* who never enters the
+"element" player state at all – see below) and stay solo-passable by design (GDD "real parks forbid two
+people on one obstacle, the game allows it if the group enables it" – the *helper* is the optional part).
+- **`team-bridge`**: structurally a beam-swing cousin (independent per-segment pendulums, walked
+  continuously, flat plank segments instead of round logs), wobblier by default than any other blue/red
+  element on purpose (`TEAM_BRIDGE.maxSwing/kickPerStep`). `element.setTensionHeld(bool)` scales every
+  *future* footstep kick by `COOP_ELEMENTS.teamBridge.tensionKickScale` (`-60%`) – steadies it, does not
+  retroactively calm a segment already swinging.
+- **`counterweight-lift`**: a basket riding two guide cables, no balance problem at all (GDD's own
+  "Netze, Röhren" family, minus even the strength cost – the obstacle is entirely about *pace*).
+  `element.walkSpeed` is mutated live each frame: `COOP_ELEMENTS.counterweightLift.selfHaulSpeed` is
+  always present (solo-passable, "a preloaded sandbag"), `addHaulPower(m/s)` adds a decaying bonus from a
+  helper's taps on top, clamped at `maxSpeed`.
+- **Placement**: deterministic, not random – `js/park/layout.js#PARK_CONFIG`'s `blue-2`/`red-2` route
+  plans carry a `coopEdge: {index, kind}` field; `js/park/layout-route.js#buildEdges` forces that exact
+  edge to the given kind (still updating `previousKind` so a neighbour cannot roll the same kind twice)
+  instead of drawing from the category pool, exactly like `LEGACY_BLUE_1`'s special-cased edges already
+  bypass that same pool. Metrics stay inside each category's `maxMetricSum` (team-bridge 10 ≤ blue's 11,
+  counterweight-lift 9 ≤ red's 15) so `tests/unit/layout.test.mjs`'s existing budget check holds
+  unmodified across all eight fixture seeds.
+
+### `js/game/coop.js` (the session – orchestration, not pure)
+`createCoop({ scene, physics, terrain, sky, events, hud, root, rng, player, input, belay, vitals,
+occupancy, save, ticket, rescue, operations, getCourse, getSession, getAgents })` owns:
+- **Spawn/teardown** (`enable()`/`disable()`): a second `createPlayer()` (see above), its own `belay`
+  (mode copied from player 1's at the moment co-op starts; its `"unsafe"` event – both carabiners open,
+  classic mode – is namespaced to `"coop:belay2-unsafe"` rather than the shared `"belay:unsafe"`, so
+  `js/main.js`'s existing accident-state listener – which closes over *player 1* specifically – can never
+  fire because player 2 mishandled their own gear; `"open"`/`"click"` still share the real event names so
+  both climbers' clips make the same carabiner sounds), its own `vitals` (own balance/stamina/nerves, no
+  HUD of its own), its own four extra locomotion states (element/fall/zipline/tarzan, each built exactly
+  like player 1's own in `js/main.js`), and its own `createInteraction(..., holderId: "player2")` feeding
+  a small `.p2-prompt` DOM box (bottom-left, `renderPromptNodes` reused from `js/ui/hud.js` so the same
+  `[key]` markup renders identically). `disable()` also calls `.dispose()` on any extra state that exposes
+  one (only `fall` ever allocates its own Rapier bodies/lanyard mesh, and only once player 2 has actually
+  fallen at least once) – otherwise a fall followed by a disable/re-enable cycle would leak one dynamic
+  body + one kinematic anchor + one lanyard mesh per cycle.
+- **Not integrated with the M3a builder**: opening the builder rebuilds `course`/`interaction` out from
+  under anything holding a reference to the old ones, and player 2 is exactly such a thing – `js/main.js`
+  calls `coop.disable()` the instant `builder.mode !== "closed"` (mirroring how `agents` already freezes
+  the same way) rather than teaching the builder's rebuild cascade about a fourth player-shaped thing.
+- **Loop wiring** (`js/main.js`): `pollInput()` (input phase, after `input.poll()`), `fixedUpdate(dt)`
+  (physics phase, before `physics.step()`), `update(dt)` (gameplay phase – see below), `render(alpha,dt)`
+  (render phase, player 2's own rig/pose interpolation only – the shared camera frame is set in
+  `update()`, read back inside player 1's own `render()` a few lines later the same frame), `endFrame()`
+  (ui phase, alongside `input.endFrame()`).
+- **`update(dt)`**: player 2's own `update`/`vitals`/`interaction`; the companion-run tracking (below);
+  the shared camera frame (`computeCoopFrame` → `player1.camera.setFocusOverride`) and the leash
+  (`leashFactor` scales `input2.move.x/y` directly – always player 2, never player 1, per the brief);
+  `driveLifts`/`driveBridges` (the *other* climber, standing on foot within `COOP_ELEMENTS.helperRange`
+  of the relevant platform, pressing `[interact]` to haul or holding `[clip]` for tension – both actions
+  reuse existing, input-device-agnostic action names rather than a literal "W" or "F", so the same code
+  path works whether the helper is player 1 on keyboard or player 2 on a gamepad); `driveSharedPhysics`
+  (reads `save.data.settings.sharedPhysics` live, applies `applySharedPhysics` between whatever the two
+  are currently on when `elementsShareSupport` says they are linked); periodic spectator calls (reuses
+  `js/config.js#NPC`'s own M1.6 watch radius/height and `js/player/nerves.js#watchSuccess()`, picking one
+  of four i18n cheer lines via a session-forked `Rng` – never `Math.random`).
+- **Falls counted separately**: pure edge-detection on each player's own `mode === "fall"` transition –
+  deliberately *not* the shared, anonymous `player:fell` event (it carries no player id to key off, and
+  both climbers' own states emit it on the same bus).
+- **The companion badge ("run completes when both reach the end")**: an *additive* layer, not a rewrite
+  of `js/game/session.js`'s own (unchanged) single-run completion – see that decision spelled out in the
+  Known limitations below. Tracks each climber's last-clipped ladder anchor (`sharedRouteId`), and the
+  instant *both* have since left that route's own zip (`justFinishedSharedZip`), tags the most recent
+  matching entry in `session.day.routes` (matched on `category`+`numeral`, since those entries carry no
+  route id) with `.companion = true` – `js/ui/stamp-card.js` renders a small badge when present, ignores
+  it otherwise (every solo route, and every session before this milestone, never has it).
+
+### `js/ui/kassa.js` (the "Two climbers" toggle) + `js/ui/options.js` (the "Shared bridge physics" toggle)
+Kassa gains a plain checkbox row (`.opt-row.opt-toggle`, reused verbatim from the options screen's own
+CSS – not scoped to `.options-screen`), hidden unless `isGamepadConnected()` (re-checked on every
+`show()`, the same "unlock condition re-checked at show time" idea the equipment/night-ticket rows
+already use) – `choice.coop` reaches `js/main.js#startDay`, which calls `coop.enable()`/`disable()`
+accordingly. Options gains a plain toggle backed by `save.data.settings.sharedPhysics` (new, additive,
+default `true`, `js/core/save.js`) – `js/game/coop.js` reads it live every frame, nothing to "apply" to
+the running game beyond the save write itself.
+
+### Known limitations (honest scope, see HANDOVER.md for the full list)
+Co-op state is **not persisted** – every fresh day starts with the toggle unchecked, and reopening the
+page with an active ticket never resumes it. Player 2 has no dedicated HUD vitals/speedometer readout,
+no classic-mode accident handling, no flow meter, and reuses player 1's own keyboard-labelled prompt
+strings (`[F]`/`[E]`) even though they are pressing a gamepad button. The companion badge can miss a
+genuinely-together finish if the first climber clips into a *different* route's ladder before the second
+one arrives (their own last-clipped anchor moves on, dropping the "still shared" flag). Two players
+technically *can* both step onto the same capacity-2 co-op element at once (occupancy allows it) – nothing
+crashes, but the "helper" mechanics (haul taps, tension hold) simply do not apply to whichever one is not
+standing at the platform. Player collision groups do not include each other (existing `GROUP.PLAYER`
+filter, unchanged) – the two climbers pass through one another rather than shoving.

@@ -75,7 +75,7 @@ test("an older save without unlocks migrates to the default gate, blue forced op
   assert.equal(corrupt.isUnlocked("black"), true);
 });
 
-test("an older save without settings migrates to the defaults (M1.7 + M2b graphics)", () => {
+test("an older save without settings migrates to the defaults (M1.7 + M2b graphics + M4 shared physics)", () => {
   const storage = memoryStorage();
   storage.setItem(GAME.saveKey, JSON.stringify({ schema: GAME.saveSchema, routes: {} }));
   const save = createSave(storage);
@@ -87,6 +87,7 @@ test("an older save without settings migrates to the defaults (M1.7 + M2b graphi
     reducedMotion: false,
     assist: false,
     graphics: "high",
+    sharedPhysics: true,
   });
 });
 
