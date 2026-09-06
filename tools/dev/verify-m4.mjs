@@ -8,7 +8,7 @@
 // -20 to -36 and keeping it there for tens of seconds (js/core/loop.js's accumulator only claws that back
 // at +1/60 s per frame) – physics never took a single step, so the player stayed in "air" forever. This
 // reproduces in plain solo play too (confirmed live), so it is an environment/headless-compositor quirk,
-// not an M4 regression – js/core/loop.js is untouched by this milestone. HANDOVER.md's own "Achtung
+// not an M4 regression – js/core/loop.js is untouched by this milestone. docs/architecture.md's own "Achtung
 // headless" note already prescribes the fix: stop the loop, neutralise real rAF, and pump fixed 60 Hz
 // steps by hand – `pumpTicks()` below does exactly that, so every check here is driven by a fully
 // deterministic, self-paced clock instead of hoping the compositor cooperates.
@@ -20,14 +20,14 @@
 // term and does not affect anything this script asserts on. Not a code fix (js/player/camera.js is
 // untouched); a verification-harness-only accommodation for a self-inflicted clock artefact.
 //
-// Run from C:\repos\game-remakes\wipfel:  node tools/dev/verify-m4.mjs
+// Run from the repo root:  node tools/dev/verify-m4.mjs
 import { chromium } from "playwright-core";
 import { execFileSync } from "node:child_process";
 
 const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const BASE = "http://127.0.0.1:8200";
-const RAW_SHOT = "C:/repos/game-remakes/wipfel/docs/screenshots/m4-coop-raw.png";
-const FINAL_SHOT = "C:/repos/game-remakes/wipfel/docs/screenshots/m4-coop.png";
+const RAW_SHOT = "docs/screenshots/m4-coop-raw.png";
+const FINAL_SHOT = "docs/screenshots/m4-coop.png";
 
 async function freshPage(browser, path) {
   const errors = [], external = [];

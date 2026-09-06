@@ -74,7 +74,7 @@ export function createBuilderDraft({ parkDef, terrain, rng, walkedStatus = {} })
   // M3b rescuer posts (GDD §4 "Retter", RESEARCH-DATA §7 "jede Station in ≤ 10 min erreichbar"): up to
   // RESCUE.maxPosts world points, each placed near an existing hub or route entry rather than an
   // arbitrary 3-D click (this builder's own established convention – see the module header on M3a's
-  // "no 3-D click targets" choice, restated in HANDOVER). `{ id, x, z }`, plain data, round-trips through
+  // "no 3-D click targets" choice, restated in the design docs). `{ id, x, z }`, plain data, round-trips through
   // toParkDef() like every other field here.
   const rescuePosts = Array.isArray(parkDef.rescuePosts)
     ? parkDef.rescuePosts.map((p) => ({ id: p.id, x: p.x, z: p.z })) : [];

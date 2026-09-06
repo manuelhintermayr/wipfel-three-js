@@ -58,7 +58,7 @@ und ein Chromium; fehlt es, endet der Test mit SKIP (Exit 0).
 
 ### 3.3 Browser-Pane / Playwright-MCP in Claude Code
 `.claude/launch.json` → Konfiguration „wipfel“ startet `serve.py`; Screenshots als Nachweis nach
-`docs/screenshots/<meilenstein>-<nr>-<thema>.png` (< 300 KB), in `HANDOVER.md` verlinken.
+`docs/screenshots/<meilenstein>-<nr>-<thema>.png` (< 300 KB), in `die Projektnotizen` verlinken.
 
 ## 4 · Review-Schleifen (vor Meilenstein-Tags)
 **Visuell:** Maßstab · Silhouette · Materialqualität · Licht · Komposition · Walddichte · Tiefe ·
@@ -70,4 +70,4 @@ an als die Nachbarübung? Erzeugt sie eine Geschichte? Schwache Übungen umbauen
 
 ## 5 · Ehrlichkeit
 Nichts als „fertig“, „60 fps“, „produktionsreif“ oder „animiert“ bezeichnen, was nicht gemessen oder
-gesehen wurde. Provisorisches steht in `HANDOVER.md` unter „Offen/Provisorisch“.
+gesehen wurde. Provisorisches steht in `die Projektnotizen` unter „Offen/Provisorisch“.

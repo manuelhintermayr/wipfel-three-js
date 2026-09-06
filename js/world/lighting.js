@@ -7,7 +7,7 @@ const DEG = Math.PI / 180;
 
 /** Stylised sun path: a real solar model, tuned so that 17.5 h gives a low warm sun in the south-west. */
 export const SUN_PATH = Object.freeze({
-  latitudeDeg: 48.2,          // Vienna
+  latitudeDeg: 48.2,          // temperate mid-latitude (~48°N)
   declinationDeg: 13.5,       // mid-August
   solarNoonHour: 12.9,        // clock hour of the highest sun (sunrise ≈ 5.9 h, sunset ≈ 19.9 h)
   azimuthOffsetDeg: 30,       // rotates the whole path so the evening sun crosses the slope from the SW

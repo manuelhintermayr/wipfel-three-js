@@ -3,7 +3,7 @@
 // (element linking/shared physics, the two co-op elements' haul/tension math, the leash curve, and the
 // shared-run detection). js/game/coop.js itself pulls in THREE transitively (a real player, camera,
 // belay, vitals, interaction) and is verified instead via tools/dev/verify-m4.mjs – see that file and
-// HANDOVER.md.
+// docs/architecture.md.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createGamepadInputSource, createTestInputSource, isGamepadConnected } from "../../js/core/input-source.js";

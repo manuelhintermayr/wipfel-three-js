@@ -10,7 +10,7 @@ const DEFAULT_BINDINGS = {
     Space: "jump", KeyF: "clip", KeyQ: "handL", KeyE: "interact", KeyR: "breathe",
     Tab: "map", Escape: "pause", KeyT: "camera", F1: "debug", F2: "physdebug", KeyP: "photo",
     KeyX: "clip2", // classic belay mode: second carabiner
-    // M2a time trials (ROADMAP): GDD's own key suggestion "[T]" is already "camera" here (HANDOVER's
+    // M2a time trials (ROADMAP): GDD's own key suggestion "[T]" is already "camera" here (the design docs's
     // control list, since M0.7) – KeyG is the nearest free key instead of overloading T with a second,
     // unrelated meaning.
     KeyG: "trial",

@@ -1,5 +1,5 @@
 // Species archetype parameters for the procedural trees (metres, radians, fractions of height).
-// Calibrated on the Kahlenberg photos: tall straight black pines with crowns only in the top third,
+// Modelled on real black pines: tall straight trunks with crowns only in the top third,
 // broad oaks/beeches, smaller maples, multi-stem hazel understory.
 
 export const TREE_SPECIES = Object.freeze({

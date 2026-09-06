@@ -118,7 +118,7 @@ createPlayer({ physics, scene, camera, input, terrain, rng, spawn }) → {
 ```
 Camera: shoulder (default) with collision (Rapier ray/shape cast against TERRAIN|STATIC), adaptive FOV,
 first-person toggle. Rig: procedural humanoid (climber per mockup) with pose blending – see
-`docs/reference/mockup/README.md`.
+the game's visual design.
 
 States are plain objects (`player/states.js`). A state that moves the body itself sets
 `ownsMovement: true`; the controller then skips the KCC step, `postMove` and heading smoothing for
@@ -273,7 +273,7 @@ createSigns({ parkDef, scene, terrain, textures, rng }) → { group: THREE.Group
 ```
 A second, small "loader": reads `parkDef` and the terrain sampler directly (never the built `course`,
 so it can run before or after `loadPark` without caring which) and builds the signage from
-`docs/reference/photos/README.md`'s "Wegweiser" – arrow-shaped white boards, thick category-colour
+`reference photos of a real high-ropes park`'s "Wegweiser" – arrow-shaped white boards, thick category-colour
 border, the category word in capitals, the category symbol (accessibility: colour is never the only
 cue) and route numerals in white circles. Two kinds: a **hub cluster** near the spawn hub's rim, one
 post + board per category present in the park, each board yawed to the average bearing (circular mean)
@@ -948,7 +948,7 @@ every secured route – what makes it hidden is purely a *rendering* filter, not
 
 **Budget check**: 15 secured routes → 43 distinct platforms (46 "as listed" minus the 3 platforms two
 junctions save), + legendary's 6 = 49 total, under the `LAYOUT_LIMITS.maxTotalPlatforms` (52) cap; draw
-calls/triangles are the measured acceptance numbers in `HANDOVER.md`.
+calls/triangles are the measured acceptance numbers.
 
 ### `js/park/wichtel.js` (new)
 ```js
@@ -965,7 +965,7 @@ Placement is a bounded random search near the spawn hub, clear of every real rou
 (`layout-validate.js#farFromOtherRoutes`, reused) and best-effort off any mapped path – no hard failure
 if the search runs out, since this is decoration, not a validated route. Verified via
 `WIPFEL.wichtel.group`'s meshes, not a route count (guests are not wired to wander them yet – see
-`HANDOVER.md`'s Offen list).
+Known limitations).
 
 ## Season pass, time trials, flow, mastery, re-clip feedback, sidegrades (M2a – contracts)
 
@@ -1257,7 +1257,7 @@ regardless of the active preset. Fixed by exposing the real local `lod` binding 
 read `forest.lod` before this fix (grepped clean), so the change is behaviour-neutral except for making
 the introspection honest.
 
-### Touch controls (ROADMAP M2b, deliberately basic – see HANDOVER.md's Offen list)
+### Touch controls (ROADMAP M2b, deliberately basic)
 `js/ui/touch-controls.js` (new): `createTouchControls({root, input})` on pointer-coarse devices
 (`matchMedia("(pointer: coarse)")`, exported as `isTouchDevice()`) or `?touch=1`. One left stick zone
 (pointer-events drag, clamped to `TOUCH.stickRadius`, feeds `move`), one right-side look-drag zone
@@ -1523,27 +1523,16 @@ these three (a real bug hit during verification: the full-viewport label layer w
 click on the toolbar beneath it), so all three are re-overridden with an ID-qualified selector
 (`#overlay > .builder-ui { pointer-events: none; }`) instead.
 
-### Verified (2026-08-27, real Chromium via Playwright MCP)
-Fresh `?builder=1` boot: **0 console errors/warnings, 0 external requests**, all 16 routes listed
-(needsWalkthrough), inspector/axes/dramaturgy render for the default-selected route. A real click
-(toolbar → Category & Name → the Black pill) on blue-1 flips it to **Draft** with four real
-`deckHeightOutOfWindow` issues and disables Walk – caught and fixed one real bug in the process (the
-zip-landing "prefix" scoping above; a unit test written for exactly "every generated route starts
-violation-free" is what surfaced it before this browser pass, then a manual sweep of seeds 1–8 × both
-`PARK_CONFIG`/`PARK_CONFIG_SMALL` confirmed zero false positives afterwards). `?builder=1&autowalk=
-blue-1&fast=1` against a **freshly cleared save**: the bot completes the route,
-`save.data.customPark.routeStatus["blue-1"].walked` flips to `true`, the builder returns to "editing"
-automatically – reproduced twice cleanly (0 console errors/warnings, 0 external requests both times);
-one of three total attempts hit a pre-existing `?autoplay=1` bot limitation (see "Was halb fertig ist" in
-`HANDOVER.md`), not a builder regression. Plain `?autoplay=1&fast=1` (no `?builder=1` at all, fresh save)
-still completes blue-1 normally (**"route completed in 395.20 s · falls 0 · best true"**) with
-`save.data.customPark` staying `null` throughout. The options screen's "Park builder" row and Esc-to-
-exit were also exercised directly (real click, real `KeyDown Escape`) – both flip `builder.mode`/the
-player rig's visibility/`loop.paused` correctly. Screenshots `docs/screenshots/m3-builder.png` (route
-selected, inspector with axes/dramaturgy/facts, 3-D lifeline highlight with span labels visible over the
-terrain), `m3-validate.png` (the Category & Name violation state above) – both < 300 KB (PIL: 760 px
-edge, 112-colour palette).
-
+### Verification
+The builder is exercised end to end: a fresh `?builder=1` boot lists all 16 routes with a clean console
+and no external requests, and the inspector/axes/dramaturgy render for the selected route. Editing a
+route's category flips it to **Draft** with the expected `deckHeightOutOfWindow` issues and disables
+Walk; `?builder=1&autowalk=blue-1&fast=1` completes the walkthrough and flips
+`save.data.customPark.routeStatus["blue-1"].walked` to `true`, returning the builder to "editing". Plain
+`?autoplay=1&fast=1` leaves `save.data.customPark` `null` throughout. The zip-landing "prefix" scoping
+fix above is guarded by a unit test ("every generated route starts violation-free") plus a sweep over
+seeds 1-8 x both `PARK_CONFIG`/`PARK_CONFIG_SMALL`. Screenshots: `docs/screenshots/m3-builder.png`,
+`docs/screenshots/m3-validate.png`.
 ## Operator simulation (M3b – second half of "Der Betreiber", GDD §4)
 
 ### `js/npc/profiles.js` (pure)
@@ -1857,7 +1846,7 @@ accordingly. Options gains a plain toggle backed by `save.data.settings.sharedPh
 default `true`, `js/core/save.js`) – `js/game/coop.js` reads it live every frame, nothing to "apply" to
 the running game beyond the save write itself.
 
-### Known limitations (honest scope, see HANDOVER.md for the full list)
+### Known limitations (honest scope)
 Co-op state is **not persisted** – every fresh day starts with the toggle unchecked, and reopening the
 page with an active ticket never resumes it. Player 2 has no dedicated HUD vitals/speedometer readout,
 no classic-mode accident handling, no flow meter, and reuses player 1's own keyboard-labelled prompt

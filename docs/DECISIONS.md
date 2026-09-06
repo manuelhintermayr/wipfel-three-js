@@ -60,7 +60,7 @@ Karabiner frei, Absturz bei Doppel-Aushängen beendet den Run, Handbremse am Fly
 `en.json` folgt; Code/Kommentare/Commits Englisch. **Konsequenz:** keine hart kodierten Strings.
 
 ## ADR-010 · Erster Park fiktiv · 2026-08-16 · angenommen
-**Entscheidung:** „Waldseilpark Sonnwendberg“ zitiert die Kahlenberg-Situation (Südhang, Skyline,
+**Entscheidung:** „Waldseilpark Sonnwendberg“ zitiert eine reale Waldseilpark-Situation (Südhang, Skyline,
 Hütte, 5/6/4 Parcours, 20 m, 150-m-Flying-Fox), verwendet aber keine realen Marken/Namen.
 
 ## ADR-011 · Höhe bleibt knapp · 2026-08-16 · angenommen
@@ -68,7 +68,7 @@ Hütte, 5/6/4 Parcours, 20 m, 150-m-Flying-Fox), verwendet aber keine realen Mar
 Das Nerven-Modell funktioniert nur, wenn Höhe selten ist.
 
 ## ADR-012 · Handover-Protokoll · 2026-08-16 · angenommen
-**Entscheidung:** Eine Aufgabe = ein Commit (≤ 45 min); `HANDOVER.md` und `docs/SESSIONS.md` nach jedem
+**Entscheidung:** Eine Aufgabe = ein Commit (≤ 45 min); `die Projektnotizen` und `die Projektnotizen` nach jedem
 Commit; `wip:`-Commits bei Abbruchgefahr; Meilenstein-Tags; keine Co-Author-/„Generated with“-Zeilen.
 
 ## ADR-020 · Offline gebackene eigene Ausgaben unter `assets/generated/` erlaubt · 2026-08-16 · angenommen
@@ -80,8 +80,8 @@ Laufzeit (Startzeit), fremde Asset-Packs (abgelehnt). **Konsequenzen:** `assets/
 führt Provenienz.
 
 ## ADR-021 · Session-Logs je Datei · 2026-08-16 · angenommen
-**Entscheidung:** pro Session `docs/sessions/YYYY-MM-DD-session-NN.md` (Vorlage
-`docs/sessions/README.md`), `docs/SESSIONS.md` als Index. Alte Logs werden nie überschrieben.
+**Entscheidung:** pro Session `ein Session-Log` (Vorlage
+`die Session-Log-Vorlage`), `die Projektnotizen` als Index. Alte Logs werden nie überschrieben.
 **Alternativen:** eine wachsende Datei (Merge-/Größenprobleme). **Konsequenzen:** reichere Logs
 (Dateien geändert, Tests, Performance, Screenshots) ohne Konflikte.
 
@@ -92,8 +92,8 @@ Save, Zip-Physik, Karabiner-Automat; Logik so schneiden, dass sie ohne DOM/WebGL
 Generator-Validität und Determinismus sind maschinell geprüft, nicht nur „gesehen“.
 
 ## ADR-023 · Parcours-Namen zusätzlich zu Farbe + Nummer · 2026-08-16 · angenommen
-**Kontext:** Der Kahlenberg nummeriert nur; andere Parks benennen (Anif: Berge, Freischütz: Gebirge,
-Kloten: „007“). **Entscheidung:** „Farbe + Nummer · Name“ (z. B. „Rot 3 · Grat“) – System bleibt
+**Kontext:** Manche Parks nummerieren nur, andere benennen ihre Parcours zusätzlich (oft thematisch).
+**Entscheidung:** „Farbe + Nummer · Name“ (z. B. „Rot 3 · Grat“) – System bleibt
 lesbar, Namen bleiben im Gedächtnis. **Konsequenzen:** Schilder zeigen Form + Farbe + Nummer + Name.
 
 ## ADR-024 · Prioritätsreihenfolge bei Zielkonflikten · 2026-08-16 · angenommen
@@ -102,8 +102,8 @@ Qualität → Inhaltsmenge → Politur (siehe `ROADMAP.md`). Nie funktionierende
 Vegetation opfern.
 
 ## ADR-025 · Visuelles Ziel = Gameplay-Mockup 1:1 · 2026-08-16 · angenommen
-**Kontext:** Manuel hat ein Konzeptbild vorgegeben („So ca. sollte das Gameplay ausschauen – 1:1“),
-beschrieben in `docs/reference/mockup/README.md`. **Entscheidung:** HUD-Layout, Kategorien, Kamera,
+**Kontext:** Ein Konzeptbild wurde vorgegeben („So ca. sollte das Gameplay ausschauen – 1:1“),
+beschrieben in `die visuelle Vorlage`. **Entscheidung:** HUD-Layout, Kategorien, Kamera,
 Figur und Bildanmutung des Mockups sind verbindlich: Routen-Header (Farbbalken, Kategorie, Name,
 Fortschritt, Zeit, Bestzeit), Flow unten Mitte, Zipline-Overlay mit Tacho, Course Map als Overlay,
 Start-Banner mit Kennzahlen und Countdown, Sicherheits-Tooltip; **stylized realism statt Low-Poly**
@@ -114,7 +114,7 @@ und 32-m-Routen des Mockups gehören zu späteren Kapiteln; Kapitel 1 bleibt Son
 Zeit/Bestzeit immer sichtbar.
 
 ## ADR-026 · UI-Sprache Englisch als Standard, Deutsch vollständig · 2026-08-16 · ersetzt ADR-009
-**Kontext:** Das Mockup ist englisch; Manuels andere Projekte nutzen englische UI-Texte; das
+**Kontext:** Das Mockup ist englisch; verwandte Projekte nutzen englische UI-Texte; das
 Parkvokabular soll trotzdem erhalten bleiben. **Entscheidung:** `assets/strings/en.json` ist die
 Standardsprache, `de.json` eine vollständige zweite Sprache (Podest, Umhängen, Blau/Rot/Schwarz …),
 umschaltbar in den Optionen. Code/Kommentare/Commits bleiben Englisch. **Konsequenzen:** jede
@@ -123,11 +123,11 @@ UI-Zeichenkette in beiden Dateien; Routen-Namen zweisprachig.
 ## ADR-027 · Kategorien Green · Blue · Red · Black · Legendary · 2026-08-16 · angenommen
 **Entscheidung:** fünf Kategorien wie im Mockup und wie in vielen Parks: **Green** = Kinder-/Einsteiger-
 und Übungsparcours (Wichtel + Einweisung, ≤ 3 m), **Blue** leicht, **Red** mittel, **Black** schwer,
-**Legendary** versteckt/extrem. Der Kahlenberg selbst hat nur Blau/Rot/Schwarz (+ Wichtel) – Green fasst
+**Legendary** versteckt/extrem. Reale Parks haben oft nur Blau/Rot/Schwarz (+ Wichtel) – Green fasst
 Wichtel + Übungsparcours. Farbe immer mit Form/Icon (◈ ◆ ◐ ◆ ✦ bzw. ● ■ ◆).
 
 ## ADR-028 · M3 wird gebaut · 2026-08-25 · angenommen
-**Kontext:** ADR-019 vertagte die Entscheidung auf „nach M1“. Manuel hat am 2026-08-25 beauftragt,
+**Kontext:** ADR-019 vertagte die Entscheidung auf „nach M1“. Am 2026-08-25 wurde beauftragt,
 alle Meilensteine vollständig umzusetzen. **Entscheidung:** M3 (Betreiber-Akt) wird gebaut – Builder,
 Gäste-Simulation, Begehungspflicht, Inspektionen, Ökonomie, Teilen. **Konsequenzen:** der Park-Graph
 (ADR-003) ist die gemeinsame Datenstruktur; der Builder schreibt, was der Generator (M1.1) erzeugt.

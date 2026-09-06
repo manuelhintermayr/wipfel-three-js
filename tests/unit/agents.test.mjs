@@ -2,7 +2,7 @@
 // js/game/occupancy.js – occupancy bookkeeping, queue ordering, deterministic route assignment, and
 // (M3b) profile stats/groups, courage+queue-aware route choice and the fear-event roll. Everything that
 // walks a real element/ladder rail needs the built course (THREE) and is verified instead via the
-// Playwright smoke run documented in HANDOVER.md.
+// Playwright smoke run documented in docs/architecture.md.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Rng } from "../../js/core/rng.js";

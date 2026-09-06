@@ -1,10 +1,9 @@
 # WIPFEL – Game Design Document (Entwurf 2.1)
 
 > „Zwölf Meter über dem Boden, ein Brett, zwei Karabiner – und dein Kopf.“
-> Langfassung mit Wireframes: `docs/reference/wipfel-gdd.html`. Reale Zahlen: `docs/RESEARCH-DATA.md`.
-> **Visuelles Ziel 1:1: `docs/reference/mockup/README.md`** (HUD, Kamera, Figur, Bild). Vor-Ort-
-> Fotos: `docs/reference/photos/`. Wo Mockup und ältere Wireframes abweichen, gilt das Mockup (ADR-025);
-> Kategorien Green/Blue/Red/Black/Legendary (ADR-027); UI Englisch + Deutsch (ADR-026).
+> Reale Zahlen: `docs/RESEARCH-DATA.md`. Kategorien Green/Blue/Red/Black/Legendary (ADR-027);
+> UI Englisch + Deutsch (ADR-026). Das visuelle Ziel ist „stylized realism“, umgesetzt im
+> laufenden Spiel; Architektur- und Umsetzungsdetails in `docs/architecture.md`.
 
 **Genre:** physik-nahes Kletter-/Balance-Spiel mit Run-Struktur und offener Parkwelt; zweiter Akt:
 Park-Builder mit Gäste-Simulation und geteilten Parcours. **Perspektive:** Schulterkamera, Ego
@@ -80,9 +79,9 @@ man die nächste Übung liest. HUD: zwei Karabiner-Icons (eingehängt · offen �
 **Modi (die drei realen Sicherungsgenerationen):**
 | Modus | Vorbild | Änderung | Für wen |
 |---|---|---|---|
-| Durchlaufend | Klasse E (Saferoller, SafetyLine) | kein Umhängen; kein Überholen – man steht hinter Langsameren an | Kinder, Einsteiger |
-| Smart Belay | Klasse C/D (Edelrid, Kahlenberg) | zwei Drücke, Reihenfolge erzwungen, Fehler unmöglich; Rollen im Karabiner | Standard |
-| Klassisch | Klasse A/B („wie am Klettersteig“) | beide Karabiner frei (X/Y); Sturz mit beiden offen beendet den Run mit Unfallbericht; Flying Fox mit Handbremse (Lederhandschuh hinter der Rolle) | Authentik 2005, Speedrunner |
+| Durchlaufend | Klasse E (kontinuierlicher Trolley) | kein Umhängen; kein Überholen – man steht hinter Langsameren an | Kinder, Einsteiger |
+| Smart Belay | Klasse C/D | zwei Drücke, Reihenfolge erzwungen, Fehler unmöglich; Rollen im Karabiner | Standard |
+| Klassisch | Klasse A/B („wie am Klettersteig“) | beide Karabiner frei (X/Y); Sturz mit beiden offen beendet den Run mit Unfallbericht; Flying Fox mit Handbremse (Lederhandschuh hinter der Rolle) | klassische Zwei-Karabiner-Parks |
 
 ### 3.4 Übungen als Bewegungsprobleme
 Jede Übung = Schiene (Spline) + Wackelmodell (Feder-Dämpfer) + Handkontakt-Angebot + Achsenprofil.
@@ -226,7 +225,7 @@ gelbe Marke = volles Podest.
 
 ## 6 · Kunst, Ton, Welt
 **Welt.** Erster Park: fiktiver Hangpark über einer Stadt – Buchen und Eichen am Südhang, Sattel mit
-Aussicht, Hütte, Bogensportplatz nebenan, Skyline im Dunst: die Kahlenberg-Situation ohne Marke. 2
+Aussicht, Hütte, Bogensportplatz nebenan, Skyline im Dunst: an einen realen Waldseilpark angelehnt, ohne Marke. 2
 Wichtel, 5 blaue, 6 rote, 4 schwarze Parcours, Übungsparcours am Eingang, ~150 Übungen, jeder endet mit
 einem Flying Fox, der längste 150 m aus 20 m Richtung Stadt, verstecktes Element „Schritt ins Nichts“.
 
@@ -239,7 +238,7 @@ ist, ist nichts mehr hoch.
 
 **Bild.** Stilisiert, nicht cartoonig: Low-Poly-Kronen mit gemalten Blattmassen und Wind, ehrliches
 Material im Nahbereich (verzinkter Stahl mit Glanz, Pressklemmen, Holzbohlen mit Maserung, Seil,
-Klemmklötze am Stamm – keine Schrauben). Vor-Ort-Referenz (`docs/reference/photos/README.md`):
+Klemmklötze am Stamm – keine Schrauben). Vor-Ort-Referenz (`Referenzfotos eines realen Waldseilparks`):
 Schwarzkiefern als Podest-Träger mit Laub-Unterwuchs, Podeste als Planken auf Rundholz-Kranz ohne
 Geländer, niedrige Einstiegspodeste mit schrägen Stützen, Einstiegsdeck mit Bank, Holz-Blockleitern,
 geneigte Einstiegswände, orangefarbene Markierungsbänder an Parcours-Bäumen, Erdanker mit Spannschloss,
@@ -252,7 +251,7 @@ Herzschlag (mit Nerven lauter, beim Atmen zurück). Keine Musik auf der Übung; 
 Sonnenuntergang, Stempelkarte.
 
 ## 7 · Technik
-R3F-artige Architektur, aber ohne Build (siehe `PROMPT.md`): Three.js + Rapier (Boden, Podeste,
+R3F-artige Architektur, aber ohne Build (siehe `docs/architecture.md`): Three.js + Rapier (Boden, Podeste,
 Character-Controller), WebAudio-Synthese. **Übungen sind Schienen, nicht Physik:** Spline + Parameter
 (Feder-Dämpfer in 1–2 Achsen, Handkontakt, Achsenprofil, Länge); Spieler = Parameter t; Balance = 1-D-
 Pendel; prozedurale Animation von Netzen/Fässern/Brettern aus derselben Anregung. Rigid-Body nur für

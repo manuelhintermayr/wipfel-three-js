@@ -7,7 +7,7 @@
 // Deliberately basic (ROADMAP's own words): one stick, one look area, three buttons – no remapping, no
 // haptics, no on-screen prompts of its own (the existing HUD prompt already names the action; this only
 // gives a touch a way to *press* it). Full mobile UX (bigger tap targets tuned per device, a proper
-// settings pass, gamepad-style deadzones) is future work – see HANDOVER.md's "Offen" list.
+// settings pass, gamepad-style deadzones) is future work – see docs/architecture.md's "Offen" list.
 import { TOUCH } from "../config.js";
 
 const BUTTONS = Object.freeze([

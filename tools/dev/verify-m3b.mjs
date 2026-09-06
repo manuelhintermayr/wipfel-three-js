@@ -1,5 +1,5 @@
 // One-shot M3b verification against system Chrome (headless): autoplay run + storm screenshot.
-// Run from C:\repos\game-remakes\wipfel:  node <scratchpad>\verify-m3b.mjs
+// Run from the repo root:  node <scratchpad>\verify-m3b.mjs
 import { chromium } from "playwright-core";
 
 const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
@@ -33,7 +33,7 @@ let storm = "n/a";
 try { storm = await page.evaluate(() => { window.WIPFEL.debug.forceStorm(); return "forced"; }); } catch (e) { storm = "failed: " + e.message.slice(0, 110); }
 await page.waitForTimeout(4000);
 let shot = "failed";
-try { await page.screenshot({ path: "C:/repos/game-remakes/wipfel/docs/screenshots/m3-storm.png", timeout: 10000 }); shot = "ok"; } catch {}
+try { await page.screenshot({ path: "docs/screenshots/m3-storm.png", timeout: 10000 }); shot = "ok"; } catch {}
 
 console.log(JSON.stringify({ final, storm, shot, errors: errors.slice(0, 6), externalCount: external.length }, null, 2));
 await browser.close();

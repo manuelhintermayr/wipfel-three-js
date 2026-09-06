@@ -1,4 +1,4 @@
-// Block ladder – the classic Kahlenberg entry (photo 02): a dark spine plank clamped flat against
+// Block ladder – the classic ropes-park entry deck: a dark spine plank clamped flat against
 // the pine trunk with wooden blocks bolted to it, left, right, left, right, all the way up. Beside it
 // runs the steel safety cable the carabiners travel on, and a thin blue helper rope for the hands.
 // The steps carry no colliders: climbing is rail locomotion (js/player/climb-ladder.js), so the

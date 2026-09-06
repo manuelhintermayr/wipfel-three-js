@@ -1,4 +1,4 @@
-// A platform around a tree, built like the ones on the Kahlenberg photos (docs/reference/photos):
+// A platform around a tree, built like the ones at a real high-ropes park:
 // a rectangle of round logs clamped around the trunk, planks with finger-wide gaps laid on top and
 // cut around the trunk, a rubber sleeve so nothing chafes the bark, wooden clamp blocks held by
 // threaded rods (never a bolt into the tree), diagonal round-log struts down to the ground on the

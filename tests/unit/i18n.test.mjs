@@ -11,7 +11,7 @@ const dicts = {
 test("active locale wins, en fills gaps, key is last resort", async () => {
   await initI18n({ locale: "de", dicts });
   assert.equal(currentLocale(), "de");
-  assert.equal(t("a.b", { name: "Manuel" }), "Hallo Manuel");
+  assert.equal(t("a.b", { name: "Alex" }), "Hallo Alex");
   assert.equal(t("only.en"), "english");
   assert.equal(t("missing.key"), "missing.key");
 });

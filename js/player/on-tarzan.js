@@ -29,7 +29,7 @@ export function createTarzanState({ input, events = null, nerves, stamina, sky =
   let wasJumpDown = false;
 
   /** Edge-detect Space ourselves via `.down()` – `.pressed()` can miss its edge on a frame with no
-   *  fixed physics step (documented in HANDOVER.md), which a one-shot jump attempt cannot afford. */
+   *  fixed physics step (documented in docs/architecture.md), which a one-shot jump attempt cannot afford. */
   function jumpPressed() {
     const down = input.down("jump");
     const edge = down && !wasJumpDown;

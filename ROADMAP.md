@@ -1,6 +1,6 @@
 # ROADMAP – Wipfel
 
-Verbindliche Meilenstein- und Aufgabenliste (Checkboxen werden hier abgehakt; `HANDOVER.md` zeigt
+Verbindliche Meilenstein- und Aufgabenliste (Checkboxen werden hier abgehakt; `die Projektnotizen` zeigt
 nur den aktuellen Meilenstein und die nächsten Aufgaben). Jede Aufgabe ist so geschnitten, dass sie
 in ≤ 45 Minuten fertig und committet ist. Akzeptanzkriterien sind verbindlich.
 
@@ -33,7 +33,7 @@ Generierung für dekoratives UI opfern.
       Holz-Blockleiter als Schiene (Brett am Stamm, versetzte Klötze), Podest (Planken auf
       Rundholz-Kranz, Klemmen, Anker, Kapazität 3) mit Collider, Sicherungsseil um den Stamm,
       Karabiner-Zustandsautomat (Zwei-Klick-Ritual, Reihenfolge erzwungen), HUD-Karabiner-Widget,
-      zwei Klick-Sounds, Kontext-Prompt. Vorbild: `docs/reference/photos/README.md`.
+      zwei Klick-Sounds, Kontext-Prompt. Vorbild: `Referenzfotos eines realen Waldseilparks`.
 - [x] **M0.5 Erste Übungen auf Schienen** – gemeinsames Interface (`build`, `createPhysics`, `update`,
       `dispose`, `getEntryAnchor`, `getExitAnchor`, `getDifficultyMetrics`), Burma-Brücke, hängende
       Planken, Netz; Wackelmodell, Balance-Pendel, Kraft, Nerven (Herzschlag, Kamera-Atmen,

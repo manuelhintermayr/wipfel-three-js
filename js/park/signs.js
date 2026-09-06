@@ -1,4 +1,4 @@
-// Park signage (ROADMAP M1.2), built after docs/reference/photos/README.md's "Wegweiser": arrow-shaped
+// Park signage (ROADMAP M1.2), built after reference photos of a real high-ropes park (arrow signs): arrow-shaped
 // white boards with a thick category-colour border, the category word in capitals, the category symbol
 // (accessibility – colour is never the only cue) and the route numerals in white circles.
 //

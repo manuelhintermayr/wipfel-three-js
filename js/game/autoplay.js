@@ -48,7 +48,7 @@ export function createAutoplay({ player, course, interaction, events, belay = nu
   const deckPoint = (x, z) => new THREE.Vector3(x, 0, z).applyEuler(deckGroup.rotation).add(deckGroup.position);
   // The smoke bot's subject is the route (ritual, ladder, elements, fall, zip), not open-ground
   // steering: it starts on the entry deck (documented shortcut; the approach walk is verified
-  // manually – see HANDOVER). Everything from the first clip onwards is played for real.
+  // manually – see the design docs). Everything from the first clip onwards is played for real.
   const onDeck = deckPoint(0.55, 0.1);
   player.teleport(onDeck.x, routeCtx.entryDeck.top + 0.05, onDeck.z);
   note("shortcut: started on the entry deck");

@@ -1,4 +1,4 @@
-// The diegetic park board (ROADMAP M1.4b), modelled on docs/reference/photos/README.md's 03/04: two
+// The diegetic park board (ROADMAP M1.4b), modelled on reference photos of a real high-ropes park (park board): two
 // round wooden posts, a header bar across the top and a large printed board between them – the
 // physical, walk-up equivalent of the Course Map overlay (js/ui/course-map.js). It reuses the same
 // renderer (js/ui/map-render.js#paintStaticBoard) with the "print" style preset (flat colours, no dark

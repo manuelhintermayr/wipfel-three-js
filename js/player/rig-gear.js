@@ -60,7 +60,7 @@ export function addHarness(joints, m, attach) {
   attach.back = addAnchor(chest, "back", 0, 1.28 - cy, -0.145);
 }
 
-/** Small oval carabiner with a roller wheel on top (Saferoller style). Faces ±X. */
+/** Small oval carabiner with a roller wheel on top (roller-trolley style). Faces ±X. */
 function buildCarabiner(m) {
   const g = new THREE.Group();
   addGear(g, new THREE.TorusGeometry(0.03, 0.0055, 8, 24), m.metal, { ry: HALF_PI, sx: 1, sy: 1.3, sz: 0.72 });
