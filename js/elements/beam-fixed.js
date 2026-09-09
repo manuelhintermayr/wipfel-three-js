@@ -1,8 +1,8 @@
-// Balancierbalken – one debarked round log, Ø 20 cm, bolted rigid between two platforms with a
+// Balance beam – one debarked round log, Ø 20 cm, bolted rigid between two platforms with a
 // slight camber. There is nothing to hold on to: no hand cable, no rope, only the log and the
 // lifeline 2 m overhead that you can never reach without letting go of your balance.
 //
-// Movement problem (GDD §3.4, "Balken, Planken, Trittholz"): the beam does not move, so every
+// Movement problem (GDD §3.4, "beams, planks, step logs"): the beam does not move, so every
 // correction has to come from the body. Coordination 3, psychological 4 – it is easy and it is
 // frightening, which is exactly why every park has one.
 
@@ -10,7 +10,7 @@ import { createElementBase, registerElementKind, ELEMENT } from "./element.js";
 import { cableTermination, lifelineCable } from "./element-parts.js";
 
 export const BEAM_FIXED = Object.freeze({
-  logRadius: 0.10,           // Ø 20 cm round timber (RESEARCH-DATA §3 Designannahmen)
+  logRadius: 0.10,           // Ø 20 cm round timber (RESEARCH-DATA §3 design assumptions)
   segments: 9,               // the camber is drawn as a short chain of straight logs
   camberRatio: -0.015,       // NEGATIVE sag = the beam bows *up* in the middle, as a laid log does
   bracketLength: 0.34,

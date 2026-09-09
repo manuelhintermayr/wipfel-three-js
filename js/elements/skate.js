@@ -1,5 +1,5 @@
-// Skateboard-Brücke – an 80 × 25 cm board rolling on two overhead cables through two hangers, the
-// climber standing on top of it the whole way across (GDD §3.4 "Skateboard, Snowboard, Fässer ·
+// Skateboard bridge – an 80 × 25 cm board rolling on two overhead cables through two hangers, the
+// climber standing on top of it the whole way across (GDD §3.4 "Skateboard, Snowboard, Barrels ·
 // 2·5·3·2": a moving surface, momentum instead of footsteps). W presses shove it forward, it glides
 // and bleeds off speed on its own, and leaning matters more the faster it is already going.
 //
@@ -21,7 +21,7 @@ export const SKATE = Object.freeze({
   wheelRadius: 0.035,
   cableRadius: 0.006,
   sagRatio: 0.010,
-  maxSpeed: 1.6,               // m/s – RESEARCH-DATA-style Designannahme for this exercise
+  maxSpeed: 1.6,               // m/s – RESEARCH-DATA-style design assumption for this exercise
   pushAccel: 1.05,             // m/s² – takes a moment to build up speed, then coasts (see on-element.js#walk)
   tiltGain: 0.6,                // how much the board visibly rolls with the balance wobble
   walkSpeed: 1.6,

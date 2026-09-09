@@ -1,9 +1,9 @@
 // Burma bridge – one 12 mm foot cable and two hand cables about 1.1 m higher, the classic wire
-// bridge of every climbing park (RESEARCH-DATA §3: "Burma = 1 Trittseil + 2 Halteseile"). The hand
+// bridge of every climbing park (RESEARCH-DATA §3: "Burma = 1 foot cable + 2 hand cables"). The hand
 // cables fan out towards midspan and are tied down to the foot cable with hemp stirrups, so the
 // whole thing is one triangular system that walks away sideways the moment you hurry.
 //
-// Movement problem (GDD §3.4, Seilbrücken · 2·3·3·1): the lateral swing builds up with speed, so
+// Movement problem (GDD §3.4, rope bridges · 2·3·3·1): the lateral swing builds up with speed, so
 // the answer is rhythm – walk, stand, walk. Holding on kills the swing and costs strength.
 
 import { createElementBase, registerElementKind, ELEMENT } from "./element.js";

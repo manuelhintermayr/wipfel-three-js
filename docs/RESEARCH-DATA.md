@@ -1,140 +1,140 @@
-# RESEARCH-DATA – reale Zahlen und Regeln, die das Spiel nachbildet
+# RESEARCH-DATA – real-world numbers and rules that the game models
 
-Datenblatt aus der Recherche zu realen Waldseilparks (Betreiber-/Normangaben, anonymisiert).
-**Belegte Werte** stehen ohne Markierung, **Designannahmen** sind als solche markiert. Wenn das
-Spiel von einem Wert abweicht, gehört ein Satz dazu in `docs/DECISIONS.md`.
+Data sheet from research on real high-ropes parks (operator/standards data, anonymized).
+**Documented values** appear without a marker, **design assumptions** are marked as such. If the
+game deviates from a value, a sentence about it belongs in `docs/DECISIONS.md`.
 
-## 1 · Vorbildpark: ein realer Waldseilpark – Zahlen für „Sonnwendberg“
-- Fläche ca. 30 000 m² (3 ha), Parcourslänge 1,8 km, Südhang mit Blick auf die Stadt.
-- 17 Parcours in 3 Levels + 2 Wichtelparcours (35 cm hoch, ohne Sicherung, für Kleinkinder).
-  Level-Aufschlüsselung: **Blau 5 Parcours 3,5–7 m ab 110 cm · Rot 6 Parcours
-  3,5–10 m ab 130 cm · Schwarz 4 Parcours bis 20 m ab 150 cm.** **Parkplan-Tafel vor Ort:
-  Blau I–VII, Rot I–VI, Schwarz I–IV = 17** – die 5/6/4-Zählung ist veraltet oder lässt zwei
-  blaue Einsteiger-/Kinderparcours weg. 150–180 Übungen. Parcours heißen „Farbe + römische Ziffer“
-  (Wegweiser: „BLAU I II III IV“, „ROT IV“, „ROT III V VI“, „SCHWARZ III“); mehrere teilen sich
-  Startbereiche; „Schritt ins Nichts“ ist auf der Tafel als eigener Ort eingezeichnet.
-- Flying Fox am Ende (fast) jedes Parcours; „Mega Flying Fox“ in 20 m Richtung Skyline; ein 150 m
-  langer Flying Fox als Finale eines schwarzen Parcours; Testroute „Schritt ins Nichts“ (Freifall-Element).
-- Aufstieg über Stahlleitern/Sprossen bzw. **Holz-Blockleitern** (Brett am Stamm mit
-  versetzten Holzklötzen als Tritten) und geneigte Einstiegswände auf Holzpodeste; am Boden
-  **Einstiegsdecks (~40 cm) mit Bank** zum Einhängen. Elemente: Seil-/Hängebrücken, wackelige Netze,
-  schwebende Röhren, wackelige Balken, an Seilen hängende Planken.
-- **Bauweise vor Ort:** Podeste = Planken auf **Rundholz-Rahmen/Kranz** um den Stamm, ohne
-  Geländer; niedrige Podeste zusätzlich mit schrägen Rundholz-Stützen zum Boden; Träger überwiegend
-  **Schwarzkiefern** (gerade, hoch, rotbraune Plattenborke), Unterwuchs Ahorn/Hasel/Hainbuche;
-  Markierungsbänder (orange) und Plaketten an Parcours-Bäumen; Erdanker mit Spannschloss für
-  Abspannungen/Bahnenden; dünne Hilfsseile; Piktogramm-Schilder am Stamm; gebrandete Tonnen.
-- **Beschilderung/Parkplan:** pfeilförmige weiße Wegweiser mit farbigem Rand, Farbname in
-  Versalien, römische Ziffern in weißen Kreisen; Parkplan als gedruckte grüne Karte auf Holzpfosten
-  (Straßen grau gestrichelt, Wege weiß, „P“-Kreise, POI-Icons, Parcours als farbige Schleifen mit
-  Ziffern, Park-Logo).
-- Sicherung: Smart Belay (Klasse C/D) – zwei kommunizierende **Rollenkarabiner** (Bowdenzug-Kopplung, ein
-  Karabiner offen → der andere gesperrt), Y-Verbindungsmittel mit Bandfalldämpfer, integrierte Rollen
-  fahren direkt auf dem Flying-Fox-Seil; Komplettgurt, Helm; Handschuhe leihbar.
-- Regeln: kein Mindestalter, **Mindestgröße 110 cm, Höchstgewicht 120 kg**; unter 14 nur mit
-  kletterndem Erwachsenen (110–130 cm 1:1 nur leicht; 130–150 cm 3:1 leicht+mittel; ab 150 cm 5:1
-  alle); **eine Person pro Übung, max. 3 pro Podest**, immer mindestens ein Karabiner am Seil, Flying
-  Fox nur einzeln bei freier Landezone; feste Schuhe, Haare zusammenbinden, kein Handy/Schmuck.
-- Ticket: **4 h inkl. Einschulung**, +5 € je weitere ½ h, letzter Einlass 2 h vor Schluss; keine
-  Reservierung für Private; Sicherheitskurs Theorie + Praxis (Übungsparcours bodennah), danach
-  „Selbstsicherungspark“ mit Bodenpersonal; Guide 75 €/h.
-- Preise: 16 / 20 / 29 € (ab 110/130/150 cm), 37 € Erwachsene, Saisonpass 399 €, Happy Hour
-  17–18 Uhr –25 %. Saison Anfang März – Ende Oktober; Hochsommer täglich 9–20 Uhr.
-- Wetter: leichter Regen/Wind ok; Gewitter, Sturm, Starkregen, „Feuer“ → Betriebseinstellung.
-- Erfahrungswerte: 3–4 h bis zur Erschöpfung; ab Rot Armkraft nötig; Schwarz „urschwer“, kein
-  Umkehren; einzelne blaue Routen wirken schwerer als rote; Bewertung 4,7/5.
-- Chronik: eröffnet vor gut zehn Jahren (14 + 4 Einweisungsparcours, 135 Übungen); zeitweise
-  Nachtklettern (Lampions, Stirnlampen); später Neugestaltung.
+## 1 · Reference park: a real high-ropes park – numbers for “Sonnwendberg”
+- Area approx. 30 000 m² (3 ha), route length 1,8 km, south-facing slope overlooking the city.
+- 17 routes across 3 levels + 2 toddler courses (35 cm high, without belay, for small children).
+  Level breakdown: **Blue 5 routes 3,5–7 m from 110 cm · Red 6 routes
+  3,5–10 m from 130 cm · Black 4 routes up to 20 m from 150 cm.** **Park map board on site:
+  Blue I–VII, Red I–VI, Black I–IV = 17** – the 5/6/4 count is outdated or omits two
+  blue beginner/children’s routes. 150–180 obstacles. Routes are named “color + Roman numeral”
+  (signposts: “BLUE I II III IV”, “RED IV”, “RED III V VI”, “BLACK III”); several share
+  starting areas; “Step into the Void” is marked on the board as a separate location.
+- Flying Fox at the end of (almost) every route; “Mega Flying Fox” at 20 m toward the skyline; a 150 m
+  long Flying Fox as the finale of a black route; test route “Step into the Void” (free-fall element).
+- Ascent via steel ladders/rungs or **wooden block ladders** (a board on the trunk with
+  staggered wooden blocks as steps) and inclined entry walls onto wooden platforms; at ground level
+  **entry decks (~40 cm) with a bench** for clipping in. Elements: rope/suspension bridges, wobbly nets,
+  floating tubes, wobbly beams, planks hanging from ropes.
+- **Construction on site:** platforms = planks on a **round-timber frame/ring** around the trunk, without
+  railings; low platforms additionally with diagonal round-timber supports to the ground; supporting trees mostly
+  **black pines** (straight, tall, red-brown plated bark), understory maple/hazel/hornbeam;
+  marking tapes (orange) and plaques on route trees; ground anchors with a turnbuckle for
+  guy lines/line ends; thin auxiliary ropes; pictogram signs on the trunk; branded barrels.
+- **Signage/park map:** arrow-shaped white signposts with a colored border, color name in
+  capitals, Roman numerals in white circles; park map as a printed green map on wooden posts
+  (roads dashed gray, paths white, “P” circles, POI icons, routes as colored loops with
+  numerals, park logo).
+- Belay: Smart Belay (Class C/D) – two communicating **roller carabiners** (Bowden-cable coupling, one
+  carabiner open → the other locked), Y-lanyard with energy absorber, integrated rollers
+  run directly on the Flying Fox cable; full-body harness, helmet; gloves available to rent.
+- Rules: no minimum age, **minimum height 110 cm, maximum weight 120 kg**; under 14 only with
+  a climbing adult (110–130 cm 1:1 easy only; 130–150 cm 3:1 easy+medium; from 150 cm 5:1
+  all); **one person per obstacle, max. 3 per platform**, always at least one carabiner on the cable, Flying
+  Fox one at a time only with a clear landing zone; sturdy shoes, tie back hair, no phone/jewelry.
+- Ticket: **4 h incl. safety briefing**, +5 € per additional ½ h, last admission 2 h before closing; no
+  reservation for private guests; safety course theory + practice (practice route near the ground), then
+  “self-belay park” with ground staff; guide 75 €/h.
+- Prices: 16 / 20 / 29 € (from 110/130/150 cm), 37 € adults, season pass 399 €, happy hour
+  17:00–18:00 –25 %. Season early March – end of October; high summer daily 9:00–20:00.
+- Weather: light rain/wind ok; thunderstorm, storm, heavy rain, “fire” → operations halted.
+- Empirical values: 3–4 h to exhaustion; from Red onward arm strength needed; Black “brutally hard,” no
+  turning back; some blue routes feel harder than red ones; rating 4,7/5.
+- History: opened just over ten years ago (14 + 4 induction routes, 135 obstacles); at times
+  night climbing (lanterns, headlamps); later redesign.
 
-## 2 · Bauweise (EN 15567, Baumsachverstand)
-- Podeste/Anker **klemmend** am Stamm (Reibung), Baumschutzmäntel aus Holz/Gummi, keine Bohrungen;
-  Klemmsysteme mit Wachstumsreserve bis 10 cm Durchmesser, Nachjustieren über Jahre; Anker nach 3–4
-  Jahren versetzen. Baumgutachten vor Inbetriebnahme; Kontrolle jährlich nach der Winterpause und
-  nach Sturm; Gutachten alle 12–18 Monate. Geeignete Arten: Stiel-Eiche, Linde, Feld-Ahorn (dickborkig).
-- Seile: verzinkter/rostfreier Stahl **10–13 mm** (Flying Fox 12 mm / ½″), Pressklemmen,
-  Sicherheitsfaktor 3; **Tragseil der Übung und Sicherungsseil (Lifeline) getrennt**; Lifeline
-  1,7–2,3 m über der Trittebene (moderne Systeme: Seilhöhe 1,6–2,1 m, Seil-Ø 10–13 mm, Zip 12–14 mm).
-- Lasten: Fangstoß ≤ 6 kN; Anker für ca. 12 kN ausgelegt (Durchhang verdoppelt bis verzweieinhalbfacht
-  die Seilkraft).
-- Höhen: Niedrigseil ≤ 1,8 m Tritthöhe (ab 1,0 m kollektive Sicherung), darüber PSA-Pflicht.
-- Parkgrößen: 0,5–3 ha; 8–20 Parcours; 6–20 Übungen je Parcours; Investition ca. 350 000 € für
-  8 Parcours (≈ 44 000 € je Parcours), 700 000 € für 6 anspruchsvolle.
+## 2 · Construction (EN 15567, arboricultural expertise)
+- Platforms/anchors **clamped** to the trunk (friction), tree-protection sleeves of wood/rubber, no drilling;
+  clamping systems with growth allowance up to 10 cm diameter, readjusting over the years; relocate anchors after 3–4
+  years. Tree assessment before commissioning; inspection annually after the winter break and
+  after storms; assessment every 12–18 months. Suitable species: pedunculate oak, linden, field maple (thick-barked).
+- Cables: galvanized/stainless steel **10–13 mm** (Flying Fox 12 mm / ½″), swaged sleeves,
+  safety factor 3; **the obstacle’s load cable and the belay cable (lifeline) are separate**; lifeline
+  1,7–2,3 m above the walking level (modern systems: cable height 1,6–2,1 m, cable Ø 10–13 mm, zip 12–14 mm).
+- Loads: fall-arrest force ≤ 6 kN; anchors designed for approx. 12 kN (sag doubles to two-and-a-half times
+  the cable force).
+- Heights: low ropes ≤ 1,8 m step height (from 1,0 m collective belay), above that PPE required.
+- Park sizes: 0,5–3 ha; 8–20 routes; 6–20 obstacles per route; investment approx. 350 000 € for
+  8 routes (≈ 44 000 € per route), 700 000 € for 6 demanding ones.
 
-## 3 · Übungsfamilien (Katalog) und Schwierigkeitsachsen
-Familien: Seilbrücken (Zwei-/Dreiseil, Burma = 1 Trittseil + 2 Halteseile, Nepal-/Hängebrücke,
-Seilschlaufen, Steigbügel, Lianengang) · Holz/Balken (Balancierbalken, Wackelbrücke, Trittholz,
-Fässer, Wippen, Catwalk) · Netze/Röhren (Netzbrücke, Netztunnel, Spinnennetz, hängende Röhren) ·
-Rollend/gleitend (Skateboard-, Snowboard-, Surfbrett-Brücke) · Hangeln/Kraft (Hangelleitern, Ringe,
-Trapez, Jakobsleiter, Kletterwand) · Sprung/Schwung/Fahrt (Tarzansprung ins Netz, Riesenschaukel,
+## 3 · Obstacle families (catalog) and difficulty axes
+Families: rope bridges (two-/three-rope, Burma = 1 foot rope + 2 hand ropes, Nepal/suspension bridge,
+rope loops, stirrups, vine walk) · wood/beams (balance beam, wobble bridge, stepping block,
+barrels, seesaws, catwalk) · nets/tubes (net bridge, net tunnel, spider web, hanging tubes) ·
+rolling/gliding (skateboard, snowboard, surfboard bridge) · traversing/strength (monkey ladders, rings,
+trapeze, Jacob’s ladder, climbing wall) · jump/swing/ride (Tarzan jump into the net, giant swing,
 Flying Fox, Powerfan, QuickJump, Banana Jump).
-Schwierigkeitstreiber (Branche): Höhe, Kraft, Gleichgewicht, Ausgesetztheit, Länge; „Extrem“ =
-dünne Bäume, kleine Podeste, hohe Übergänge, Leitern mit fehlenden Sprossen.
-**Designachsen des Spiels (0–5):** physisch · koordinativ · psychologisch · technisch – siehe
-`docs/GDD.md`, Tabelle „Übungen als Bewegungsprobleme“.
+Difficulty drivers (industry): height, strength, balance, exposure, length; “extreme” =
+thin trees, small platforms, high transitions, ladders with missing rungs.
+**The game’s design axes (0–5):** physical · coordinative · psychological · technical – see
+`docs/GDD.md`, table “Obstacles as movement problems”.
 
-**Designannahmen (nicht aus Quellen, für die Geometrie):** Podest-Durchmesser 2,0–2,6 m, Planken
-20–25 cm breit, Burma-Halteseile ~1,0–1,2 m über dem Trittseil, Netzmaschen 10–15 cm, Leitersprossen
-im Abstand ~30 cm, Fässer 60 cm Durchmesser, Tarzanseil 6–8 m lang.
+**Design assumptions (not from sources, for the geometry):** platform diameter 2,0–2,6 m, planks
+20–25 cm wide, Burma hand ropes ~1,0–1,2 m above the foot rope, net mesh 10–15 cm, ladder rungs
+spaced ~30 cm apart, barrels 60 cm diameter, Tarzan rope 6–8 m long.
 
-## 4 · Schwierigkeitsgrade und Zulassung (Branche)
-- Farbcode wie Skipisten, **nicht normiert**: gelb/grün Kinder/Einsteiger, blau leicht, rot mittel,
-  schwarz schwer, Sonderfarben. Norm verlangt nur die Kennzeichnung.
-- Zulassung über Körpergröße (110/130/150 cm) oder Greifhöhe (115/135/155 bzw. 160 cm)
-  plus Mindestalter je Farbe; Kinderparcours ab 3–5 J.; allein ab 12–16 J. mit Einverständnis.
-- Gewicht meist 120 kg (100–130); Flying Fox oft 40–90 kg (Leichte bleiben hängen, Schwere zu schnell).
-- Freigabelogiken: „gelb zuerst“ oder „Panorama-Bahn erst nach Rot“ (je nach Park).
+## 4 · Difficulty levels and eligibility (industry)
+- Color code like ski slopes, **not standardized**: yellow/green children/beginners, blue easy, red medium,
+  black hard, special colors. The standard only requires the marking.
+- Eligibility via body height (110/130/150 cm) or reach height (115/135/155 or 160 cm)
+  plus minimum age per color; children’s routes from 3–5 yrs; alone from 12–16 yrs with consent.
+- Weight usually 120 kg (100–130); Flying Fox often 40–90 kg (light people get stuck, heavy people too fast).
+- Unlock logics: “yellow first” or “panorama line only after Red” (depending on the park).
 
-## 5 · Sicherungssysteme (EN 15567 / EN 17109, Klassen A–E)
-- **A** selbstschließend, nicht selbstverriegelnd · **B** selbstverriegelnd · **C** wechselseitig
-  verriegelnd, vermindert Lösen · **D** wechselseitig verriegelnd, verhindert Lösen · **E** dauerhaft
-  verbunden, nur mit Werkzeug lösbar. Gütesiegel der Verbände: nur C–E.
-- Gen 1 (A/B): zwei Karabiner „wie am Klettersteig“, Einhandregel; Fehlerquelle Doppel-Aushängen
-  (Unfallberichte: häufigste Absturzursache der Frühzeit).
-- Gen 2 (C/D): Smart-Belay-Systeme (Bowdenzug, Falldämpfer, Rollenkarabiner, 85 cm, ~1 kg, max.
-  10 m/s Zip), Varianten mit Magnetfreigabe erst am Stahlseil (RFID) und Bowdenzug-Systeme mit
-  Magnet-Ankererkennung ohne Falldämpfer.
-- Gen 3 (E): Läufer mit Öffnung kleiner als Seil-Ø, größer als Halteplatte; kontinuierliche
-  Trolley-Systeme (Trolley = Sicherung + Zip-Rolle) bzw. Gleithaken + separate Rolle; teils
-  schlüsselgesicherte Ankerpunkte. Kein Überholen; Bremsblöcke und Startblocker am Zip.
-- Ausrüstung: Komplettgurt empfohlen; Falldämpfer im Seilgarten nicht zwingend (Anlage ≤ 6 kN);
-  Zip-Rolle mit 2 Rollen (9–13 mm, max. 25 m/s); Handschuhe bei Handbremsung Pflicht;
-  Helm nicht normativ (Strangulationsrisiko am Riemen vs. Anstoßschutz) – regional meist Helm, teils ohne.
-- PSA-Lebensdauer kommerziell ca. 2 Jahre; jährliche PSA-Prüfung.
+## 5 · Belay systems (EN 15567 / EN 17109, classes A–E)
+- **A** self-closing, not self-locking · **B** self-locking · **C** mutually
+  locking, reduces detachment · **D** mutually locking, prevents detachment · **E** permanently
+  connected, releasable only with a tool. Association quality seals: only C–E.
+- Gen 1 (A/B): two carabiners “as on a via ferrata”, one-hand rule; error source double-unclipping
+  (accident reports: the most common cause of falls in the early days).
+- Gen 2 (C/D): Smart Belay systems (Bowden cable, energy absorber, roller carabiners, 85 cm, ~1 kg, max.
+  10 m/s zip), variants with magnetic release only on the steel cable (RFID) and Bowden-cable systems with
+  magnetic anchor detection without an energy absorber.
+- Gen 3 (E): runners with an opening smaller than the cable Ø, larger than the retaining plate; continuous
+  trolley systems (trolley = belay + zip pulley) or sliding hook + separate pulley; partly
+  key-locked anchor points. No passing; brake blocks and start blockers on the zip.
+- Equipment: full-body harness recommended; energy absorber not mandatory in the ropes course (system ≤ 6 kN);
+  zip pulley with 2 rollers (9–13 mm, max. 25 m/s); gloves mandatory when hand-braking;
+  helmet not normative (strangulation risk from the strap vs. impact protection) – regionally mostly helmet, sometimes without.
+- PPE service life commercially approx. 2 years; annual PPE inspection.
 
-## 6 · Flying Fox / Seilrutsche
-- Faustzahlen Bau: **3–6 % Gefälle**, belasteter **Durchhang ≈ 2 % der Länge**; ohne Bungee-Bremse
-  max. 3 %, mit 6 %. Zu straff = harte Ankunft; zu locker = schnell in der Mitte, langsam am Ende.
-- Geschwindigkeit ↑ mit Masse (Schwere drücken das Seil tiefer, kaum mehr Luftwiderstand), ↓ mit
-  Gegenwind, ↑ mit Rückenwind und schnellen Rollen; Körperhaltung („Kanonenkugel“ vs. „Seestern“)
-  bis ~40 km/h Unterschied auf langen Bahnen; warmes Seil dehnt sich → mehr Durchhang.
-- Längen Kletterwald 30–300 m (einzelne Bahnen 75–210 m; grosse Anlagen > 400 m bis 1,5 km;
-  Weltrekord 2,83 km, 150 km/h).
-- Bremsen: Gravitation (Seil steigt zum Ziel an, Auspendeln), Federblock, Bungee-Block, Reifen/Prallblock,
-  Auffangnetz (Beine anziehen), Handbremse mit Lederhandschuh hinter der Rolle (ab ~10 km/h
-  Ankunft nur mit Backup, ab ~24 km/h verboten), Wirbelstrombremse (selbstregelnd, 15–150 kg,
-  Ankunft 6–36 km/h, Rückzug automatisch).
-- Verhalten: sitzend, nach vorn abspringen, Beine ausgestreckt/leicht angezogen, Hände weg vom Seil und
-  vor der Rolle, nicht drehen; Landung Podest oder Boden mit Hackschnitzeln, mitlaufen.
-- Rettung: Zugleine vom Ziel oder Retter mit Tandemrolle (2–5 min).
-- Freifall/Schwung: Powerfan (Lüfterrad, 13 m, ohne Motor), QuickJump/QuickFlight (Wirbelstrom, echter
-  Fall bis 4 m), Riesenschaukel (Flaschenzug/Winde, Reißleine, bis 70 km/h), Tarzansprung ins Netz.
+## 6 · Flying Fox / Zip Line
+- Construction rules of thumb: **3–6 % gradient**, loaded **sag ≈ 2 % of the length**; without a bungee brake
+  max. 3 %, with one 6 %. Too taut = hard arrival; too loose = fast in the middle, slow at the end.
+- Speed ↑ with mass (heavy people push the cable down further, hardly any more air resistance), ↓ with
+  headwind, ↑ with tailwind and fast rollers; body position (“cannonball” vs. “starfish”)
+  up to ~40 km/h difference on long lines; a warm cable expands → more sag.
+- Lengths high-ropes forest 30–300 m (individual lines 75–210 m; large installations > 400 m up to 1,5 km;
+  world record 2,83 km, 150 km/h).
+- Brakes: gravity (the cable rises toward the end, swinging to a stop), spring block, bungee block, tire/impact block,
+  catch net (pull in legs), hand brake with a leather glove behind the pulley (from ~10 km/h
+  arrival only with backup, from ~24 km/h prohibited), eddy-current brake (self-regulating, 15–150 kg,
+  arrival 6–36 km/h, retraction automatic).
+- Behavior: seated, push off forward, legs extended/slightly tucked, hands off the cable and
+  in front of the pulley, do not spin; landing on a platform or ground with wood chips, run it out.
+- Rescue: pull line from the end or a rescuer with a tandem pulley (2–5 min).
+- Free fall/swing: Powerfan (fan wheel, 13 m, no motor), QuickJump/QuickFlight (eddy current, real
+  fall up to 4 m), giant swing (block and tackle/winch, ripcord, up to 70 km/h), Tarzan jump into the net.
 
-## 7 · Betrieb, Aufsicht, Rettung, Ökonomie
-- Ablauf: Check-in/Unterschrift → Gurt → 15–30 min Unterweisung → Übungsparcours unter Aufsicht Stufe 2 →
-  freies Klettern unter Stufe 3 (Hilfe auf Anfrage), 2–4 h; „typischer Gast: ~4 Parcours in 3 h“.
-- Betreuer vs. Retter; **jede Station in ≤ 10 min von einem Retter erreichbar**; Notfallplan,
-  Logbuch, jährliche Inspektion durch unabhängige Stelle, Baumkontrollbericht.
-- Wetter: Räumung bei Gewitter/Sturm/Hagel/Starkregen; leichter Regen ok (Baumkronen schützen).
-- Saison ca. März/April–Oktober; Winter ohne Einnahmen; Fixkosten vorne, variable Kosten je Gast gering →
-  Auslastung (Schulklassen, Geburtstage, Firmen, Guides, Saisonpass, Happy Hour, Familientage).
-- Vergleichsparks (anonymisiert): Park A 10 Parcours/79 Podeste ≤ 8 m, 26 Flying Foxes, Klasse E,
-  Stufen 1–9, 32 €; Park B 18 Parcours/210 Hindernisse ≤ 15 m, klassisch 2 Karabiner,
-  Handschuhpflicht, 3 h, ~CHF 46–49; Park C 14 + 2 Kids ≤ 15+ m, kein Helm,
-  Handbremse, Panorama-Bahn > 400 m, 3 h, ~CHF 41; Park D 12 + 3
-  Einweisung ≤ 15 m, Helm, 3 h, 29 €; Park E 9 Parcours ≤ 21 m,
-  Helm + Handschuhe, 210-m-Bahn; Park F 12 + Mini ≤ 13 m, ~300-m-Bahn über einen See.
+## 7 · Operations, supervision, rescue, economics
+- Sequence: check-in/signature → harness → 15–30 min instruction → practice route under level 2 supervision →
+  free climbing under level 3 (help on request), 2–4 h; “typical guest: ~4 routes in 3 h”.
+- Attendants vs. rescuers; **every station reachable by a rescuer in ≤ 10 min**; emergency plan,
+  logbook, annual inspection by an independent body, tree inspection report.
+- Weather: evacuation in case of thunderstorm/storm/hail/heavy rain; light rain ok (tree canopies provide shelter).
+- Season approx. March/April–October; winter without revenue; fixed costs up front, variable costs per guest low →
+  utilization (school classes, birthdays, companies, guides, season pass, happy hour, family days).
+- Comparison parks (anonymized): Park A 10 routes/79 platforms ≤ 8 m, 26 Flying Foxes, Class E,
+  levels 1–9, 32 €; Park B 18 routes/210 obstacles ≤ 15 m, classic 2 carabiners,
+  gloves mandatory, 3 h, ~CHF 46–49; Park C 14 + 2 kids ≤ 15+ m, no helmet,
+  hand brake, panorama line > 400 m, 3 h, ~CHF 41; Park D 12 + 3
+  induction ≤ 15 m, helmet, 3 h, 29 €; Park E 9 routes ≤ 21 m,
+  helmet + gloves, 210 m line; Park F 12 + mini ≤ 13 m, ~300 m line over a lake.
 
-## 8 · Reale Regeln, die im Spiel Pacing erzeugen
-1 Person pro Übung · 3 pro Podest · Einbahn (kein Umkehren auf Schwarz) · Flying Fox nur einzeln bei
-freier Landezone · Ticket-Uhr · letzter Einlass · Freigabe nach Größe · Springen/Schaukeln auf den
-Parcours untersagt (gängiges Park-Reglement – im Spiel als „geteilte Physik“ optional erlaubt).
+## 8 · Real-world rules that create pacing in the game
+1 person per obstacle · 3 per platform · one-way (no turning back on Black) · Flying Fox one at a time only with
+a clear landing zone · ticket clock · last admission · unlock by height · jumping/swinging on the
+routes prohibited (common park regulation – in the game optionally allowed as “shared physics”).

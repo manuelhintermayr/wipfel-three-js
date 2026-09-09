@@ -1,4 +1,4 @@
-// Where the Flying Fox puts you down (RESEARCH-DATA §6: "Landung Podest oder Boden mit
+// Where the Flying Fox puts you down (RESEARCH-DATA §6: "lands on a platform or the ground with
 // Hackschnitzeln, mitlaufen"). On this hillside the ground falls away faster than a 3–6 % cable may,
 // so the arrival is a small platform on posts – the "Zip-Ankunft" deck of GDD §M1.2 – with a plank
 // ramp down to a mound of wood chips, a rail on the far edge, a stub of cable to clip into while you
@@ -214,7 +214,7 @@ function buildEndAnchor(builder, { deckY, cableHeight, ground }) {
 }
 
 /**
- * The hackschnitzel bed: a flat pad of displaced ground under the arrival deck. Wood chips are
+ * The wood-chip bed: a flat pad of displaced ground under the arrival deck. Wood chips are
  * chopped-up timber, so it borrows the round-pole texture at a small tile – pale, warm and coarse
  * against the leaf litter around it. Vertices sit on the terrain plus the lift, so the pad beds into
  * the slope instead of floating on it, and the UVs are world-scaled like every other park surface.

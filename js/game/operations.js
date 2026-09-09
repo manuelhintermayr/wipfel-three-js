@@ -1,7 +1,7 @@
-// Season/day operations (ROADMAP M3b, GDD §4 "Sicherheit als Tech-Baum und Pflicht", RESEARCH-DATA §7
-// "Wetter: Räumung bei Gewitter/Sturm/Hagel/Starkregen"). Pure-ish logic (no THREE, a tiny bit of DOM
-// only for the storm warning line the kassa/operator panel read) driving three things:
-//   - the season/day counter (a season is `OPERATIONS.seasonDays` in-game days, one per kassa "New day"),
+// Season/day operations (ROADMAP M3b, GDD §4 "safety as a tech tree and obligation", RESEARCH-DATA §7
+// "weather: evacuation on thunderstorm/storm/hail/heavy rain"). Pure-ish logic (no THREE, a tiny bit of DOM
+// only for the storm warning line the ticket desk/operator panel read) driving three things:
+//   - the season/day counter (a season is `OPERATIONS.seasonDays` in-game days, one per ticket desk "New day"),
 //   - PPE wear (a fixed amount per guest-day and per player-day, an inspection becomes due once worn
 //     past a threshold – the annual-inspection ritual compressed to a single day's own wear budget,
 //     documented simplification, RESEARCH-DATA §7's real inspection cadence is a season, not a day),
@@ -69,7 +69,7 @@ export function createOperations({ save, seed, wind = null }) {
     get ppeInspectionDue() { return save.data.operations.ppeWear >= OPERATIONS.ppeInspectionThreshold; },
     get forecast() { return forecast; },
     get isStormDay() { return forecast === "storm"; },
-    /** A translated one-line warning for the kassa/operator panel, or null on a calm day. */
+    /** A translated one-line warning for the ticket desk/operator panel, or null on a calm day. */
     get stormWarningLine() {
       return forecast === "storm" ? t("operations.stormWarning", { hour: String(OPERATIONS.stormHour).padStart(2, "0") }) : null;
     },
@@ -92,7 +92,7 @@ export function createOperations({ save, seed, wind = null }) {
       if (evacuationSecondsLeft <= 0) evacuating = false;
     },
 
-    /** Kassa "New day" (js/main.js#startDay): advance the counter, wear the PPE by yesterday's traffic,
+    /** Ticket desk "New day" (js/main.js#startDay): advance the counter, wear the PPE by yesterday's traffic,
      *  roll tomorrow's forecast. `guestCount` is the *modelled* admission count for the day just ended
      *  (js/game/economy.js#nextDayGuestCount) – intentionally decoupled from the live NPC roster size
      *  (js/npc/agents.js), which stays a fixed-per-session simulation for M3b rather than being rebuilt

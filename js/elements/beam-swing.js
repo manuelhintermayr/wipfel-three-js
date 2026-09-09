@@ -1,9 +1,9 @@
-// Wackelbalken – three or four round-log segments, each hung on two chains from a pair of overhead
+// Wobble beam – three or four round-log segments, each hung on two chains from a pair of overhead
 // carrier cables. Unlike the hanging planks you walk this one continuously: the segments butt up
 // against each other, so there is always wood underfoot – but every segment swings on its own, and
 // the one you are standing on is never the one you are about to step onto.
 //
-// Movement problem (GDD §3.4, "Balken, Planken, Trittholz · 1·4·4·1", here with real mass under the
+// Movement problem (GDD §3.4, "beams, planks, step logs · 1·4·4·1", here with real mass under the
 // feet): strong lateral sway, and the answer is to keep walking evenly instead of correcting.
 
 import { createElementBase, registerElementKind, ELEMENT } from "./element.js";

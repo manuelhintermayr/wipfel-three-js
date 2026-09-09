@@ -1,172 +1,172 @@
-# DECISIONS – Architektur- und Designentscheidungen (ADR-Log)
+# DECISIONS – Architecture and Design Decisions (ADR log)
 
-Format: `ADR-nnn · Titel · Datum · Status` → Kontext, Entscheidung, Konsequenzen.
-Neue Entscheidungen unten anhängen. Geänderte Entscheidungen nicht löschen, sondern mit
-„ersetzt durch ADR-nnn“ markieren.
-
----
-
-## ADR-001 · Statische Website ohne Build · 2026-08-16 · angenommen
-**Kontext:** Das Spiel soll mit einem einfachen Python-Server laufen und in vielen kurzen Sessions
-gebaut werden; Build-Pipelines waren in Nachbarprojekten eine Fehlerquelle (hängendes `npm install`,
-Cache-Fallen). **Entscheidung:** ES-Module mit Import-Map, `vendor/` für Three.js und Rapier compat,
-kein Bundler/Transpiler; `package.json` nur mit `"type": "module"` für `node --check`.
-**Konsequenzen:** Kein TypeScript, kein Tree-Shaking; Disziplin bei Modulgrenzen und Dateigrößen;
-JSDoc für Typen, wo es hilft.
-
-## ADR-002 · Rapier als Physik-Engine, aber nur wo Physik nötig ist · 2026-08-16 · angenommen
-**Kontext:** Seil-/Netzphysik als Rigid-Body-Simulation ist teuer, instabil und schwer zu tunen.
-**Entscheidung:** Rapier (`@dimforge/rapier3d-compat`, ES-Build mit inline-WASM) für Boden, Podeste,
-Character-Controller (KCC), Pendeln im Gurt (Seil-Joint), Tarzansprung, später geteilte
-Brückenphysik. **Übungen sind Schienen** (Spline + Feder-Dämpfer-Wackelmodell + 1-D-Balancependel),
-Flying Fox ist analytisch (Gefälle, Durchhang, Masse, Wind). **Konsequenzen:** deterministisch,
-tunbar, performant; visuelle Überzeugung kommt aus Kamera, Posen-Blending und Ton.
-
-## ADR-003 · Park als Graph · 2026-08-16 · angenommen
-**Kontext:** Spieler, NPC-Gäste und später der Builder brauchen dieselbe Beschreibung des Parks.
-**Entscheidung:** Podeste = Knoten (Kapazität 3), Übungen = gerichtete Kanten (Kapazität 1),
-Bodenknoten, Flying-Fox-Kanten; Warteschlangen entstehen aus Kapazitäten. Park-Definitionen als
-JSON unter `assets/parks/`, erzeugt durch einen seeded Layout-Generator, handnachjustierbar.
-**Konsequenzen:** Der Builder (M3) ist ein Editor für dieselbe Datenstruktur; `?autoplay=1` ist ein
-Agent auf dem Graphen.
-
-## ADR-004 · Alles prozedural · 2026-08-16 · angenommen
-**Kontext:** Keine Rechte-Fragen, kein Asset-Download, kleine Repos, konsistenter Look.
-**Entscheidung:** Geometrie im Code, Texturen per Canvas2D (Rinde, Holz, Stahl, Seil inkl. Normal-/
-Roughness-Maps), Audio per WebAudio-Synthese, UI per HTML/CSS. Generatoren sind seeded und cachen ihr
-Ergebnis pro Session. **Konsequenzen:** Startzeit beachten (Generierung ggf. gestaffelt/idle);
-Qualität kommt aus Detailarbeit an Generatoren, nicht aus Downloads.
-
-## ADR-005 · Deterministische Simulation · 2026-08-16 · angenommen
-**Entscheidung:** seeded RNG (`core/rng.js`), fester Physikschritt 60 Hz, Render-Interpolation,
-`?seed=` überschreibt den Seed. `Math.random()` ist in Gameplay/Procgen verboten.
-**Konsequenzen:** reproduzierbare Screenshots und Bugs; Smoke-Tests sind stabil.
-
-## ADR-006 · Kamera und Sicht · 2026-08-16 · angenommen
-**Entscheidung:** Schulterkamera als Standard (Körper und Füße sichtbar – nötig für Balance-Lesbarkeit),
-Ego umschaltbar, automatisch Ego im Flying Fox. Blick nach unten erhöht die Nerven.
-
-## ADR-007 · Sicherung als Modi · 2026-08-16 · angenommen
-**Entscheidung:** Drei Modi nach den realen Sicherungsgenerationen: Durchlaufend (kein Umhängen,
-kein Überholen), Smart Belay (Standard, Zwei-Klick-Ritual, Reihenfolge erzwungen), Klassisch (beide
-Karabiner frei, Absturz bei Doppel-Aushängen beendet den Run, Handbremse am Flying Fox).
-
-## ADR-008 · Ticket = 4 Spielstunden = 40 Minuten real · 2026-08-16 · angenommen
-**Entscheidung:** 1 Spielstunde = 10 Minuten; letzter Einlass 2 h vor Schluss; Verlängerung
-„+30 min für 5 €“ als Spielangebot; Saisonpass = offener Modus ohne Uhr (ab M2).
-
-## ADR-009 · UI-Sprache Deutsch, Code Englisch · 2026-08-16 · angenommen
-**Entscheidung:** UI-Strings in `assets/strings/de.json` (Parkvokabular ist Teil des Designs),
-`en.json` folgt; Code/Kommentare/Commits Englisch. **Konsequenz:** keine hart kodierten Strings.
-
-## ADR-010 · Erster Park fiktiv · 2026-08-16 · angenommen
-**Entscheidung:** „Waldseilpark Sonnwendberg“ zitiert eine reale Waldseilpark-Situation (Südhang, Skyline,
-Hütte, 5/6/4 Parcours, 20 m, 150-m-Flying-Fox), verwendet aber keine realen Marken/Namen.
-
-## ADR-011 · Höhe bleibt knapp · 2026-08-16 · angenommen
-**Entscheidung:** Kein Parcours über 20 m vor M2, keine Fantasie-Regionen vor dem letzten Kapitel.
-Das Nerven-Modell funktioniert nur, wenn Höhe selten ist.
-
-## ADR-012 · Handover-Protokoll · 2026-08-16 · angenommen
-**Entscheidung:** Eine Aufgabe = ein Commit (≤ 45 min); `die Projektnotizen` und `die Projektnotizen` nach jedem
-Commit; `wip:`-Commits bei Abbruchgefahr; Meilenstein-Tags; keine Co-Author-/„Generated with“-Zeilen.
-
-## ADR-020 · Offline gebackene eigene Ausgaben unter `assets/generated/` erlaubt · 2026-08-16 · angenommen
-**Kontext:** Abgleich mit externem Master-Prompt. Manche Generatoren (große Texturen, Bake-Tabellen)
-kosten Startzeit. **Entscheidung:** Ausgaben eigener `tools/`-Skripte (auch Python) dürfen unter
-`assets/generated/` liegen – reproduzierbar, mit Generator, Seed, Auflösung, Zweck dokumentiert.
-Fremde Assets bleiben verboten; Laufzeit-Generierung bleibt der Standard. **Alternativen:** alles zur
-Laufzeit (Startzeit), fremde Asset-Packs (abgelehnt). **Konsequenzen:** `assets/generated/README.md`
-führt Provenienz.
-
-## ADR-021 · Session-Logs je Datei · 2026-08-16 · angenommen
-**Entscheidung:** pro Session `ein Session-Log` (Vorlage
-`die Session-Log-Vorlage`), `die Projektnotizen` als Index. Alte Logs werden nie überschrieben.
-**Alternativen:** eine wachsende Datei (Merge-/Größenprobleme). **Konsequenzen:** reichere Logs
-(Dateien geändert, Tests, Performance, Screenshots) ohne Konflikte.
-
-## ADR-022 · Unit-Tests reiner Logik via `node --test` · 2026-08-16 · angenommen
-**Entscheidung:** Node-eigener Test-Runner ohne Dependencies für RNG, Graph, Generator, Katalog,
-Save, Zip-Physik, Karabiner-Automat; Logik so schneiden, dass sie ohne DOM/WebGL testbar ist.
-**Alternativen:** kein Test-Runner (nur Smoke), Jest/Vitest (Dependencies). **Konsequenzen:**
-Generator-Validität und Determinismus sind maschinell geprüft, nicht nur „gesehen“.
-
-## ADR-023 · Parcours-Namen zusätzlich zu Farbe + Nummer · 2026-08-16 · angenommen
-**Kontext:** Manche Parks nummerieren nur, andere benennen ihre Parcours zusätzlich (oft thematisch).
-**Entscheidung:** „Farbe + Nummer · Name“ (z. B. „Rot 3 · Grat“) – System bleibt
-lesbar, Namen bleiben im Gedächtnis. **Konsequenzen:** Schilder zeigen Form + Farbe + Nummer + Name.
-
-## ADR-024 · Prioritätsreihenfolge bei Zielkonflikten · 2026-08-16 · angenommen
-**Entscheidung:** Korrektheit → Spielgefühl → stabile Physik → Lesbarkeit → Architektur → visuelle
-Qualität → Inhaltsmenge → Politur (siehe `ROADMAP.md`). Nie funktionierende Steuerung für schönere
-Vegetation opfern.
-
-## ADR-025 · Visuelles Ziel = Gameplay-Mockup 1:1 · 2026-08-16 · angenommen
-**Kontext:** Ein Konzeptbild wurde vorgegeben („So ca. sollte das Gameplay ausschauen – 1:1“),
-beschrieben in `die visuelle Vorlage`. **Entscheidung:** HUD-Layout, Kategorien, Kamera,
-Figur und Bildanmutung des Mockups sind verbindlich: Routen-Header (Farbbalken, Kategorie, Name,
-Fortschritt, Zeit, Bestzeit), Flow unten Mitte, Zipline-Overlay mit Tacho, Course Map als Overlay,
-Start-Banner mit Kennzahlen und Countdown, Sicherheits-Tooltip; **stylized realism statt Low-Poly**
-(PBR, dichte Kiefern, Nebeltiefe, Streiflicht). Wipfel-Eigenes bleibt, wo es nicht widerspricht
-(Karabiner-Widget, Kraft-Ring, Herzschlag, Ticket-Uhr, Nerven, Modi, Betreiber-Akt). Berge/Wasserfall
-und 32-m-Routen des Mockups gehören zu späteren Kapiteln; Kapitel 1 bleibt Sonnwendberg ≤ 20 m
-(ADR-011). **Konsequenzen:** höhere Anforderungen an Procgen-Qualität (Blattmassen, Materialien),
-Zeit/Bestzeit immer sichtbar.
-
-## ADR-026 · UI-Sprache Englisch als Standard, Deutsch vollständig · 2026-08-16 · ersetzt ADR-009
-**Kontext:** Das Mockup ist englisch; verwandte Projekte nutzen englische UI-Texte; das
-Parkvokabular soll trotzdem erhalten bleiben. **Entscheidung:** `assets/strings/en.json` ist die
-Standardsprache, `de.json` eine vollständige zweite Sprache (Podest, Umhängen, Blau/Rot/Schwarz …),
-umschaltbar in den Optionen. Code/Kommentare/Commits bleiben Englisch. **Konsequenzen:** jede
-UI-Zeichenkette in beiden Dateien; Routen-Namen zweisprachig.
-
-## ADR-027 · Kategorien Green · Blue · Red · Black · Legendary · 2026-08-16 · angenommen
-**Entscheidung:** fünf Kategorien wie im Mockup und wie in vielen Parks: **Green** = Kinder-/Einsteiger-
-und Übungsparcours (Wichtel + Einweisung, ≤ 3 m), **Blue** leicht, **Red** mittel, **Black** schwer,
-**Legendary** versteckt/extrem. Reale Parks haben oft nur Blau/Rot/Schwarz (+ Wichtel) – Green fasst
-Wichtel + Übungsparcours. Farbe immer mit Form/Icon (◈ ◆ ◐ ◆ ✦ bzw. ● ■ ◆).
-
-## ADR-028 · M3 wird gebaut · 2026-08-25 · angenommen
-**Kontext:** ADR-019 vertagte die Entscheidung auf „nach M1“. Am 2026-08-25 wurde beauftragt,
-alle Meilensteine vollständig umzusetzen. **Entscheidung:** M3 (Betreiber-Akt) wird gebaut – Builder,
-Gäste-Simulation, Begehungspflicht, Inspektionen, Ökonomie, Teilen. **Konsequenzen:** der Park-Graph
-(ADR-003) ist die gemeinsame Datenstruktur; der Builder schreibt, was der Generator (M1.1) erzeugt.
-
-## ADR-029 · M4-Koop ist lokal, Teilen ist dateibasiert · 2026-08-25 · angenommen
-**Kontext:** ADR-001 (statische Site, kein Backend) schließt Server für Matchmaking/Signaling aus;
-echtes Online-Koop und ein Online-Parcours-Marktplatz sind damit nicht ehrlich lieferbar.
-**Entscheidung:** M4 = **lokales Koop** (2 Spieler an einem Gerät: Gamepad + Tastatur/Maus, geteilte
-Kamera oder Splitscreen nach Machbarkeit), geteilte Brückenphysik, Koop-Übungen, NPC-Zuschauer-Rufe;
-„Teilen” = Park-/Parcours-Export als JSON-Datei bzw. Code zum Einfügen (Import validiert wie der
-Generator). **Alternativen:** WebRTC-P2P (braucht Signaling-Server – abgelehnt), eigener Server
-(ADR-001-Bruch – abgelehnt). **Konsequenzen:** Bestenlisten bleiben lokal pro Gerät.
-
-## ADR-030 · Geteilte Kamera statt Splitscreen im Koop · 2026-08-27 · angenommen
-**Kontext:** ADR-029 lässt „geteilte Kamera oder Splitscreen nach Machbarkeit” offen. Splitscreen
-verdoppelt Draw-Calls/Render-Kosten (zwei volle Kameradurchläufe statt einer) und bricht die enge
-Schulterkamera-Nähe, die das ganze Spielgefühl trägt (ADR-006) – zwei kleine, weit entfernte Viewports
-zeigen kaum noch, worauf es beim Balancieren ankommt.
-**Entscheidung:** **eine** geteilte, dynamische Kamera (`js/player/coop-camera.js#computeCoopFrame`):
-Fokuspunkt und Distanz werden jeden Frame aus beiden Spielerpositionen berechnet – gewichtet zu Gunsten
-von, wer gerade auf einer Übung/Zipline ist („frame the climber”), Distanz wächst mit dem Abstand,
-geklemmt auf 4–18 m (`js/config.js#COOP.camera`). Kein Splitscreen, keine zweite Renderkamera im Bild.
-Da Distanz allein keine beliebig große Trennung ausgleichen kann, ohne die Nähe zu verlieren, gehört die
-**„Zusammenbleiben”-Leine** dazu (`js/game/coop-elements.js#leashFactor`): jenseits von 24 m wird Spieler
-2s eigener Bewegungsinput dynamisch gedämpft (nie eingefroren, Boden bei 20 %), mit einem HUD-Hinweis.
-**Alternativen:** echter Splitscreen (Kosten/Nähe-Verlust wie oben – abgelehnt), harte Trennwand/Teleport
-zurück (fühlt sich nicht wie ein gemeinsamer Park an – abgelehnt), unbegrenzte Trennung ohne Leine (die
-Kamera müsste beliebig weit rauszoomen und würde nutzlos – abgelehnt).
-**Konsequenzen:** Spieler 2 bekommt nie „ihre eigene” Kamera zu sehen (die eigene, unsichtbare Kamera-
-Instanz dient nur der bewegungsrelativen Blickrichtung, s. `js/game/coop.js`); das Zusammenbleiben ist
-eine Spielregel, keine harte Wand – ehrliche, einfache Vereinfachung statt eines Kamera-Kunstgriffs.
+Format: `ADR-nnn · Title · Date · Status` → Context, Decision, Consequences.
+Append new decisions at the bottom. Do not delete changed decisions; instead mark them
+with "superseded by ADR-nnn".
 
 ---
 
-## Offen (von der jeweiligen Session zu entscheiden und hier einzutragen)
-- ADR-013 · Three.js 0.185.1 (`three.module.js` + `three.core.js`, Addons einzeln bei Bedarf) · 2026-08-17 · angenommen
-- ADR-014 · @dimforge/rapier3d-compat 0.20.0 (`dist/rapier.mjs`, WASM inline, keine relativen Imports) · 2026-08-17 · angenommen
-- ADR-015 · Figur-Stil und Rig-Ansatz (Posen-Blending vs. leichtes IK) · offen
-- ADR-016 · Baumarten-Mix und Blatt-Instancing-Ansatz · offen
-- ADR-017 · Podest-Geometrie (Achteck vs. Ring) und Klemmen-Detailgrad · offen
-- ADR-018 · Nerven-Parameter (Höhen-Log-Basis, Schwelle, Regenerationsraten) · offen
-- ~~ADR-019~~ → entschieden, siehe ADR-028
+## ADR-001 · Static website without a build · 2026-08-16 · accepted
+**Context:** The game should run with a simple Python server and be built across many short
+sessions; build pipelines were a source of errors in neighboring projects (hanging `npm install`,
+cache traps). **Decision:** ES modules with an import map, `vendor/` for Three.js and Rapier compat,
+no bundler/transpiler; `package.json` only with `"type": "module"` for `node --check`.
+**Consequences:** No TypeScript, no tree-shaking; discipline with module boundaries and file sizes;
+JSDoc for types where it helps.
+
+## ADR-002 · Rapier as the physics engine, but only where physics is needed · 2026-08-16 · accepted
+**Context:** Rope/net physics as a rigid-body simulation is expensive, unstable, and hard to tune.
+**Decision:** Rapier (`@dimforge/rapier3d-compat`, ES build with inline WASM) for the ground, platforms,
+character controller (KCC), swinging in the harness (rope joint), Tarzan jump, and later shared
+bridge physics. **Obstacles are rails** (spline + spring-damper wobble model + 1-D balance pendulum),
+the Flying Fox is analytical (slope, sag, mass, wind). **Consequences:** deterministic,
+tunable, performant; visual conviction comes from the camera, pose blending, and sound.
+
+## ADR-003 · Park as a graph · 2026-08-16 · accepted
+**Context:** The player, NPC guests, and later the builder need the same description of the park.
+**Decision:** Platforms = nodes (capacity 3), obstacles = directed edges (capacity 1),
+ground nodes, Flying Fox edges; queues emerge from capacities. Park definitions as
+JSON under `assets/parks/`, generated by a seeded layout generator, hand-adjustable.
+**Consequences:** The builder (M3) is an editor for the same data structure; `?autoplay=1` is an
+agent on the graph.
+
+## ADR-004 · Everything procedural · 2026-08-16 · accepted
+**Context:** No licensing questions, no asset downloads, small repos, a consistent look.
+**Decision:** Geometry in code, textures via Canvas2D (bark, wood, steel, rope including normal/
+roughness maps), audio via WebAudio synthesis, UI via HTML/CSS. Generators are seeded and cache their
+result per session. **Consequences:** Watch startup time (generation staggered/idle if needed);
+quality comes from detailed work on generators, not from downloads.
+
+## ADR-005 · Deterministic simulation · 2026-08-16 · accepted
+**Decision:** seeded RNG (`core/rng.js`), fixed physics step at 60 Hz, render interpolation,
+`?seed=` overrides the seed. `Math.random()` is forbidden in gameplay/procgen.
+**Consequences:** reproducible screenshots and bugs; smoke tests are stable.
+
+## ADR-006 · Camera and view · 2026-08-16 · accepted
+**Decision:** Over-the-shoulder camera as the default (body and feet visible – necessary for balance readability),
+first-person toggleable, automatically first-person on the Flying Fox. Looking down increases nerves.
+
+## ADR-007 · Belay as modes · 2026-08-16 · accepted
+**Decision:** Three modes based on the real belay generations: Continuous (no re-clipping,
+no overtaking), Smart Belay (default, two-click ritual, order enforced), Classic (both
+carabiners free, a fall from double unclipping ends the run, hand brake on the Flying Fox).
+
+## ADR-008 · Ticket = 4 in-game hours = 40 real minutes · 2026-08-16 · accepted
+**Decision:** 1 in-game hour = 10 minutes; last admission 2 h before closing; extension
+"+30 min for €5" as an in-game offer; season pass = open mode without a clock (from M2).
+
+## ADR-009 · UI language German, code English · 2026-08-16 · accepted
+**Decision:** UI strings in `assets/strings/de.json` (park vocabulary is part of the design),
+`en.json` to follow; code/comments/commits in English. **Consequence:** no hard-coded strings.
+
+## ADR-010 · First park fictional · 2026-08-16 · accepted
+**Decision:** "Sonnwendberg High-Ropes Park" references a real high-ropes park situation (south-facing slope, skyline,
+hut, 5/6/4 routes, 20 m, 150 m Flying Fox), but uses no real brands/names.
+
+## ADR-011 · Height stays scarce · 2026-08-16 · accepted
+**Decision:** No route above 20 m before M2, no fantasy regions before the final chapter.
+The nerves model only works if height is rare.
+
+## ADR-012 · Handover protocol · 2026-08-16 · accepted
+**Decision:** One task = one commit (≤ 45 min); `the milestone notes` after every
+commit; `wip:` commits when at risk of interruption; milestone tags; no co-author / "Generated with" lines.
+
+## ADR-020 · Offline-baked own outputs under `assets/generated/` allowed · 2026-08-16 · accepted
+**Context:** Alignment with an external master prompt. Some generators (large textures, bake tables)
+cost startup time. **Decision:** Outputs of our own `tools/` scripts (including Python) may reside under
+`assets/generated/` – reproducible, documented with generator, seed, resolution, and purpose.
+Third-party assets remain forbidden; runtime generation remains the default. **Alternatives:** everything at
+runtime (startup time), third-party asset packs (rejected). **Consequences:** `assets/generated/README.md`
+tracks provenance.
+
+## ADR-021 · Session logs per file · 2026-08-16 · accepted
+**Decision:** one a session log per session (template
+the session-log template), the milestone notes as the index. Old logs are never overwritten.
+**Alternatives:** one growing file (merge/size problems). **Consequences:** richer logs
+(files changed, tests, performance, screenshots) without conflicts.
+
+## ADR-022 · Unit tests of pure logic via `node --test` · 2026-08-16 · accepted
+**Decision:** Node's own test runner without dependencies for RNG, graph, generator, catalog,
+save, zip physics, carabiner state machine; cut the logic so it is testable without DOM/WebGL.
+**Alternatives:** no test runner (smoke only), Jest/Vitest (dependencies). **Consequences:**
+generator validity and determinism are machine-checked, not just "seen".
+
+## ADR-023 · Route names in addition to color + number · 2026-08-16 · accepted
+**Context:** Some parks only number their routes, others also name them (often thematically).
+**Decision:** "Color + number · Name" (e.g. "Red 3 · Ridge") – the system stays
+readable, the names stay memorable. **Consequences:** Signs show shape + color + number + name.
+
+## ADR-024 · Priority order for conflicting goals · 2026-08-16 · accepted
+**Decision:** Correctness → game feel → stable physics → readability → architecture → visual
+quality → amount of content → polish (see `ROADMAP.md`). Never sacrifice working controls for prettier
+vegetation.
+
+## ADR-025 · Visual target = gameplay mockup 1:1 · 2026-08-16 · accepted
+**Context:** A concept image was provided ("This is roughly how the gameplay should look – 1:1"),
+described in the visual mockup. **Decision:** The mockup's HUD layout, categories, camera,
+character, and visual feel are binding: route header (color bar, category, name,
+progress, time, best time), flow at bottom center, zipline overlay with a speedometer, course map as an overlay,
+start banner with key figures and countdown, safety tooltip; **stylized realism instead of low-poly**
+(PBR, dense pines, fog depth, grazing light). Wipfel's own elements stay where they don't conflict
+(carabiner widget, strength ring, heartbeat, ticket clock, nerves, modes, operator act). Mountains/waterfall
+and the mockup's 32 m routes belong to later chapters; chapter 1 stays Sonnwendberg ≤ 20 m
+(ADR-011). **Consequences:** higher demands on procgen quality (leaf masses, materials),
+time/best time always visible.
+
+## ADR-026 · UI language English as default, German complete · 2026-08-16 · supersedes ADR-009
+**Context:** The mockup is in English; related projects use English UI texts; the
+park vocabulary should nonetheless be preserved. **Decision:** `assets/strings/en.json` is the
+default language, `de.json` a complete second language (platform, re-clipping, Blue/Red/Black …),
+switchable in the options. Code/comments/commits remain English. **Consequences:** every
+UI string in both files; route names bilingual.
+
+## ADR-027 · Categories Green · Blue · Red · Black · Legendary · 2026-08-16 · accepted
+**Decision:** five categories as in the mockup and as in many parks: **Green** = children's/beginner
+and practice routes (toddler course + safety briefing, ≤ 3 m), **Blue** easy, **Red** medium, **Black** hard,
+**Legendary** hidden/extreme. Real parks often have only Blue/Red/Black (+ toddler course) – Green combines
+toddler course + practice routes. Color always with a shape/icon (◈ ◆ ◐ ◆ ✦ or ● ■ ◆).
+
+## ADR-028 · M3 will be built · 2026-08-25 · accepted
+**Context:** ADR-019 deferred the decision to "after M1". On 2026-08-25, the mandate was given to build
+all milestones in full. **Decision:** M3 (operator act) will be built – builder,
+guest simulation, mandatory walkthrough, inspections, economy, sharing. **Consequences:** the park graph
+(ADR-003) is the shared data structure; the builder writes what the generator (M1.1) produces.
+
+## ADR-029 · M4 co-op is local, sharing is file-based · 2026-08-25 · accepted
+**Context:** ADR-001 (static site, no backend) rules out servers for matchmaking/signaling;
+genuine online co-op and an online route marketplace are therefore not honestly deliverable.
+**Decision:** M4 = **local co-op** (2 players on one device: gamepad + keyboard/mouse, shared
+camera or split screen depending on feasibility), shared bridge physics, co-op obstacles, NPC spectator shouts;
+"sharing" = park/route export as a JSON file or code to paste in (import validated like the
+generator). **Alternatives:** WebRTC P2P (needs a signaling server – rejected), our own server
+(ADR-001 violation – rejected). **Consequences:** leaderboards stay local, per device.
+
+## ADR-030 · Shared camera instead of split screen in co-op · 2026-08-27 · accepted
+**Context:** ADR-029 left "shared camera or split screen depending on feasibility" open. Split screen
+doubles draw calls/render costs (two full camera passes instead of one) and breaks the tight over-the-shoulder
+closeness that carries the entire game feel (ADR-006) – two small, distant viewports
+barely show what matters when balancing.
+**Decision:** **one** shared, dynamic camera (`js/player/coop-camera.js#computeCoopFrame`):
+focus point and distance are computed each frame from both player positions – weighted in favor
+of whoever is currently on an obstacle/zipline ("frame the climber"), distance grows with the separation,
+clamped to 4–18 m (`js/config.js#COOP.camera`). No split screen, no second render camera in the picture.
+Since distance alone cannot compensate for an arbitrarily large separation without losing the closeness, the
+**"stay together" leash** is part of it (`js/game/coop-elements.js#leashFactor`): beyond 24 m, player
+2's own movement input is dynamically damped (never frozen, floor at 20 %), with a HUD hint.
+**Alternatives:** real split screen (cost/closeness loss as above – rejected), a hard partition/teleport
+back (doesn't feel like a shared park – rejected), unlimited separation without a leash (the
+camera would have to zoom out arbitrarily far and become useless – rejected).
+**Consequences:** player 2 never gets to see "their own" camera (the separate, invisible camera
+instance only serves the movement-relative view direction, see `js/game/coop.js`); staying together is
+a game rule, not a hard wall – an honest, simple simplification instead of a camera trick.
+
+---
+
+## Open (to be decided by the respective session and recorded here)
+- ADR-013 · Three.js 0.185.1 (`three.module.js` + `three.core.js`, add-ons individually as needed) · 2026-08-17 · accepted
+- ADR-014 · @dimforge/rapier3d-compat 0.20.0 (`dist/rapier.mjs`, WASM inline, no relative imports) · 2026-08-17 · accepted
+- ADR-015 · Character style and rig approach (pose blending vs. light IK) · open
+- ADR-016 · Tree species mix and leaf instancing approach · open
+- ADR-017 · Platform geometry (octagon vs. ring) and clamp level of detail · open
+- ADR-018 · Nerves parameters (height log base, threshold, regeneration rates) · open
+- ~~ADR-019~~ → decided, see ADR-028

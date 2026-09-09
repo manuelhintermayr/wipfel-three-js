@@ -112,7 +112,7 @@ export function elementsPanel({ draft, routeId, dispatch }) {
   return panel;
 }
 
-/** @param {{ draft, dispatch: (a:object)=>void }} o – M3b rescuer posts (GDD §4 "Retter"): up to
+/** @param {{ draft, dispatch: (a:object)=>void }} o – M3b rescuer posts (GDD §4 "rescuer"): up to
  *  RESCUE.maxPosts, placed at a hub or a route's own entry (see js/builder/builder-state.js#rescuePostCandidates'
  *  own comment on why this reuses existing points instead of a free 3-D pick, like every other builder
  *  tool here). Route-scoped like the rest of the toolbar for consistency, even though a rescuer post is

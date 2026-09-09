@@ -1,6 +1,6 @@
 // The entry deck at the foot of the first tree (photo 02): a knee-high platform of planks on round
 // log posts, a bench to sit on while the trainer checks your harness, a short piece of 12 mm steel
-// cable on two posts – the "Einhängepunkt" where the carabiners go on for the first time – and a
+// cable on two posts – the "clip-in point" where the carabiners go on for the first time – and a
 // round pictogram sign on a post.
 //
 // Local frame: origin on the ground at the deck centre, +Z towards the tree, +Y up.
@@ -78,7 +78,7 @@ export function createEntryDeck({ scene, physics, position, facing = 0, rng, tex
 
 /**
  * Half-height step board on the approach side: 0.42 m onto the deck is more than the character
- * controller's 0.3 m autostep, exactly like a real knee-high deck needs its Trittstufe.
+ * controller's 0.3 m autostep, exactly like a real knee-high deck needs its step.
  */
 function buildStep(builder, { deckY, rng }) {
   const D = ENTRY_DECK;
@@ -221,7 +221,7 @@ function createColliders(physics, { position, facing, deckY }) {
     .setTranslation(deckCentre.x, position.y + deckY - half, deckCentre.z)
     .setRotation(rotation).setCollisionGroups(groups(GROUP.STATIC)).setFriction(0.95);
   // Rapier's autostep refuses the step-board + deck-face double step, so the walkable approach is
-  // a flat ramp collider under the boards (a trodden hackschnitzel wedge, ~29°): ground → deck top.
+  // a flat ramp collider under the boards (a trodden wood-chip wedge, ~29°): ground → deck top.
   const rampRun = 0.80;
   const rampPitch = -Math.atan2(deckY, rampRun);
   const yawQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), facing);

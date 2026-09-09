@@ -1,73 +1,73 @@
 # TESTING – Wipfel
 
-Drei Ebenen: (1) Syntax-Gate, (2) Unit-Tests reiner Logik, (3) Browser-Verifikation (Smoke-Checkliste,
-optional headless). Laufzeitverhalten im Browser ist die Wahrheit.
+Three levels: (1) syntax gate, (2) unit tests of pure logic, (3) browser verification (smoke checklist,
+optional headless). Runtime behaviour in the browser is the truth.
 
-## 1 · Syntax-Gate (nach jedem Edit)
+## 1 · Syntax Gate (after every edit)
 ```
-node --check js/<datei>.js
-node tools/check-all.mjs        # alle .js/.mjs unter js/, tools/, tests/
+node --check js/<file>.js
+node tools/check-all.mjs        # all .js/.mjs under js/, tools/, tests/
 ```
-Fängt Syntaxfehler und – wichtig auf diesem Windows-Mount – abgeschnittene Dateien.
+Catches syntax errors and – important on this Windows mount – truncated files.
 
-## 2 · Unit-Tests reiner Logik
-Node-eigener Test-Runner, keine Abhängigkeiten:
+## 2 · Unit Tests of Pure Logic
+Node’s own test runner, no dependencies:
 ```
 node --test "tests/unit/**/*.test.mjs"
 ```
-Konvention: `tests/unit/<modul>.test.mjs`, `import test from "node:test"; import assert from
-"node:assert/strict";`. Getestet werden nur Module ohne DOM/WebGL/Rapier-Bedarf (Logik so schneiden,
-dass sie testbar ist):
-- `core/rng.js` – gleicher Seed → gleiche Folge; unterschiedliche Seeds → unterschiedliche Folgen; Verteilung grob.
-- `park/graph.js` – Konnektivität, Kapazitäten (Podest 3, Übung 1), gerichtete Kanten, Einbahn-Abschnitte.
-- `park/layout.js` – Generator-Validität für N Seeds: Start-/Endanker vorhanden, Seilwinkel im Bereich,
-  Lichtraum, keine Baumdurchdringung, Kontinuität, Landezonen, Zip-Gefälle 3–6 %, Podest-Zugang.
-- `park/catalog.js` – Achsenprofile 0–5, Pflichtfelder je Familie.
-- `core/save.js` – Serialisierung/Deserialisierung, Schema-Version, defekte Daten → Defaults, additive Migration.
-- `zipline/physics.js` – Ankunftsgeschwindigkeit steigt mit Masse, fällt mit Gegenwind; Leichte bleiben
-  im Durchhang stehen (Grenzfall).
-- `player/belay.js` – Zustandsautomat: nie beide Karabiner offen (Smart-Belay-Modus), Reihenfolge erzwungen.
+Convention: `tests/unit/<module>.test.mjs`, `import test from "node:test"; import assert from
+"node:assert/strict";`. Only modules without DOM/WebGL/Rapier needs are tested (slice the logic
+so that it is testable):
+- `core/rng.js` – same seed → same sequence; different seeds → different sequences; distribution roughly.
+- `park/graph.js` – connectivity, capacities (platform 3, obstacle 1), directed edges, one-way sections.
+- `park/layout.js` – generator validity for N seeds: start/end anchors present, rope angle within range,
+  clearance, no tree intersection, continuity, landing zones, zip gradient 3–6 %, platform access.
+- `park/catalog.js` – axis profiles 0–5, required fields per family.
+- `core/save.js` – serialization/deserialization, schema version, corrupt data → defaults, additive migration.
+- `zipline/physics.js` – arrival speed increases with mass, decreases with headwind; light riders come
+  to a stop at the sag (edge case).
+- `player/belay.js` – state machine: never both carabiners open (smart belay mode), order enforced.
 
-## 3 · Browser-Verifikation
+## 3 · Browser Verification
 
-### 3.1 Manuelle Smoke-Checkliste (vor jedem Meilenstein-Tag, gekürzt vor jedem Commit)
+### 3.1 Manual Smoke Checklist (before every milestone day, shortened before every commit)
 ```
-[ ] Seite lädt über serve.py ohne Konsolenfehler/-warnungen
-[ ] Netzwerk-Tab: nur 127.0.0.1 (0 externe Requests)
-[ ] Debug-Panel (F1 / ?debug=1): fps ≥ 55, Draw-Calls < 300, Physikzeit stabil
-[ ] Spieler spawnt, geht, sprintet, springt, kollidiert mit Boden/Bäumen/Podest
-[ ] Kamera clippt nicht durch Stämme; Ego-Umschaltung funktioniert
-[ ] Leiter: Aufstieg auf das Podest
-[ ] Umhängen: Klick – Klick, Widget zeigt Zustände, nie beide offen
-[ ] Übungen: Burma-Brücke, Planken, Netz begehbar; Balance/Kraft/Nerven spürbar
-[ ] Sturz: Fang im Gurt, Pendel, Hochziehen/Hangeln, Retter-Reset
-[ ] Flying Fox: einhängen, Fahrt, Bremse/Landung, Ankunft am Ziel
-[ ] Parcours abgeschlossen → Rückmeldung (Stempel)
-[ ] Parkplan öffnet (Tab), Pause (Esc)
-[ ] ?autoplay=1 läuft ohne Fehler durch den M0-Parcours
-[ ] ?seed=1 erzeugt reproduzierbar dieselbe Welt (Screenshot-Vergleich)
+[ ] Page loads via serve.py without console errors/warnings
+[ ] Network tab: only 127.0.0.1 (0 external requests)
+[ ] Debug panel (F1 / ?debug=1): fps ≥ 55, draw calls < 300, physics time stable
+[ ] Player spawns, walks, sprints, jumps, collides with ground/trees/platform
+[ ] Camera does not clip through trunks; first-person toggle works
+[ ] Ladder: climb up onto the platform
+[ ] Re-clipping: click – click, widget shows states, never both open
+[ ] Obstacles: Burma bridge, planks, net traversable; balance/strength/nerves noticeable
+[ ] Fall: caught in the harness, pendulum, pull-up/hand-over-hand, rescuer reset
+[ ] Flying Fox: clip in, ride, brake/landing, arrival at destination
+[ ] Course completed → feedback (stamp)
+[ ] Park map opens (Tab), pause (Esc)
+[ ] ?autoplay=1 runs through the M0 course without errors
+[ ] ?seed=1 reproducibly generates the same world (screenshot comparison)
 ```
 
-### 3.2 Headless-Smoke (optional)
+### 3.2 Headless Smoke (optional)
 ```
 node tests/smoke.mjs [--port 8200] [--seconds 20]
 ```
-Startet `serve.py`, lädt `?autoplay=1&debug=1&seed=1`, zählt Konsolenfehler und externe Requests,
-Screenshot nach `tests/out/smoke.png`. Braucht `playwright-core` (dev-only, `npm i -D playwright-core`)
-und ein Chromium; fehlt es, endet der Test mit SKIP (Exit 0).
+Starts `serve.py`, loads `?autoplay=1&debug=1&seed=1`, counts console errors and external requests,
+screenshot to `tests/out/smoke.png`. Needs `playwright-core` (dev-only, `npm i -D playwright-core`)
+and a Chromium; if it is missing, the test ends with SKIP (exit 0).
 
-### 3.3 Browser-Pane / Playwright-MCP in Claude Code
-`.claude/launch.json` → Konfiguration „wipfel“ startet `serve.py`; Screenshots als Nachweis nach
-`docs/screenshots/<meilenstein>-<nr>-<thema>.png` (< 300 KB), in `die Projektnotizen` verlinken.
+### 3.3 Browser Pane / Playwright MCP in Claude Code
+`.claude/launch.json` → configuration “wipfel” starts `serve.py`; screenshots as evidence to
+`docs/screenshots/<milestone>-<nr>-<topic>.png` (< 300 KB), link in the milestone notes.
 
-## 4 · Review-Schleifen (vor Meilenstein-Tags)
-**Visuell:** Maßstab · Silhouette · Materialqualität · Licht · Komposition · Walddichte · Tiefe ·
-Lesbarkeit · Sichtbarkeit des Parcours · Glaubwürdigkeit der Podeste · Beschlagdetail · Lesbarkeit der
-Figur. Wenn es schlecht aussieht: Ursache benennen, nicht mehr Objekte hinzufügen.
-**Gameplay je Übung:** Ist das Ziel lesbar? Reagiert die Steuerung? Ist Scheitern verständlich? Ist
-Erholung möglich? Kommt Schwierigkeit aus Können, nicht aus schlechter Steuerung? Fühlt sie sich anders
-an als die Nachbarübung? Erzeugt sie eine Geschichte? Schwache Übungen umbauen oder streichen.
+## 4 · Review Loops (before milestone days)
+**Visual:** scale · silhouette · material quality · light · composition · forest density · depth ·
+readability · visibility of the course · believability of the platforms · hardware detail · readability of the
+figure. If it looks bad: name the cause, do not add more objects.
+**Gameplay per obstacle:** Is the goal readable? Do the controls respond? Is failure understandable? Is
+recovery possible? Does difficulty come from skill, not from poor controls? Does it feel different
+from the neighboring obstacle? Does it create a story? Rebuild or cut weak obstacles.
 
-## 5 · Ehrlichkeit
-Nichts als „fertig“, „60 fps“, „produktionsreif“ oder „animiert“ bezeichnen, was nicht gemessen oder
-gesehen wurde. Provisorisches steht in `die Projektnotizen` unter „Offen/Provisorisch“.
+## 5 · Honesty
+Do not call anything “finished”, “60 fps”, “production-ready” or “animated” that has not been measured or
+seen. Anything provisional is noted in the milestone notes under “open/provisional”.

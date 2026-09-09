@@ -34,7 +34,7 @@ export function createNerves({ config = NERVES, value = 0, trust = 0 } = {}) {
   const heightTerm = (height) => clamp01(Math.log1p(Math.max(0, height) / C.heightReference) / logSpan);
 
   function riseRate(ctx) {
-    // Night climbing (ROADMAP M2b, GDD §3.7 "weniger Höhenangst, mehr Unbekanntes"): darkness hides
+    // Night climbing (ROADMAP M2b, GDD §3.7 "less fear of heights, more of the unknown"): darkness hides
     // how far down the ground actually is, so the height term itself is softened – but the climber is
     // also feeling around in the dark, which is its own flat, height-independent unease. `ctx.night`
     // is `js/world/sky.js#night`, 0..1 – zero for every ordinary daytime ticket, so this is a no-op
@@ -130,7 +130,7 @@ export function createNerves({ config = NERVES, value = 0, trust = 0 } = {}) {
       return trustValue;
     },
 
-    /** Watching another climber finish an element nearby (GDD §3.4/§7: "Zusehen gibt Vertrauen",
+    /** Watching another climber finish an element nearby (GDD §3.4/§7: "watching builds trust",
      *  ROADMAP M1.6's `npc:watched-success`) – a smaller, quieter version of `completeElement()`,
      *  since the climber did not do it themselves. */
     watchSuccess() {

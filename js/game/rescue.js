@@ -1,5 +1,5 @@
-// Rescuer role (ROADMAP M3b, GDD §4 "Retter: Gast in Panik, 10 Spielminuten Timer", RESEARCH-DATA §7
-// "jede Station in ≤ 10 min von einem Retter erreichbar" – the IAPA rule, borrowed here as the timer
+// Rescuer role (ROADMAP M3b, GDD §4 "rescuer: guest in panic, 10 game-minute timer", RESEARCH-DATA §7
+// "every station reachable by a rescuer within ≤ 10 min" – the IAPA rule, borrowed here as the timer
 // itself rather than a coverage guarantee, which is the builder's own inspector concern instead
 // (js/builder/builder-metrics.js#rescueCoverage). A small state machine glued onto the *existing*
 // climbing controls: there is no special "rescuer" player state (js/player/controller.js is untouched)

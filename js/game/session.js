@@ -51,7 +51,7 @@ export function createSession({ player, course, parkDef, events, hud, save, root
   const offs = [];
   const on = (name, fn) => offs.push(events.on(name, fn));
 
-  // --- day stats (M1.5) – reset by beginDay() at kassa confirm / resume, read by the stamp card ---
+  // --- day stats (M1.5) – reset by beginDay() at ticket desk confirm / resume, read by the stamp card ---
   const day = { routes: [], obstaclesTotal: 0, maxZipKmh: 0, rescues: 0 };
   let warnedShown = false;    // "30 min left" toast – once per day
   let dayEnding = false;      // grace window open: extend with [E], or fall through to the stamp card
@@ -108,7 +108,7 @@ export function createSession({ player, course, parkDef, events, hud, save, root
       if (!run.completeObstacle(element)) continue;
       day.obstaclesTotal += 1;
       day.maxZipKmh = Math.max(day.maxZipKmh, maxKmh);
-      // M2b Umsetzstation (GDD §3.6): a black route can cross two zip obstacles – the transfer leg,
+      // M2b transfer station (GDD §3.6): a black route can cross two zip obstacles – the transfer leg,
       // then the real arrival. Only the one that actually finishes every obstacle ends the run; an
       // intermediate leg still counts towards `progress`/`day.obstaclesTotal` like any other obstacle,
       // it just does not trigger the completion ceremony below. For every other route the zip is always
@@ -181,7 +181,7 @@ export function createSession({ player, course, parkDef, events, hud, save, root
     get run() { return shown; },
     /** Today's stamp-card stats – read-only, js/ui/stamp-card.js gets its own copy via endDay(). */
     get day() { return day; },
-    /** Kassa confirm / resume (js/main.js): fresh day stats, the ticket HUD box comes back. */
+    /** Ticket desk confirm / resume (js/main.js): fresh day stats, the ticket HUD box comes back. */
     beginDay() {
       day.routes = []; day.obstaclesTotal = 0; day.maxZipKmh = 0; day.rescues = 0;
       warnedShown = false; dayEnding = false; dayGrace = 0; dayOver = false;

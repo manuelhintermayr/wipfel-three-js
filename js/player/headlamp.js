@@ -1,4 +1,4 @@
-// The climber's own headlamp (ROADMAP M2b, GDD §3.7 "Nachtklettern mit Stirnlampe"). A single soft
+// The climber's own headlamp (ROADMAP M2b, GDD §3.7 "night climbing with a headlamp"). A single soft
 // spotlight parented to the rig's head anchor, always on once `sky.night` crosses the halfway point –
 // no separate "night mode" flag anywhere else needed, the same continuous dusk→night value everything
 // else (stars, hemi light, exposure) already reads drives this too. No shadow casting: one more shadow

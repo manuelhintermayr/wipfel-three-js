@@ -1,5 +1,5 @@
-// Local co-op session (ROADMAP M4, GDD §3.11; ADR-029 "lokal", ADR-030 "geteilte Kamera statt
-// Splitscreen"). Owns everything about player 2 that js/main.js would otherwise have to duplicate by
+// Local co-op session (ROADMAP M4, GDD §3.11; ADR-029 "local", ADR-030 "shared camera instead of
+// splitscreen"). Owns everything about player 2 that js/main.js would otherwise have to duplicate by
 // hand: spawning/tearing down a second js/player/controller.js bound to js/core/input-source.js's
 // gamepad facade instead of keyboard+mouse, that player's own belay/vitals/interaction, the shared
 // camera frame (js/player/coop-camera.js), the "stay together" leash, the two co-op elements' haul/
@@ -173,7 +173,7 @@ export function createCoop({
     input2.move.y *= factor;
   }
 
-  /** Periodic encouragement (GDD §3.11 "Zuschauer-Rufe"): the other climber, or >= 1 guest, standing on
+  /** Periodic encouragement (GDD §3.11 "spectator calls"): the other climber, or >= 1 guest, standing on
    *  the platform right next to whoever is currently out on an element or the zip – js/config.js#NPC's
    *  own watch radius/height (M1.6's trust hook), reused rather than a second set of numbers. */
   function updateSpectatorCalls(dt) {
@@ -245,7 +245,7 @@ export function createCoop({
     }
   }
 
-  /** GDD §3.11/§4 "geteilte Physik … wenn die Gruppe es einschaltet": both riding the same capacity-2
+  /** GDD §3.11/§4 "shared physics … when the group switches it on": both riding the same capacity-2
    *  co-op element, or two elements that share a support platform – see js/game/coop-elements.js. */
   function driveSharedPhysics(dt) {
     if (!save.data.settings.sharedPhysics) return;

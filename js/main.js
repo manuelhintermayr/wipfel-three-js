@@ -109,7 +109,7 @@ async function boot() {
   const wood = getWoodTextures(params.seed);
   let course = loadPark(parkDef, { scene, physics, terrain, forest, rng: rng.fork("course"), textures: wood });
   let signs = createSigns({ parkDef, scene, terrain, textures: wood, rng: rng.fork("signs") });
-  // The legendary finale has no parkplan entry at all (GDD §3.12) – the park board and course map both
+  // The legendary finale has no park-plan entry at all (GDD §3.12) – the park board and course map both
   // read this filtered copy instead of `parkDef` directly (js/park/signs.js filters internally instead,
   // since it also needs the un-filtered park for its per-hub route grouping).
   let publicParkDef = { ...parkDef, routes: parkDef.routes.filter((r) => r.category !== "legendary") };
@@ -126,7 +126,7 @@ async function boot() {
   const operations = createOperations({ save, seed: parkDef.seed, wind });
   const economy = createEconomy({ save });
   /** A route with > 100 m of total zip length, or the legendary route unlocked, raises the rating
-   *  ceiling a little (GDD "Signature-Logik", simplified to one flat cap bump) – recomputed whenever the
+   *  ceiling a little (GDD "signature logic", simplified to one flat cap bump) – recomputed whenever the
    *  park or the unlocks can plausibly have changed rather than tracked incrementally. */
   function refreshSignatureBonus() {
     const hasLongZip = parkDef.routes.some((r) => {
@@ -166,7 +166,7 @@ async function boot() {
   const flow = createFlow();
   events.on("player:fell", () => flow.onFall());
 
-  // --- kassa + Einschulung + ticket clock + stamp card (M1.3/M1.5) --------------------------------------
+  // --- ticket desk + onboarding + ticket clock + stamp card (M1.3/M1.5) --------------------------------------
   const overlay = document.getElementById("overlay");
   const ticket = createTicketClock();
   // Rescuer role (M3b, GDD §4): reads `agents`/`parkDef`/`builder` through live getters (all three are
@@ -196,20 +196,20 @@ async function boot() {
   // gameplay loop below stands down so a forced test/screenshot state is not immediately overwritten.
   let nightDebugOverride = false;
   const ticketHoursFor = (typeId) => (TICKET_TYPES.find((tt) => tt.id === typeId) || TICKET_TYPES[0]).hours;
-  // M2b (ROADMAP "Nachtklettern"): only the "night" ticket type carries its own `openingHour`
+  // M2b (ROADMAP "night climbing"): only the "night" ticket type carries its own `openingHour`
   // (js/config.js#TICKET_TYPES) – every other type falls back to the park's usual opening time.
   const openingHourFor = (typeId) => (TICKET_TYPES.find((tt) => tt.id === typeId) || TICKET_TYPES[0]).openingHour ?? TICKET.openingHour;
   const massForSizeClass = (id) => (RULES.sizeClasses.find((s) => s.id === id) || RULES.sizeClasses[RULES.sizeClasses.length - 1]).massKg;
   function applyChoice(choice) {
     belay.setMode(choice.belayMode);
     player.states.get("zipline").setRiderMass(massForSizeClass(choice.sizeClassId));
-    // M2a sidegrade (GDD §3.12): a kassa-level choice like belay/size, not part of the ticket itself –
+    // M2a sidegrade (GDD §3.12): a ticket-desk-level choice like belay/size, not part of the ticket itself –
     // js/player/sidegrade.js is the live-read switch every call site (stamina, on-element, on-zipline) uses.
     const equipmentId = choice.equipmentId ?? null;
     setSidegrade(equipmentId);
     save.setEquipment(equipmentId);
   }
-  /** Kassa confirm: applies the choice, opens the day, then the Einschulung unless already done. */
+  /** Ticket desk confirm: applies the choice, opens the day, then the onboarding unless already done. */
   function startDay(choice) {
     save.startTicket(choice);
     const openingHour = openingHourFor(choice.type);
@@ -218,19 +218,19 @@ async function boot() {
     nightDebugOverride = false;   // a fresh day always follows the ticket's own clock again
     applyChoice(choice);
     session.beginDay();
-    // M3b economy (RESEARCH-DATA §7 "Fixkosten vorne") – every day the gates open, storm or not.
+    // M3b economy (RESEARCH-DATA §7 "fixed costs up front") – every day the gates open, storm or not.
     economy.chargeDailyFixedCost();
     economy.onDayAvailability(save.hasCompletedAnyRoute() || save.isUnlocked("legendary"));
     const endHour = openingHour + ticket.totalGameMinutes / 60;
     hud.setNotice(t("notice.ticketStarted", { time: formatClock(endHour) }), 6);
     if (!save.data.briefingDone) briefing.start();
-    // M4 (kassa "Two climbers" toggle, js/ui/kassa.js): co-op state is intentionally not persisted in
-    // the save (js/game/coop.js's own header) – every fresh day starts from whatever the kassa asked
+    // M4 (ticket desk "Two climbers" toggle, js/ui/kassa.js): co-op state is intentionally not persisted in
+    // the save (js/game/coop.js's own header) – every fresh day starts from whatever the ticket desk asked
     // for this time, never carried over from yesterday.
     if (choice.coop) coop.enable();
     else if (coop.active) coop.disable();
   }
-  /** Reopening the page with an active ticket (and no `?kassa=1`): resume the day, skip the kassa. */
+  /** Reopening the page with an active ticket (and no `?kassa=1`): resume the day, skip the ticket desk. */
   function resumeDay() {
     const tk = save.data.ticket;
     ticket.reset({ ticketHours: ticketHoursFor(tk.type), openingHour: openingHourFor(tk.type) });
@@ -244,9 +244,9 @@ async function boot() {
   const stampCard = createStampCard({
     root: overlay, save,
     onNewDay() {
-      // M3b (GDD §4 "Saison ... 8 Tage"): the one place a day boundary is actually crossed – yesterday's
+      // M3b (GDD §4 "season ... 8 days"): the one place a day boundary is actually crossed – yesterday's
       // modelled admissions (js/game/economy.js#nextDayGuestCount) pay in and wear the PPE, then
-      // tomorrow's forecast is rolled before the kassa (which reads it for the storm-warning line) shows.
+      // tomorrow's forecast is rolled before the ticket desk (which reads it for the storm-warning line) shows.
       const endingTicketType = save.data.ticket ? save.data.ticket.type : TICKET_TYPES[0].id;
       const guestCount = economy.nextDayGuestCount(parkDef.seed, operations.day);
       economy.admitGuests(endingTicketType, guestCount);
@@ -267,8 +267,8 @@ async function boot() {
     defaultChoice: { type: TICKET_TYPES[0].id, sizeClassId: "adult", belayMode: params.belayMode, equipmentId: save.data.equipmentId },
     onConfirm: startDay,
   });
-  // Re-clip feedback (M2a, ROADMAP "Umhäng-Feedback"): purely event-driven, suppressed while the
-  // Einschulung dialogue/practice ritual is still running (a beginner's first fumble is not "clean").
+  // Re-clip feedback (M2a, ROADMAP "re-clip feedback"): purely event-driven, suppressed while the
+  // onboarding dialogue/practice ritual is still running (a beginner's first fumble is not "clean").
   const clipMeter = createClipMeter({ belay, events, hud, flow, isSuppressed: () => briefing.active });
 
   // --- pause/options screen (M1.7) --------------------------------------------------------------------
@@ -283,7 +283,7 @@ async function boot() {
     session.forceDayEnd();
     return true;
   }
-  // --- M3a builder (GDD §4 "Betreiber-Gameplay") -------------------------------------------------------
+  // --- M3a builder (GDD §4 "operator gameplay") -------------------------------------------------------
   // Applying an edited draft means rebuilding every system that was constructed from the *old* parkDef/
   // course – the same construction calls boot() already ran once above, just callable again. `forest`
   // is only rebuilt when the draft actually grew `heroTrees` (a brand-new platform tree needs to exist
@@ -367,7 +367,7 @@ async function boot() {
     // Only a "lifeline" anchor's label is already localised (js/park/loader.js#buildRouteElement calls
     // `t()` on it); the entry-cable/ring anchors' own `.label` are internal English literals never meant
     // for players, so those fall back to the accident report's own "unknown" copy instead of leaking
-    // untranslated text into the German UI (CLAUDE.md "UI-Texte nur über assets/strings").
+    // untranslated text into the German UI (CLAUDE.md "UI texts only via assets/strings").
     const anchor = interaction.anchor;
     const elementLabel = anchor && anchor.kind === "lifeline" ? anchor.label : null;
     const routeName = session.run ? t(session.run.def.nameKey) : null;
@@ -390,14 +390,14 @@ async function boot() {
   function setPhotoHintText() { photoHint.textContent = t("photo.hint"); }
   setPhotoHintText();
 
-  // --- touch overlay (M2b, ROADMAP "Touch-Steuerung") -----------------------------------------------
+  // --- touch overlay (M2b, ROADMAP "touch controls") -----------------------------------------------
   const touchControls = (params.touch || isTouchDevice())
     ? createTouchControls({ root: document.getElementById("hud"), input })
     : null;
 
   const resuming = !params.autoplay && !params.kassa && !params.builder && !!save.data.ticket;
   if (params.builder) {
-    // `?builder=1` (verification/testing, GDD §4): straight into builder mode, no kassa at all.
+    // `?builder=1` (verification/testing, GDD §4): straight into builder mode, no ticket desk at all.
     // `?autowalk=<routeId>` additionally starts that route's walkthrough with the `?autoplay=1` bot
     // immediately – no human at the keyboard needed to prove the obligation actually opens a route.
     if (params.autowalk) builder.startAutowalk(params.autowalk);
@@ -412,11 +412,11 @@ async function boot() {
   events.on("belay:click", () => sfxCarabinerLock(0.14));
   events.on("player:fell", (e) => sfxHarnessCatch(e && e.first ? 1 : 0.7));
   events.on("zip:finished", (e) => log.info(`flying fox: ${e.outcome} arrival, top speed ${e.maxKmh.toFixed(1)} km/h`));
-  // Trust hook (GDD §3.4/§7 "Zusehen gibt Vertrauen", M1.6): watching a guest finish an element next
+  // Trust hook (GDD §3.4/§7 "watching builds trust", M1.6): watching a guest finish an element next
   // to the platform the player is standing on ticks trust up and nerves down a little – js/npc/agents.js
   // only emits the event, js/player/nerves.js#watchSuccess() decides what it is worth.
   events.on("npc:watched-success", () => vitals.nerves.watchSuccess());
-  // M3b rating (GDD §4 "Betreiber merkt, ob Farben stimmen"): a small, guaranteed bump every time any
+  // M3b rating (GDD §4 "operator notices whether the colours match"): a small, guaranteed bump every time any
   // route is finished, independent of js/game/session.js's own mastery/unlock bookkeeping.
   events.on("route:completed", () => economy.onRouteCompleted());
 
@@ -519,7 +519,7 @@ async function boot() {
     // normally, exactly like the ordinary game, only `agents` stays frozen (see below).
     if (builder.mode === "editing") return;
     player.update(dt);
-    // Weather (M3b, GDD §4 "Gewitter = Räumung"): checked against whichever clock is currently live
+    // Weather (M3b, GDD §4 "thunderstorm = evacuation"): checked against whichever clock is currently live
     // (the ticket once a day has started, the sky's own otherwise) *before* deciding whether to advance
     // the ticket this frame – see js/game/operations.js's own header on why the evacuation timer cannot
     // be measured against a clock this same block is about to freeze.
@@ -584,7 +584,7 @@ async function boot() {
     input.endFrame();
   });
 
-  // Kassa is a plain form, not a pointer-lock surface – clicking a choice must not also lock the mouse.
+  // The ticket desk is a plain form, not a pointer-lock surface – clicking a choice must not also lock the mouse.
   container.addEventListener("click", () => { if (!kassa.visible) input.requestPointerLock(renderer.domElement); });
 
   window.WIPFEL = {
@@ -624,7 +624,7 @@ async function boot() {
       },
       /** Pin the wind along the zip cable (m/s, negative = head wind, null = back to the weather). */
       setWindAlong(v) { return player.states.get("zipline").setWindAlong(v); },
-      /** Rider mass for the next Flying Fox – RULES.sizeClasses, normally set via the kassa (M1.3). */
+      /** Rider mass for the next Flying Fox – RULES.sizeClasses, normally set via the ticket desk (M1.3). */
       setRiderMass(kg) { return player.states.get("zipline").setRiderMass(kg); },
       /**
        * Jump straight to the stamp card (screenshots, smoke runs): exhausts the ticket's remaining

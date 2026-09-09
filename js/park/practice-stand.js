@@ -1,4 +1,4 @@
-// A tiny ground-level anchor for the Einschulung practice gate (GDD §3.7, ROADMAP M1.3): one post and
+// A tiny ground-level anchor for the safety briefing practice gate (GDD §3.7, ROADMAP M1.3): one post and
 // a short taut cable at "1 m height" (RESEARCH-DATA §1: the mandatory practice course sits at ground
 // level before the real park). js/game/briefing.js clips the player onto it with the same F,F ritual
 // (js/player/belay.js) any real anchor uses – this module only builds the hardware.

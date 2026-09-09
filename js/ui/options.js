@@ -112,7 +112,7 @@ export function createOptions({ root, save, input, camera, loop, ticket = null, 
     const active = !!(ticket && ticket.started);
     endDayBtn.disabled = !active;
     menu.appendChild(endDayBtn);
-    // M3a (GDD §4 "Betreiber-Gameplay"): the builder replaces the whole screen itself, so this just
+    // M3a (GDD §4 "operator gameplay"): the builder replaces the whole screen itself, so this just
     // closes the pause panel and hands off – js/main.js wires `onBuilder` to `builder.enter()`.
     if (onBuilder) menu.appendChild(button(t("options.builder"), () => { api.close(); onBuilder(); }));
     wrap.appendChild(menu);

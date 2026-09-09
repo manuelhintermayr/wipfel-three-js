@@ -1,4 +1,4 @@
-// Re-clip feedback / "Umhäng-Feedback" (ROADMAP M2a): measures how long the two-click ritual actually
+// Re-clip feedback / "re-clip feedback" (ROADMAP M2a): measures how long the two-click ritual actually
 // took in real time – from the first `belay:open`/`belay:click` after arriving at a *new* anchor to the
 // moment `belay.bothOnSameAnchor()` is true there – and rewards a fast, clean transition with a small
 // toast and a flow bonus (js/game/flow.js#creditCleanClip). Pure event wiring, no belay logic of its
@@ -9,7 +9,7 @@ import { sidegradeEffects } from "../player/sidegrade.js";
 
 /**
  * @param {{ belay, events, hud?, flow, isSuppressed?: () => boolean, isDisabled?: () => boolean }} options
- *   `isSuppressed` (the Einschulung practice-anchor ritual, `js/game/briefing.js`) mutes the toast
+ *   `isSuppressed` (the onboarding practice-anchor ritual, `js/game/briefing.js`) mutes the toast
  *   without disabling the flow bonus's own bookkeeping – a beginner's first fumbled ritual should not
  *   feel like it broke something, but there is nothing to reward there either since it is never "clean"
  *   on purpose. `isDisabled` (M2b: continuous belay mode) is stronger – there is no ritual at all to

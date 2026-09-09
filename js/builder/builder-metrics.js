@@ -62,7 +62,7 @@ export function estimate(route, heroTrees) {
 }
 
 /**
- * Rescue coverage (GDD §4 "Retter-Abdeckung", RESEARCH-DATA §7 "jede Station in ≤ 10 min erreichbar") –
+ * Rescue coverage (GDD §4 "rescuer coverage", RESEARCH-DATA §7 "every station reachable within ≤ 10 min") –
  * a graph/ground-distance approximation, not a real pathfind: for every route, walk from whichever
  * rescuer post is nearest that route's own entry (straight line – "to the trailhead"), then add up the
  * route's own tree-to-tree spans out to each platform in turn ("along the route" – there is no shortcut

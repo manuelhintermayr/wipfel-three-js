@@ -23,14 +23,14 @@ export const TIME = Object.freeze({
 export const TICKET = Object.freeze({
   openingHour: 9,              // the park's opening time on the sky clock (GDD §3.7)
   warnMinutes: 30,             // game minutes remaining that trigger the "running out" toast
-  extendGameMinutes: 30,       // one "+30 min" extension (RESEARCH-DATA §1: "+5 € je weitere 1/2 h")
+  extendGameMinutes: 30,       // one "+30 min" extension (RESEARCH-DATA §1: "+5 € per additional 1/2 h")
   maxExtensions: 2,
   extendPromptSeconds: 8,      // real seconds the "extend?" prompt stays up before the day ends anyway
 });
 
 /**
- * Ticket types sold at the kassa (GDD §3.7/§3.8). scoreMultiplier is a placeholder – applied in M2 (Flow).
- * "season" (M2a, GDD §3.8 "Saisonpass"): `hours: Infinity` is the whole trick – js/game/ticket.js's
+ * Ticket types sold at the ticket desk (GDD §3.7/§3.8). scoreMultiplier is a placeholder – applied in M2 (Flow).
+ * "season" (M2a, GDD §3.8 "season pass"): `hours: Infinity` is the whole trick – js/game/ticket.js's
  * clock only ever compares *finite* numbers, so an infinite total simply never goes non-positive,
  * `expired`/`clippable` fall out already correct (never expires, always clippable) with no separate
  * "mode" flag anywhere in the clock. `js/game/session.js` hides the `.hud-ticket` box whenever
@@ -42,14 +42,14 @@ export const TICKET_TYPES = Object.freeze([
   { id: "standard", hours: TIME.ticketHours, labelKey: "kassa.ticket.standard.name", descKey: "kassa.ticket.standard.desc", scoreMultiplier: 1 },
   { id: "happyHour", hours: TIME.ticketHours / 2, labelKey: "kassa.ticket.happyHour.name", descKey: "kassa.ticket.happyHour.desc", scoreMultiplier: 1.25 },
   { id: "season", hours: Infinity, labelKey: "kassa.ticket.season.name", descKey: "kassa.ticket.season.desc", scoreMultiplier: 1 },
-  // M2b (ROADMAP "Nachtklettern"): a ticket type like any other – `openingHour` is the only thing that
+  // M2b (ROADMAP "night climbing"): a ticket type like any other – `openingHour` is the only thing that
   // makes it "night", read by js/main.js#startDay instead of TICKET.openingHour. Only offered at the
-  // kassa once `save.hasCompletedAnyRoute()` (js/ui/kassa.js) – GDD "erst nach dem ersten geschafften
-  // Parcours" simplified the same honest way js/game/flow.js's HUD-unlock already reads that sentence.
+  // ticket desk once `save.hasCompletedAnyRoute()` (js/ui/kassa.js) – GDD "only after the first completed
+  // course" simplified the same honest way js/game/flow.js's HUD-unlock already reads that sentence.
   { id: "night", hours: TIME.ticketHours, labelKey: "kassa.ticket.night.name", descKey: "kassa.ticket.night.desc", scoreMultiplier: 1, openingHour: 20.5 },
 ]);
 
-/** Time trials (ROADMAP M2a, GDD §3.8 "Zeitläufe"). Logic: js/game/route.js, js/game/session.js. */
+/** Time trials (ROADMAP M2a, GDD §3.8 "time trials"). Logic: js/game/route.js, js/game/session.js. */
 export const TRIALS = Object.freeze({
   inputAction: "trial",     // core/input.js – bound to KeyG (KeyT is already "camera")
 });
@@ -73,9 +73,9 @@ export const FLOW = Object.freeze({
 });
 
 /**
- * Re-clip feedback / "Umhäng-Feedback" (ROADMAP M2a). Logic: js/game/clip-meter.js. Measures the
+ * Re-clip feedback / "re-clip feedback" (ROADMAP M2a). Logic: js/game/clip-meter.js. Measures the
  * two-click ritual's real-time duration (belay events → `bothOnSameAnchor()`); under `cleanSeconds` at
- * a *new* anchor earns the toast + the flow bonus above. Suppressed while the Einschulung dialogue is
+ * a *new* anchor earns the toast + the flow bonus above. Suppressed while the onboarding dialogue is
  * still running (a beginner fumbling through the practice-anchor ritual is not "clean or not", it is
  * still learning).
  */
@@ -98,7 +98,7 @@ export const MASTERY = Object.freeze({
 });
 
 /**
- * Equipment sidegrades (ROADMAP M2a, GDD §3.12 "Ausrüstung als Sidegrade"). Exactly one may be
+ * Equipment sidegrades (ROADMAP M2a, GDD §3.12 "equipment as sidegrade"). Exactly one may be
  * selected (or none); each trades one axis for another rather than being a flat upgrade. Logic:
  * js/player/sidegrade.js; wired at the call sites named in each comment below.
  */
@@ -175,7 +175,7 @@ export const DEFAULTS = Object.freeze({
  * NPC guests (ROADMAP M1.6/M3b): count/route assignment is deterministic per seed
  * (js/npc/agents.js#createAgents forks `rng`), occupancy caps come from RULES above. The guest
  * archetype roster itself (courage/strength/patience) moved to js/npc/profiles.js in M3b – GDD §4
- * "Gäste als Agenten" – the same way js/elements/catalogue-data.js's kind table lives next to its own
+ * "guests as agents" – the same way js/elements/catalogue-data.js's kind table lives next to its own
  * domain rather than here (this file stays plain scalar tuning, not content tables).
  */
 export const NPC = Object.freeze({
@@ -197,7 +197,7 @@ export const NPC = Object.freeze({
 });
 
 /**
- * Fear events (ROADMAP M3b, GDD §4 "Angst-Ereignisse aus den psychologischen Achsen"). Pure logic:
+ * Fear events (ROADMAP M3b, GDD §4 "fear events from the psychological axes"). Pure logic:
  * js/npc/profiles.js#rollFearEvent. `psychThreshold` is the catalogue's own 0-5 "psychological" axis
  * (js/elements/catalogue-data.js) above which a low-courage guest starts to feel real pressure; below
  * it nobody ever freezes, however anxious. `freezeChanceScale`/`panicEscalation` are documented design
@@ -212,8 +212,8 @@ export const FEAR = Object.freeze({
 });
 
 /**
- * Rescuer role (ROADMAP M3b, GDD §4 "Retter: Gast in Panik, 10 Spielminuten Timer", RESEARCH-DATA §7
- * "jede Station in ≤ 10 min von einem Retter erreichbar"). Logic: js/game/rescue.js. The timer is
+ * Rescuer role (ROADMAP M3b, GDD §4 "rescuer: guest in panic, 10 game-minute timer", RESEARCH-DATA §7
+ * "every station reachable by a rescuer within ≤ 10 min"). Logic: js/game/rescue.js. The timer is
  * expressed in *game* minutes like the ticket clock (js/game/ticket.js) and converted the same way
  * (`TIME.gameHourMinutes` real seconds per game minute) – `10 game-minutes → 100 real seconds` at the
  * project's own default pacing, a workable HUD countdown rather than a literal ten real-world minutes.
@@ -228,11 +228,11 @@ export const RESCUE = Object.freeze({
 });
 
 /**
- * Season/day operations (ROADMAP M3b, GDD §4 "Sicherheit als Tech-Baum und Pflicht"). Logic:
- * js/game/operations.js. A season is 8 in-game days (a "New day" at the kassa, ROADMAP wording);
+ * Season/day operations (ROADMAP M3b, GDD §4 "safety as a tech tree and obligation"). Logic:
+ * js/game/operations.js. A season is 8 in-game days (a "New day" at the ticket desk, ROADMAP wording);
  * PPE wears by a fixed amount per guest-day and per player-day, an inspection becomes due at 85% worn
  * (the annual-inspection ritual compressed to the scale of a single play session – documented, honest
- * simplification, RESEARCH-DATA §7's real "jährliche Inspektion" is a season, not a single day, in
+ * simplification, RESEARCH-DATA §7's real "annual inspection" is a season, not a single day, in
  * reality). Weather is a deterministic per-day forecast; a storm always lands at a fixed hour so a
  * session that reaches that hour reliably sees the evacuation this milestone asks for.
  */
@@ -250,10 +250,10 @@ export const OPERATIONS = Object.freeze({
 });
 
 /**
- * Economy + rating (ROADMAP M3b, GDD §4 "Ökonomie"/"Betreiber merkt, ob Farben stimmen"). Logic:
+ * Economy + rating (ROADMAP M3b, GDD §4 "economy"/"operator notices whether the colours match"). Logic:
  * js/game/economy.js. Fixed costs upfront, ~0 variable cost per guest (RESEARCH-DATA §7) – the only
  * "cost per guest" here is the flip side, admission income. `routeBuildCost`/`lengthScale` land a
- * blue/red/black route in the GDD's own "~40-50k je Parcours" band once a realistic length is folded
+ * blue/red/black route in the GDD's own "~40-50k per course" band once a realistic length is folded
  * in. Rating starts at the mockup's own implied "decent, unproven" 3.5/5.
  */
 export const ECONOMY = Object.freeze({
@@ -267,7 +267,7 @@ export const ECONOMY = Object.freeze({
   ratingStart: 3.5,
   ratingMin: 0,
   ratingMax: 5,
-  signatureBonusCap: 0.3,        // GDD "Signature-Logik" – simplified to one cap bonus, not 149+1 obstacles
+  signatureBonusCap: 0.3,        // GDD "signature logic" – simplified to one cap bonus, not 149+1 obstacles
   signatureMinZipLengthM: 100,
   ratingDeltas: Object.freeze({
     routeCompleted: 0.01, shortWait: 0.01, longWait: -0.01, rescueSuccess: 0.05, rescueFailure: -0.08,
@@ -302,7 +302,7 @@ export const COOP = Object.freeze({
     maxExtraM: 8,             // additional separation (past startM) over which damping ramps to its floor
     minFactor: 0.2,           // player 2's move input is never scaled below this fraction
   }),
-  // Spectator calls (GDD §3.11 "Zuschauer-Rufe"): reuses js/config.js#NPC's own watch radius/height –
+  // Spectator calls (GDD §3.11 "spectator calls"): reuses js/config.js#NPC's own watch radius/height –
   // "the player stands on the platform" proxy already tuned for the M1.6 trust hook – for "the *other*
   // climber or a guest stands on the adjacent platform" while co-op is active.
   spectator: Object.freeze({
@@ -313,7 +313,7 @@ export const COOP = Object.freeze({
 });
 
 /**
- * The two co-op catalogue kinds (ROADMAP M4, GDD §3.11 "Koop-Übungen"). Logic: js/elements/
+ * The two co-op catalogue kinds (ROADMAP M4, GDD §3.11 "co-op obstacles"). Logic: js/elements/
  * counterweight-lift.js, js/elements/team-bridge.js. Both stay solo-passable (RULES/GDD "real parks
  * forbid two people on one obstacle, the game allows it if the group enables it") – a helper only makes
  * either one easier, never required. `helperRange` is how close the *other* climber must stand to the
@@ -350,8 +350,8 @@ export const OPTIONS = Object.freeze({
 });
 
 /**
- * Wichtel courses (ROADMAP M2a, RESEARCH-DATA §1: "2 Wichtelparcours (35 cm hoch, ohne Sicherung, für
- * Kleinkinder)"). Ground-level flavour only – no belay, no anchors, walkable by anyone; built directly
+ * Toddler courses (ROADMAP M2a, RESEARCH-DATA §1: "2 toddler courses (35 cm high, without belay, for
+ * small children)"). Ground-level flavour only – no belay, no anchors, walkable by anyone; built directly
  * with js/park/timber.js next to the spawn hub, not through the routes/generator/loader pipeline at
  * all (they are not routes and never appear in `parkDef.routes`). Logic: js/park/wichtel.js.
  */
@@ -367,8 +367,8 @@ export const WICHTEL = Object.freeze({
 });
 
 /**
- * Classic-mode accident (ROADMAP M2b, GDD §3.3/§3.5: "Nur der Klassik-Modus kennt den echten Absturz –
- * als trockener Unfallbericht"). Both carabiners open at once while riding/climbing something
+ * Classic-mode accident (ROADMAP M2b, GDD §3.3/§3.5: "Only classic mode knows the real fall –
+ * as a dry accident report"). Both carabiners open at once while riding/climbing something
  * (js/player/belay.js's `unsafe` event) drops the climber straight to the ground with no harness catch –
  * js/player/accident.js owns the fall itself, js/ui/accident-report.js the dry paperwork afterwards.
  */
@@ -379,8 +379,8 @@ export const ACCIDENT = Object.freeze({
 });
 
 /**
- * Night climbing (ROADMAP M2b, GDD §3.7 "Nachtklettern mit Stirnlampe – weniger Höhenangst, mehr
- * Unbekanntes", §3.1). Unlocked once `save.hasCompletedAnyRoute()` is true – the same gate
+ * Night climbing (ROADMAP M2b, GDD §3.7 "night climbing with a headlamp – less fear of heights, more
+ * of the unknown", §3.1). Unlocked once `save.hasCompletedAnyRoute()` is true – the same gate
  * js/game/flow.js's HUD bar already uses, so no new save field was needed. A "night" ticket type
  * (`TICKET_TYPES`) starts the sky at `openingHour` and lets it drift from dusk into full night over the
  * session exactly like a normal ticket drifts through the afternoon (js/world/sky.js's existing

@@ -25,7 +25,7 @@ export function timeOfDayFor(hoursElapsed, openingHour = TICKET.openingHour) {
  */
 export function createTicketClock(options = {}) {
   let ticketHours = options.ticketHours ?? TIME.ticketHours;
-  // M2b (ROADMAP "Nachtklettern"): a night ticket opens the sky at a different hour (js/config.js#NIGHT.
+  // M2b (ROADMAP "night climbing"): a night ticket opens the sky at a different hour (js/config.js#NIGHT.
   // openingHour) than every other ticket type – mutable so `reset()` below can switch it per day instead
   // of only at construction.
   let openingHour = options.openingHour ?? TICKET.openingHour;
@@ -62,7 +62,7 @@ export function createTicketClock(options = {}) {
     },
 
     /**
-     * "+30 min" at the expiry prompt (RESEARCH-DATA §1: "+5 € je weitere 1/2 h" – no real money here).
+     * "+30 min" at the expiry prompt (RESEARCH-DATA §1: "+5 € per additional 1/2 h" – no real money here).
      * @returns {boolean} true if applied, false once `maxExtensions` is used up.
      */
     extend() {
@@ -73,7 +73,7 @@ export function createTicketClock(options = {}) {
     },
 
     /**
-     * Start (or restart) a ticket – kassa confirm, or restoring a resumed day from the save.
+     * Start (or restart) a ticket – ticket desk confirm, or restoring a resumed day from the save.
      * `next.ticketHours` may be `Infinity` (the season pass, M2a, `TICKET_TYPES` "season") – every
      * comparison below (`remaining`, `expired`, `clippable`) already works on ordinary finite maths, so
      * an infinite total simply never runs out; only the guard here needs to let it through.

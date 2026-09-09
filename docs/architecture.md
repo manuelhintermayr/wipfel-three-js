@@ -483,7 +483,7 @@ still *offered* as reachable – only clipping it is refused – so the player r
 there, rather than the prompt silently doing nothing.
 
 Since M1.3, the same `save` also gates every route's entry anchor behind `save.data.briefingDone`
-(`notice.briefingRequired`) – the Einschulung practice gate (`js/game/briefing.js`) must be completed
+(`notice.briefingRequired`) – the safety briefing practice gate (`js/game/briefing.js`) must be completed
 once, ever, before any ladder cable accepts a clip. Since M1.5, the optional `ticket` (the pure clock,
 `js/game/ticket.js`) refuses a *new* clip-in the moment `ticket.clippable` is false – no ticket bought
 yet, the day's ticket expired, or "Continue browsing" ended it – via `notice.noActiveTicket`. Both gates
@@ -587,7 +587,7 @@ Input-phase rule: anything that synthesises keyboard events (bots) must run insi
 edge sets (`input.pressed`) are cleared in the ui phase, so events fired later are invisible to the
 next frame's physics.
 
-## Kassa, Einschulung, ticket clock, stamp card (M1.3/M1.5 – contracts)
+## Ticket desk, safety briefing, ticket clock, stamp card (M1.3/M1.5 – contracts)
 
 ### `js/game/ticket.js` (pure logic, unit-tested)
 ```js
@@ -626,7 +626,7 @@ createPracticeStand({ scene, physics, position, facing?, rng, textures }) → { 
 createBriefing({ root, scene, physics, terrain, parkDef, textures, rng, belay, player, input, save, events? }) →
   { active, phase, start(), update(), completeForBot(), dispose() }
 ```
-The Einschulung (GDD §3.7): one post + a short taut cable at "1 m height" (RESEARCH-DATA §1's practice
+The safety briefing (GDD §3.7): one post + a short taut cable at "1 m height" (RESEARCH-DATA §1's practice
 course), built lazily the first time `start()` runs, placed opposite the mean bearing of every route
 entry from the spawn hub (clear of the fan, the same circular-mean trick `js/park/signs.js` uses for its
 category boards). `phase` runs `idle → dialogue → practiceGate → done`: four HUD steps (own bespoke
@@ -880,13 +880,13 @@ harness catch, heartbeat, breath, trolley, wind rush, arrivals) is therefore alr
 birds, distant city) and any interface clicks are later milestones – so those two sliders currently
 affect nothing audible; the buses exist and are wired, ready for M2 (documented, not silently assumed).
 
-### Colour + shape (GDD §5: "Farbe trägt immer eine Form")
+### Colour + shape (GDD §5: "colour always carries a shape")
 Audited and completed as part of this milestone: the start banner (`js/ui/hud-route.js#showBanner`) and
 the stamp card (`js/ui/stamp-card.js`) were missing the category symbol next to their colour – both now
 prefix it, matching the route header, the signage, the course map legend and the map's route info panel,
 which already had it.
 
-## Park scale-up, junctions, Wichtel courses (M2a – contracts)
+## Park scale-up, junctions, toddler courses (M2a – contracts)
 
 ### `js/park/layout.js` (extended)
 ```js
@@ -907,7 +907,7 @@ Category feel keeps coming from the deck-height window and excluded/heavier cata
 (`layout-validate.js#CATEGORY_RULES`, `legendary` added there too: 14–20 m, nothing excluded), not from
 raw platform count.
 
-**Junctions** (GDD §3.9 "Kreuzungspodeste"): a guest route's *first* platform is an existing interior
+**Junctions** (GDD §3.9 "junction platforms"): a guest route's *first* platform is an existing interior
 platform of an earlier, same-category host route – not a freshly walked-to tree. `layout-route.js
 #buildRouteCandidate`'s new `join` option feeds `buildChain`/`assignDeckHeights` a `startTree`/
 `startHeight` instead of a fresh hub-relative placement, and `buildEdges` a `firstPlatformId` override so
@@ -932,7 +932,7 @@ edge ids that are not its own, so whichever edge the player actually clips into 
 on the shared deck itself (not a ground post) showing both routes' numerals, reusing the hub cluster's
 own category-board painter at a smaller scale (`SIGNS.junction`).
 
-**Legendary route** (GDD §3.12 "Legendäre Routen ohne Parkplan-Eintrag"): just another `PARK_CONFIG`
+**Legendary route** (GDD §3.12 "Legendary routes with no park-map entry"): just another `PARK_CONFIG`
 entry (`category: "legendary"`, 6 platforms, hub 1/hut), generated through the exact same pipeline as
 every secured route – what makes it hidden is purely a *rendering* filter, not a generation-time secret:
 `js/park/signs.js` filters it out of both the hub-cluster grouping and the per-route entry-sign loop, and
@@ -996,7 +996,7 @@ length ÷ a per-kind speed estimate; rather than duplicate a 12-entry walk-speed
 the same estimation problem (`NPC.elementSpeedFallback` for continuous kinds, a fixed slower rate for
 `discrete` ones via `catalogue-data.js#discrete`, `NPC.zipSecondsPerMetre` inverted for the zip leg).
 
-Time trials (GDD §3.8 "Zeitläufe"): `markTrial()` flags the *next* attempt, and – if the run is currently
+Time trials (GDD §3.8 "time trials"): `markTrial()` flags the *next* attempt, and – if the run is currently
 `"done"` (a route revisited after completing it once) – re-arms it back to `"idle"` in the same call, so
 the existing ladder-climb → `beginCountdown()` → 3-2-1-GO → zip machinery is completely unchanged; only
 `finish()`'s returned `isTrial` tells `js/game/session.js` which save bucket the time goes into.
@@ -1026,7 +1026,7 @@ starts decaying back towards `min` over `FLOW.decaySeconds` – a breather does 
 does. `resetRun()` (called by `js/game/session.js` when a route's countdown begins) is what scopes
 `averageThisRun` (a time-weighted mean) to one attempt, for both the mastery "in flow" tier and
 `computeFlowScore`. `js/ui/hud-route.js#setFlow(value, unlocked)` drives the mockup's `.hud-flow` bar;
-`unlocked` is `save.hasCompletedAnyRoute()` (GDD §3.10 "erst nach der ersten sauberen Begehung" –
+`unlocked` is `save.hasCompletedAnyRoute()` (GDD §3.10 "only after the first clean completion" –
 simplified to "ever completed one route", documented in the HUD module's own header) and the bar is
 additionally only shown while a run is actually `"running"`.
 
@@ -1034,13 +1034,13 @@ additionally only shown while a run is actually `"running"`.
 ```js
 createClipMeter({ belay, events, hud?, flow, isSuppressed? }) → { dispose() }
 ```
-Pure event wiring (ROADMAP "Umhäng-Feedback"): times the real-world gap between the first
+Pure event wiring (ROADMAP "re-clip feedback"): times the real-world gap between the first
 `belay:open`/`belay:click` after arriving at a *new* anchor and the moment `belay.bothOnSameAnchor()`
 settles there – working unmodified across all three belay modes (continuous fires one click and settles
 immediately, near-zero elapsed = always clean; smart's press-1/press-2 both land inside the same window;
 classic's up-to-four open/clip presses are timed end to end). Under `CLIP_METER.cleanSeconds` (+ the
 gloves sidegrade's `reclipSecondsPenalty`, added to the measured duration rather than changing the
-threshold) triggers `flow.creditCleanClip()` and, unless `isSuppressed()` (the Einschulung practice
+threshold) triggers `flow.creditCleanClip()` and, unless `isSuppressed()` (the safety briefing practice
 ritual, `js/game/briefing.js#active`), a small toast.
 
 ### `js/player/sidegrade.js` (new)
@@ -1093,7 +1093,7 @@ emits `player:accident-fall` on entry and `player:accident-landed` (with `cause`
 carabiners) exclusively runs in `player.mode === "ground"`, so the other three states can never reach
 this event at all; the `vitals.onPlatform` check (reusing `VITALS.platformHeight`) avoids firing over a
 harmless 40 cm entry-deck edge. `js/ui/accident-report.js#createAccidentReport({root, onContinue})` is
-the two-phase dry report (GDD §3.5 "kein Explosion"): `showFade()` (a black overlay fading in over the
+the two-phase dry report (GDD §3.5 "no explosion"): `showFade()` (a black overlay fading in over the
 fall, `document.body.classList.add("accident-active")` so the route header/HUD do not bleed through
 underneath – the same pattern `course-map-open`/`photo-mode-active` already use) then `showReport({
 routeName, elementLabel, seconds })` (route/obstacle/cause/time, i18n both locales) once landed – the
@@ -1184,7 +1184,7 @@ same frame depending on ordering; rewritten as one `if/else if` pair keyed off `
 exactly one of enter/exit ever fires per press, with the snapshot-request check as a separate,
 unconditional third `if (photoMode.active)`.
 
-### Catalogue variants + Umsetzstationen (ROADMAP "20–25 Familien/Varianten")
+### Catalogue variants + transfer stations (ROADMAP "20–25 families/variants")
 `js/elements/element.js` exports `registerElementVariant(variantKind, baseKind, configOverride)`: looks
 up the base kind's already-registered factory and wraps it so `createElementBase`'s config line becomes
 `{ ...impl.config, ...(spec.configOverride || null) }` – a variant is *parameters only*, never a new
@@ -1200,7 +1200,7 @@ default constant (e.g. `hanging-planks.js#plankLayout(span, cfg = PLANKS)`,
 `js/park/layout-route.js` gates which pool an edge is drawn from: `variantsAllowedFor(routeId,
 category)` – black/legendary always, red only from numeral ≥ 2 (a fresh red-I stays the "plain"
 introduction to each family) – and `buildEdges()` concats `CATALOGUE_VARIANTS` into the pool when
-allowed. **Umsetzstation** (a mid-zip transfer platform, GDD's own term for a real-world Kletterwald
+allowed. **transfer station** (a mid-zip transfer platform, GDD's own term for a real-world high-ropes course
 feature): for `category === "black"`, `buildZip(...)` plans the normal zip (`planZipline`) and then –
 only if that succeeds – plans a **second, fully independent** `planZipline()` leg from the first leg's
 own landing (same shared `ZIP_SEARCH_CONFIG`), storing it as `zip.transfer` if it also succeeds. Two
@@ -1209,7 +1209,7 @@ independently-validated real zip spans chained end to end, not a two-parabola ta
 any of seeds 1–8, because `zip-plan.js#ZIP_PLAN.maxLength` (56 m) caps every single-line search, and
 raising that cap was rejected outright (`tests/unit/zipline.test.mjs` hard-asserts every zip stays in
 40–56 m). `js/park/loader.js` extracts the shared `buildOneZipLeg({...})` (used by an ordinary single
-ride *and* both Umsetzstation legs) and `buildRouteZip()` builds a second leg departing from the first
+ride *and* both transfer station legs) and `buildRouteZip()` builds a second leg departing from the first
 leg's own landing deck (`startPlatformId: "${routeId}-transfer"`) when `zip.transfer` exists, returning
 `{element: legB.element, landing: legB.landing, extra: [legA]}`; the route object exposes
 `zipLandings` (array) so `course.dispose()` frees both decks. `js/game/route.js#routesFromPark` adds the
@@ -1271,7 +1271,7 @@ No remapping, no haptics, no per-device tuning pass; verified via direct `pointe
 dispatch (button `down` class + `input.down("clip")` both flip correctly) rather than a real touch
 device.
 
-## Builder (M3a – first half of "Der Betreiber", GDD §4)
+## Builder (M3a – first half of "The Operator", GDD §4)
 
 ADR-003's whole premise pays off here: the builder is an editor for the exact same `parkDef` shape
 `js/park/layout.js#generateParkLayout` emits, so `js/park/loader.js#loadPark` never needed a single
@@ -1284,11 +1284,11 @@ walkthrough with the `?autoplay=1` bot, for verification/testing without a human
 surveyTrees(terrain, rng, { count?, exclude?: Array<{x,z}>, excludeRadius? }) →
   Array<{ id, x, z, species, height, trunkRadius, health }>   // health 0..1
 ```
-GDD §4's "Beginn im Winter mit Baumliste (Art, Durchmesser, Gesundheit)": a deterministic grid scan
+GDD §4's "start in winter with a tree list (species, diameter, health)": a deterministic grid scan
 (`SURVEY.gridStep` metres, jittered) of the terrain, rejecting cells that fail the same hub/path/slope
 rules `js/park/layout-validate.js`/`js/world/forest-placement.js` already use, each surviving cell
 getting a made-up-but-reproducible `health` (documented invention – GDD gives no real formula).
-`SURVEY.minHealthForPlatform` (0.55) is the GDD's "dünne/kranke tragen kein Podest" gate. Deliberately
+`SURVEY.minHealthForPlatform` (0.55) is the GDD's "thin/sick trees carry no platform" gate. Deliberately
 independent of the *live* `forest` instancing (a survey candidate does not need to already exist as a
 rendered tree – see `js/builder/builder-state.js`'s own header for why that is fine).
 
@@ -1409,7 +1409,7 @@ projects them every frame (`Vector3.project(camera)`) – the *only* DOM this ot
 touches is none at all, the label layer lives in the orchestrator.
 
 ### `js/builder/builder-zip-tool.js` (DOM + 2-D canvas)
-GDD §4 "Flying-Fox-Werkzeug zeigt live Gefälle, Durchhang, Ankunftstempo": a small top-down canvas
+GDD §4 "flying-fox tool shows live gradient, sag, arrival speed": a small top-down canvas
 centred on the departure platform (fixed `worldRadius` covering the 40–56 m search window), click/drag
 aims a landing point, `context.evaluate(landing)` (wired to `draft.evaluateZip`) drives a live
 length/gradient/arrival-speed readout and a green/red aim line; "Place" calls `context.onCommit(landing)`
@@ -1533,7 +1533,7 @@ Walk; `?builder=1&autowalk=blue-1&fast=1` completes the walkthrough and flips
 fix above is guarded by a unit test ("every generated route starts violation-free") plus a sweep over
 seeds 1-8 x both `PARK_CONFIG`/`PARK_CONFIG_SMALL`. Screenshots: `docs/screenshots/m3-builder.png`,
 `docs/screenshots/m3-validate.png`.
-## Operator simulation (M3b – second half of "Der Betreiber", GDD §4)
+## Operator simulation (M3b – second half of "The Operator", GDD §4)
 
 ### `js/npc/profiles.js` (pure)
 ```js
@@ -1552,7 +1552,7 @@ simplification). `rollFearEvent` is pure numbers in, string out: elements at/und
 never trigger anything; past it, low courage raises both the freeze chance and, once frozen, the chance
 that freeze escalates into a permanent panic (courage 1 never triggers anything, by construction – the
 `(1 - courage)` factor zeroes out). `chooseRouteConsideringQueues` is what runtime re-picks use (GDD
-"wählen nach Freigabe/Farbe/Wartezeit"); the boot roster still uses the old strict-category pick, since
+"choose by unlock/colour/waiting time"); the boot roster still uses the old strict-category pick, since
 no live queue data exists yet at that point.
 
 ### `js/npc/agents.js` extensions
@@ -1569,7 +1569,7 @@ Three additions on top of the M1.6 machinery, all in the existing `onRail`/`queu
   element the bot needs would deadlock the smoke run; a plain freeze still happens and still self-clears.
 - **Patience**: the `"queue"` phase now tracks `agent.queueWait` and calls `abandonQueue` past
   `agent.patienceSeconds` – releases the pending queue slot/held platform and heads back towards the hub
-  for a fresh pick via `chooseRouteConsideringQueues` (GDD "Gäste brechen ab, wenn Geduld ausgeht").
+  for a fresh pick via `chooseRouteConsideringQueues` (GDD "guests give up when their patience runs out").
 - **Running-average stats**: `js/game/occupancy.js#createStatTracker()` (new, generic key→mean) backs
   `agents.waitStats()` (routeId → mean real seconds waited, sampled at every successful claim/abandon)
   and `agents.fearStats()` (elementId → accumulated freeze/panic count) – both read once a frame by
@@ -1670,7 +1670,7 @@ owns `rescuePosts` (`addRescuePost`/`removeRescuePost`/`rescuePostCandidates`), 
 distance *approximation*, not a real pathfind: per route, straight-line distance from the nearest post to
 that route's own entry, plus the route's own cumulative tree-to-tree spans out to each platform – a
 junction platform (listed by two routes) keeps whichever route found it the shorter path, for free, by
-iterating every route without special-casing it. The inspector's "Retter-Abdeckung" line
+iterating every route without special-casing it. The inspector's "rescuer coverage" line
 (`js/builder/builder-inspector.js`) reads this filtered to the selected route's own platforms.
 
 **Bug found verifying M3b (pre-existing since M3a, fixed here):** `js/builder/builder-ui.js`'s outer
@@ -1778,7 +1778,7 @@ people on one obstacle, the game allows it if the group enables it" – the *hel
   *future* footstep kick by `COOP_ELEMENTS.teamBridge.tensionKickScale` (`-60%`) – steadies it, does not
   retroactively calm a segment already swinging.
 - **`counterweight-lift`**: a basket riding two guide cables, no balance problem at all (GDD's own
-  "Netze, Röhren" family, minus even the strength cost – the obstacle is entirely about *pace*).
+  "Nets, tubes" family, minus even the strength cost – the obstacle is entirely about *pace*).
   `element.walkSpeed` is mutated live each frame: `COOP_ELEMENTS.counterweightLift.selfHaulSpeed` is
   always present (solo-passable, "a preloaded sandbag"), `addHaulPower(m/s)` adds a decaying bonus from a
   helper's taps on top, clamped at `maxSpeed`.

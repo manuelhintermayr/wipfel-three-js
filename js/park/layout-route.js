@@ -14,13 +14,13 @@ import {
 // builders) transitively, which plain `node --test` cannot resolve (no bundler, no node_modules – see
 // the note at the top of js/elements/catalogue-data.js). Keep the two numbers in sync by hand.
 const ZIP_HARDWARE = Object.freeze({ cableHeight: 2.05, seatDrop: 2.02 });
-/** Loader-side gradient window (RESEARCH-DATA §6: "3–6 % Gefälle") – wider than zip-plan.js's own
+/** Loader-side gradient window (RESEARCH-DATA §6: "3–6 % gradient") – wider than zip-plan.js's own
  *  4.5–6 % default, which was tuned for the single hand-built M0 course. Exported so the M3 builder
  *  (js/builder/builder-state.js) can refuse the same window live while dragging a landing point,
  *  instead of duplicating the two numbers. */
 export const ZIP_GRADIENT = Object.freeze({ min: 0.03, max: 0.06, ideal: 0.045 });
 /**
- * Umsetzstation (ROADMAP M2b, GDD §3.6 "Umsetzstationen (Zwischenpodeste, Rolle wechseln)"): a black
+ * Transfer station (ROADMAP M2b, GDD §3.6 "Transfer stations (intermediate platforms, change pulley)"): a black
  * route that manages to chain a second, independently validated Flying Fox leg off its first leg's own
  * landing gets a transfer platform there instead of a walk home – see `buildZip` below.
  */
@@ -53,9 +53,9 @@ const LEGACY_BLUE_1 = Object.freeze({
  *   otherTrees: Array<{x,z}>, spawnHub: {x,z,radius}, homePoint: {x,z},
  *   join?: { hostTree: object, hostTreeIndex: number, hostPlatformId: string, hostDeckHeight: number },
  *   coopEdge?: { index: number, kind: string } }} options
- *   `join` (M2a, GDD §3.9 "Kreuzungspodeste"): this route's first platform is an existing platform of
+ *   `join` (M2a, GDD §3.9 "junction platforms"): this route's first platform is an existing platform of
  *   an earlier route of the *same* category instead of a freshly placed tree – see js/park/layout.js#JUNCTIONS.
- *   `coopEdge` (M4, ROADMAP "Koop-Übungen", GDD §3.11): edge `index` gets this exact catalogue kind
+ *   `coopEdge` (M4, ROADMAP "Co-op obstacles", GDD §3.11): edge `index` gets this exact catalogue kind
  *   instead of `buildEdges`' usual random pool pick – see js/park/layout.js#PARK_CONFIG's blue-2/red-2.
  * @returns {{ trees: Array<{x,z,species,height,y}>, entry: {x,z,facing},
  *   platforms: Array<{id,treeIndex,deckHeight,kind,radius}>, edges: Array<{id,kind,from,to}>,
@@ -178,7 +178,7 @@ function variantsAllowedFor(routeId, category) {
  * Catalogue kind per edge: within the category's difficulty budget, never the same kind twice running.
  * `firstPlatformId` (a junction, M2a): the first edge leaves from the host route's shared platform id
  * instead of this route's own `${routeId}-p1`, which was never built (see `buildRouteCandidate`).
- * `coopEdge` (M4, ROADMAP "Koop-Übungen"): `edges[coopEdge.index]` gets `coopEdge.kind` verbatim instead
+ * `coopEdge` (M4, ROADMAP "Co-op obstacles"): `edges[coopEdge.index]` gets `coopEdge.kind` verbatim instead
  * of a pool pick – js/elements/{team-bridge,counterweight-lift}.js are never in `CATALOGUE`/
  * `CATALOGUE_VARIANTS` (see js/elements/catalogue-data.js's own header on why), so the random pool below
  * could never roll them on its own; this is the one deliberate placement each gets.
@@ -217,15 +217,15 @@ const ZIP_SEARCH_CONFIG = Object.freeze({
   // The task's zip rules (gradient, landing slope/path/tree clearance) say nothing about the arrival
   // deck's own height, unlike zip-plan.js's original 1.6-2.8 m (tuned for the single hand-built blue
   // course). A black platform 10-20 m up its own tree rarely has that much natural ground rise within
-  // reach, so the window here only caps at the game's own height ceiling (CLAUDE.md: "keine Höhen über
-  // 20 m vor M2") – the score still prefers a low arrival when one exists.
+  // reach, so the window here only caps at the game's own height ceiling (CLAUDE.md: "no heights above
+  // 20 m before M2") – the score still prefers a low arrival when one exists.
   minDeckHeight: 1.6, maxDeckHeight: 20,
   relaxed: Object.freeze({ minGradient: ZIP_GRADIENT.min, maxGradient: ZIP_GRADIENT.max, minClearance: 1.5, crownClear: 0.6, maxDeckHeight: 20 }),
 });
 
 /**
  * The Flying Fox off the last platform: js/park/zip-plan.js's search plus the M1.1 landing rules.
- * `category` (M2b, GDD §3.6 "Umsetzstationen"): a black route also tries to chain a *second*,
+ * `category` (M2b, GDD §3.6 "Transfer stations"): a black route also tries to chain a *second*,
  * independently searched and validated leg off the first leg's own landing – zip-plan.js's search grid
  * is tuned to a 40-56 m single ride (ROADMAP acceptance already locks that range in for every ordinary
  * zip), so "over 70 m of total zip potential" is answered honestly by asking "can a second real leg

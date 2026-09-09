@@ -95,7 +95,7 @@ is why those guides are first-class files in the repo.
 
 ## Design & realism
 
-The park is fictional (“Waldseilpark Sonnwendberg”) but the numbers are grounded in how real high-ropes
+The park is fictional (“Sonnwendberg”) but the numbers are grounded in how real high-ropes
 courses are built and run — belay classes, flying-fox physics, tree-platform construction, pacing rules.
 Those references are collected, anonymised, in [`docs/RESEARCH-DATA.md`](docs/RESEARCH-DATA.md).
 

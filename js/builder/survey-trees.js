@@ -1,4 +1,4 @@
-// Tree survey (M3a, GDD §4 "Beginn im Winter mit Baumliste (Art, Durchmesser, Gesundheit)"): a
+// Tree survey (M3a, GDD §4 "start in winter with a tree list (species, diameter, health)"): a
 // deterministic grid scan of the terrain that stands in for a forester's clipboard – every cell that
 // clears the same hub/path/slope rules the real forest placement (js/world/forest-placement.js) and
 // the layout generator (js/park/layout-validate.js) already use gets one candidate tree, complete with
@@ -18,7 +18,7 @@ export const SURVEY = Object.freeze({
   jitter: 5,                // metres of per-cell random offset (keeps the grid from looking gridded)
   boundsInset: 12,
   maxSlopeRad: (36 * Math.PI) / 180,
-  minHealthForPlatform: 0.55,     // GDD "dünne/kranke tragen kein Podest"
+  minHealthForPlatform: 0.55,     // GDD "thin/sick ones carry no platform"
   healthRange: [0.12, 1.0],
   // Candidates skew towards the same canopy species the forest actually plants most of (pine/oak/
   // beech/maple) – hazel is deliberately excluded here, matching layout-route.js's own TREE_HEIGHT_RANGE

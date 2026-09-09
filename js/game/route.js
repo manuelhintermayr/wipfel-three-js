@@ -1,7 +1,7 @@
 // A route run: pure logic, no DOM/THREE – the session module renders it. Lifecycle:
 // idle → armed (standing at the start banner) → countdown (3-2-1-GO while entering) → running
 // (timer live) → done (zip finished). Obstacles complete in any order but each only counts once.
-// M2a (ROADMAP "Zeitläufe"): `markTrial()`/`isTrial` flag the *next* attempt as a time trial – the
+// M2a (ROADMAP "time trials"): `markTrial()`/`isTrial` flag the *next* attempt as a time trial – the
 // countdown/timer/obstacle machinery above is completely unchanged, only js/game/session.js reads
 // `isTrial` at `finish()` to decide which save bucket (`recordRun` vs `recordTrial`) the time goes into.
 import { EDGE_OFFSET } from "../park/layout-route.js";
@@ -9,7 +9,7 @@ import { catalogueEntry } from "../elements/catalogue-data.js";
 import { NPC, MASTERY } from "../config.js";
 
 /**
- * Par-time speed estimate per edge, m/s (M2a "Meisterschaftsstufen", `js/game/mastery.js`'s "under par"
+ * Par-time speed estimate per edge, m/s (M2a "mastery tiers", `js/game/mastery.js`'s "under par"
  * tier). Reuses the two speed constants the NPC guest simulation already needs for the same estimation
  * problem (js/npc/agents.js, js/config.js#NPC) instead of duplicating a 12-entry walkSpeed table into
  * the THREE-free catalogue-data.js just for this – a discrete kind's "seconds per step" already implies
@@ -128,7 +128,7 @@ export function routesFromPark(parkDef) {
   return parkDef.routes.map((route) => {
     const obstacles = ["ladder", ...route.edges.map((e) => e.id)];
     if (route.zip) obstacles.push(`${route.id}-zip`);
-    // M2b Umsetzstation (GDD §3.6): a black route with a mid-ride transfer platform crosses a second,
+    // M2b transfer station (GDD §3.6): a black route with a mid-ride transfer platform crosses a second,
     // separately-counted zip obstacle after it – js/park/loader.js builds the same id.
     if (route.zip && route.zip.transfer) obstacles.push(`${route.id}-zip2`);
     const deckHeights = route.platforms.map((p) => p.deckHeight);

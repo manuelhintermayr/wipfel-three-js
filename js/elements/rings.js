@@ -1,6 +1,6 @@
-// Ringe – wooden rings (Ø 22 cm) on short ropes from an overhead cable every ~50 cm: an overhead
+// Rings – wooden rings (Ø 22 cm) on short ropes from an overhead cable every ~50 cm: an overhead
 // monkey-ring traverse. The climber hangs the whole way across (feet free, nothing underfoot at all),
-// hauling from ring to ring one at a time – GDD §3.4 "Hangeln, Ringe, Jakobsleiter · 5·3·4·2":
+// hauling from ring to ring one at a time – GDD §3.4 "hand traversing, rings, Jacob's ladder · 5·3·4·2":
 // strength spent in an alternating rhythm, a missed grab drops you straight into the harness.
 //
 // Crossed one ring per press of W, exactly like the hanging planks or the stirrups – it shares that

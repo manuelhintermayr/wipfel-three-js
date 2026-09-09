@@ -1,5 +1,5 @@
-// Economy + rating (ROADMAP M3b, GDD §4 "Ökonomie", RESEARCH-DATA §7 "Fixkosten vorne, variable Kosten
-// je Gast gering"). Pure formulas below (route build cost, admission income, word-of-mouth guest count,
+// Economy + rating (ROADMAP M3b, GDD §4 "economy", RESEARCH-DATA §7 "fixed costs up front, low variable
+// cost per guest"). Pure formulas below (route build cost, admission income, word-of-mouth guest count,
 // rating clamp with the signature bonus) plus a thin stateful wrapper around js/core/save.js#data.economy
 // (additive, versioned – this module never touches localStorage itself, only `save.updateEconomy`).
 //
@@ -24,7 +24,7 @@ export function admissionIncome(ticketType, guestCount) {
 }
 
 /** Pure: deterministic word-of-mouth guest count for the day after `day` (js/game/operations.js's own
- *  day counter), from the park's seed, the day and the current rating – GDD "8 → 16 Gäste" band. */
+ *  day counter), from the park's seed, the day and the current rating – GDD "8 → 16 guests" band. */
 export function computeNextDayGuestCount({ seed, day, rating }) {
   const rng = new Rng(seed).fork(`guests:${day}`);
   const { guestsAtFloor, guestsAtCeil, ratingFloor, ratingCeil } = ECONOMY.wordOfMouth;
@@ -35,7 +35,7 @@ export function computeNextDayGuestCount({ seed, day, rating }) {
 }
 
 /** Pure: clamp a rating change into [ratingMin, ratingMax], the ceiling optionally raised by the
- *  signature bonus (GDD "Signature-Logik", simplified to one flat cap bump rather than 149+1 obstacles). */
+ *  signature bonus (GDD "signature logic", simplified to one flat cap bump rather than 149+1 obstacles). */
 export function applyRatingDelta(rating, delta, { signature = 0 } = {}) {
   const max = ECONOMY.ratingMax + Math.max(0, signature);
   return Math.max(ECONOMY.ratingMin, Math.min(max, rating + delta));
@@ -64,7 +64,7 @@ export function createEconomy({ save }) {
     get rating() { return save.data.economy.rating; },
 
     hasChargedRoute(routeId) { return save.data.economy.routesCharged[routeId] === true; },
-    /** GDD "Signature-Logik" (a route with > 100 m of total zip length, or the legendary route open) –
+    /** GDD "signature logic" (a route with > 100 m of total zip length, or the legendary route open) –
      *  js/main.js recomputes this whenever the park/unlocks change and calls this once. */
     setSignatureActive(active) { signatureActive = !!active; },
 
@@ -95,7 +95,7 @@ export function createEconomy({ save }) {
     onRescueOutcome(success) { return applyRating(success ? ECONOMY.ratingDeltas.rescueSuccess : ECONOMY.ratingDeltas.rescueFailure); },
     onAccident() { return applyRating(ECONOMY.ratingDeltas.accident); },
     /** Applied once per storm (js/main.js, rising edge of js/game/operations.js#isEvacuating) – this
-     *  milestone always shows the kassa's own storm-warning line ahead of time (ROADMAP M3b), so the
+     *  milestone always shows the ticket desk's own storm-warning line ahead of time (ROADMAP M3b), so the
      *  harsher "no warning" wording in the GDD never has a *softer* counterpart to compare against here;
      *  documented simplification. */
     onEvacuation() { return applyRating(ECONOMY.ratingDeltas.evacuationNoWarning); },

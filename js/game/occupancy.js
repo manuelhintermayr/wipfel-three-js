@@ -1,5 +1,5 @@
 // Occupancy bookkeeping shared between the player and the NPC guests (ROADMAP M1.6, RESEARCH-DATA
-// §8: "1 Person pro Übung, 3 pro Podest"). Pure – no THREE, no DOM – so it is unit-testable the same
+// §8: "1 person per obstacle, 3 per platform"). Pure – no THREE, no DOM – so it is unit-testable the same
 // way js/player/belay.js is, and importable from both js/npc/agents.js (which must itself stay
 // THREE-free, see that file's header) and js/player/interaction.js (which already imports plain
 // modules like js/core/save.js the same way) without creating a player → npc (or npc → player)
@@ -19,7 +19,7 @@
 // contention needs no queue: js/player/interaction.js already refuses the E press outright (a human
 // does not "queue" – they read the "wait for the climber ahead" prompt and try again).
 //
-// M4 (ROADMAP "Koop-Übungen", GDD §3.11): `claimElement`'s optional `capacity` argument lets exactly
+// M4 (ROADMAP "co-op obstacles", GDD §3.11): `claimElement`'s optional `capacity` argument lets exactly
 // two of the catalogue's twenty-plus kinds (js/elements/{counterweight-lift,team-bridge}.js,
 // `element.occupancyCapacity === 2`) hold two simultaneous holders – a rider plus a helper standing at
 // the platform end, never two riders on the same rail parameter (see each element's own header for why
@@ -80,7 +80,7 @@ export function createOccupancy({ maxPerElement = RULES.maxPerElement, maxGuests
     guestsOnPlatform(id) { const set = platformGuests.get(id); return set ? set.size : 0; },
 
     /**
-     * The player always gets a slot (never tracked, never refused) – GDD §3.4's "drei pro Podest"
+     * The player always gets a slot (never tracked, never refused) – GDD §3.4's "three per platform"
      * stays a real cap only for guests, capped one below it, so a platform can never be too full for
      * the climber who actually needs to stand there.
      * @returns {boolean} false only for a guest when the platform's guest cap is already full

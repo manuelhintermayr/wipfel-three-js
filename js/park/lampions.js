@@ -1,5 +1,5 @@
 // Lampions strung between platforms on the two blue night routes (ROADMAP M2b, RESEARCH-DATA §1:
-// "Nachtklettern 2014–2018 (Lampions, Stirnlampen)"). Pure flavour, exactly like js/park/wichtel.js –
+// "night climbing (lanterns, headlamps)"). Pure flavour, exactly like js/park/wichtel.js –
 // no anchors, no physics, not part of the belay/occupancy pipeline. Reads `parkDef` + the terrain
 // sampler directly, the same "second small loader" pattern js/park/signs.js and js/ui/map-render.js
 // already use, so it never depends on the built `course`.

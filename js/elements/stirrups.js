@@ -1,9 +1,9 @@
-// Steigbügel – a row of hanging stirrups, every 45 cm: a hemp rope down from each of the two
+// Stirrups – a row of hanging stirrups, every 45 cm: a hemp rope down from each of the two
 // overhead hand ropes, closed by a small wooden triangle you put a boot into. Crossed one stirrup at
 // a time, exactly like the hanging planks, but the foot is *inside* the loop rather than on top of a
 // board, so the loop swings with you instead of away from you.
 //
-// Movement problem (GDD §3.4, "Seilbrücken"): the hands are always on the two ropes overhead, so it
+// Movement problem (GDD §3.4, "rope bridges"): the hands are always on the two ropes overhead, so it
 // costs strength; the timing is in the hips. Physical 2 · coordination 4 · psychological 3.
 
 import { createElementBase, registerElementKind, ELEMENT } from "./element.js";
@@ -11,7 +11,7 @@ import { cableRun, cableTermination, ropeStrand, lifelineCable } from "./element
 import { createHangingSteps, stepLayout } from "./hanging-steps.js";
 
 export const STIRRUPS = Object.freeze({
-  spacing: 0.45,             // stirrup pitch (RESEARCH-DATA §3 Designannahmen)
+  spacing: 0.45,             // stirrup pitch (RESEARCH-DATA §3 design assumptions)
   endMargin: 0.40,
   handHeight: 1.55,          // the two hand ropes, above the tread line
   handSpread: 0.30,

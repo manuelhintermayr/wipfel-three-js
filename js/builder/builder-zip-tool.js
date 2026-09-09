@@ -1,5 +1,5 @@
-// Flying-Fox placement tool (M3a, GDD §4 "Flying-Fox-Werkzeug zeigt live Gefälle, Durchhang,
-// Ankunftstempo … und schlägt die Bremse vor"): a small top-down canvas centred on the departure
+// Flying-Fox placement tool (M3a, GDD §4 "flying-fox tool shows live gradient, sag,
+// arrival speed … and suggests the brake"): a small top-down canvas centred on the departure
 // platform – click/drag to aim a landing point, read gradient/length/predicted arrival speed live off
 // js/builder/builder-state.js#evaluateZip, "Place" commits it. A 2-D canvas rather than 3-D dragging on
 // the terrain mesh: js/builder/builder-camera.js's orbit view makes a precise 3-D drag fiddly at this

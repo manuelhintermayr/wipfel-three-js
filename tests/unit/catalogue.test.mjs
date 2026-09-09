@@ -57,7 +57,7 @@ test("catalogueEntry looks up by kind and returns null for the unknown", () => {
   assert.equal(catalogueEntry("does-not-exist"), null);
 });
 
-// --- M2b parameter variants (ROADMAP "Übungskatalog auf 20–25 Familien/Varianten") ----------------------
+// --- M2b parameter variants (ROADMAP "obstacle catalogue to 20–25 families/variants") ----------------------
 
 test("the catalogue lists exactly eight M2b variants, once each, every baseKind a real M1.8 kind", () => {
   assert.equal(CATALOGUE_VARIANTS.length, 8);

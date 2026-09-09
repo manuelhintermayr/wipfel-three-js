@@ -16,7 +16,7 @@ import { createZipTool } from "./builder-zip-tool.js";
 import { treesPanel, platformsPanel, elementsPanel, categoryNamePanel, rescuePanel } from "./builder-tool-panels.js";
 
 const TOOLS = Object.freeze(["trees", "platforms", "elements", "zip", "categoryName", "rescue"]);
-/** Green is the Wichtel/practice-course colour (ROADMAP M2a) – never a builder-buildable route category. */
+/** Green is the toddler/practice-course colour (ROADMAP M2a) – never a builder-buildable route category. */
 const BUILDABLE_CATEGORIES = CATEGORIES.filter((c) => c.id !== "green");
 /** M3b overlay toggles – independent booleans, shown together, unlike the mutually-exclusive TOOLS above. */
 export const OVERLAYS = Object.freeze(["wait", "fear", "rescue", "treeHealth"]);
@@ -124,7 +124,7 @@ export function createBuilderUi({ root, dispatch }) {
     const derived = selected ? {
       axes: draft.aggregateAxes(selected.id), dramaturgy: draft.dramaturgyCurve(selected.id),
       variation: draft.variationScore(selected.id), jamRisk: draft.jamRisk(selected.id), estimate: draft.estimate(selected.id),
-      // M3b: the inspector's own "Retter-Abdeckung" line (GDD §4) – park-wide coverage, filtered to this
+      // M3b: the inspector's own "rescuer coverage" line (GDD §4) – park-wide coverage, filtered to this
       // route's own platforms by js/builder/builder-inspector.js.
       rescueCoverage: draft.rescueCoverage(), rescuePostCount: draft.rescuePosts.length,
     } : null;

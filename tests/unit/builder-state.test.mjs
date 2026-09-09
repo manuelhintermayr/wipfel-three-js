@@ -266,7 +266,7 @@ test("serialize/restore: heroTrees, routes and walked-status all round-trip", ()
   assert.equal(JSON.stringify(again.parkDef), JSON.stringify(saved.parkDef), "serialising an unchanged restored draft must reproduce the same parkDef");
 });
 
-// --- M3b rescuer posts + coverage (GDD §4 "Retter") ----------------------------------------------------
+// --- M3b rescuer posts + coverage (GDD §4 "rescuer") ----------------------------------------------------
 
 test("rescuePostCandidates: every hub plus every route's own entry, addRescuePost places one, capped at RESCUE.maxPosts", () => {
   const draft = freshDraft();

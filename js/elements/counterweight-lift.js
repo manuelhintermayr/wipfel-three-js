@@ -1,4 +1,4 @@
-// Counterweight lift (ROADMAP M4, GDD §3.11 "Koop-Übungen"): a wooden basket that rides a pair of
+// Counterweight lift (ROADMAP M4, GDD §3.11 "co-op obstacles"): a wooden basket that rides a pair of
 // overhead guide cables from one platform to the next. Alone, a preloaded sandbag on the far side of
 // the pulley gives just enough of a trickle to inch across (RESEARCH-DATA §8's "real parks forbid two
 // people on one obstacle, the game allows it if the group enables it" reads the other way around here –
@@ -6,7 +6,7 @@
 // the platform, the basket picks up real speed.
 //
 // Movement problem: none of the balance family at all (the basket does the standing for you – GDD
-// §3.4's own "Netze, Röhren · keine Balance, dafür Kraft und Langsamkeit" family, minus even the
+// §3.4's own "nets, tubes · no balance, but strength and slowness" family, minus even the
 // strength cost) – the whole obstacle is about *pace*, and pace is a co-op decision.
 import { createElementBase, registerElementKind, ELEMENT } from "./element.js";
 import { cableRun, cableTermination, lifelineCable } from "./element-parts.js";

@@ -1,7 +1,7 @@
-// Fässer – four to six floating barrels (Ø 60 cm, 0.9 m long) strung on a steel axle cable that hangs
+// Barrels – four to six floating barrels (Ø 60 cm, 0.9 m long) strung on a steel axle cable that hangs
 // from two overhead carrier cables. There is no hand cable at all: the whole exercise is the barrel
-// rolling under the foot the moment weight comes onto it (RESEARCH-DATA §3 Designannahmen, GDD §3.4
-// "Skateboard, Snowboard, Fässer · 2·5·3·2" – a moving surface you have to read, not fight).
+// rolling under the foot the moment weight comes onto it (RESEARCH-DATA §3 design assumptions, GDD §3.4
+// "Skateboard, Snowboard, Barrels · 2·5·3·2" – a moving surface you have to read, not fight).
 //
 // The roll itself needs a true rotation, which the shared vertex deformer cannot do (it only ever
 // offsets vertices, never spins them) – so each barrel is its own small mesh, sitting next to the
@@ -12,7 +12,7 @@ import { createElementBase, registerElementKind, ELEMENT } from "./element.js";
 import { cableRun, cableTermination, lifelineCable } from "./element-parts.js";
 
 export const BARRELS = Object.freeze({
-  radius: 0.30,              // Ø 60 cm (RESEARCH-DATA §3 Designannahmen)
+  radius: 0.30,              // Ø 60 cm (RESEARCH-DATA §3 design assumptions)
   length: 0.90,
   spacing: 1.45,              // axle to axle
   endMargin: 0.55,

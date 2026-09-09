@@ -57,7 +57,7 @@
 .kassa-sheet .confirm:hover { filter: brightness(1.08); }
 .kassa-storm-note { margin-top: 0.6rem; padding: 0.5em 0.8em; border-radius: var(--radius); background: rgba(224,86,76,0.14); border: 1px solid var(--hud-danger); color: #7a231d; font: 600 0.78rem/1.4 var(--font-ui); }
 
-/* Einschulung dialogue (M1.3) – diegetic, bottom-centre, does not block movement. */
+/* safety briefing dialogue (M1.3) – diegetic, bottom-centre, does not block movement. */
 .briefing-panel {
   position: absolute; left: 50%; bottom: calc(var(--hud-pad) + 4.6rem); transform: translateX(-50%);
   max-width: 28rem; width: min(85vw, 28rem); text-align: center;

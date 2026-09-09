@@ -1,4 +1,4 @@
-// Flow – the counterforce to nerves (ROADMAP M2a, GDD §3.10: "Flow will, dass du weitergehst"). Pure
+// Flow – the counterforce to nerves (ROADMAP M2a, GDD §3.10: "flow wants you to keep going"). Pure
 // logic, no DOM/THREE, unit-tested (tests/unit/flow.test.mjs) the same way js/player/nerves.js is.
 //
 // Builds only while the climber is *progressing* cleanly (on an element/zipline/tarzan swing, having

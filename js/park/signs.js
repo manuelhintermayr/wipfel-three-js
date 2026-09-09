@@ -46,7 +46,7 @@ export const SIGNS = Object.freeze({
     length: 0.58, height: 0.26, headLength: 0.16,
     texSize: 512,
   }),
-  // M2a (ROADMAP: "Kreuzungspodeste … mini fingerpost"): a small board standing directly on a junction
+  // M2a (ROADMAP: "junction platforms … mini fingerpost"): a small board standing directly on a junction
   // platform's deck (postHeight/boardTop are measured *from the deck*, not the ground) instead of the
   // hub/entry boards' own ground posts.
   junction: Object.freeze({
@@ -75,8 +75,8 @@ export function createSigns({ parkDef, scene, terrain, textures, rng }) {
   group.name = "park-signs";
   const backer = { parts: new Map(), sources: [] };   // category id -> [{geometry, matrix}] + raw geometries to dispose
 
-  // The legendary finale has no parkplan entry at all (GDD §3.12: "Legendäre Routen ohne Parkplan-
-  // Eintrag") – it gets neither a hub-cluster fingerpost nor its own entry board; its ladder cable is
+  // The legendary finale has no park-plan entry at all (GDD §3.12: "Legendary routes without a
+  // park-plan entry") – it gets neither a hub-cluster fingerpost nor its own entry board; its ladder cable is
   // only ever found by whoever already knows to look behind the hut hub.
   const securedRoutes = parkDef.routes.filter((r) => r.category !== "legendary");
   buildHubCluster({ parkDef: { ...parkDef, routes: securedRoutes }, terrain, builder, group, backer, rng: rng.fork("hub-cluster") });

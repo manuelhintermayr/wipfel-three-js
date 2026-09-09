@@ -1,4 +1,4 @@
-// Guest archetypes (ROADMAP M3b, GDD §4 "Gäste als Agenten: Profile … mit Mut, Kraft, Erwartungen").
+// Guest archetypes (ROADMAP M3b, GDD §4 "guests as agents: profiles … with courage, strength, expectations").
 // Extends M1.6's three simple archetypes (kid/teen/sporty, still here as blue/red/black defaults) into
 // the full roster the operator act asks for: a kid+chaperone pair, teens, adults, sporty guests,
 // anxious guests and a school group of four with one chaperone. Pure data + pure picks – no THREE, same
@@ -15,8 +15,8 @@ import { FEAR } from "../config.js";
 /** id, default category (used by the deterministic boot roster, see pickRouteForProfile below),
  *  weight (relative roll odds), heightScale range, and the three GDD stats. `courage`/`strength` are
  *  0..1 base values (each guest jitters a little around them, js/npc/agents.js#planAgents);
- *  `patienceSeconds` is how long this archetype waits in a queue before giving up (GDD "Gäste brechen
- *  ab, wenn Geduld ausgeht"). `groupSize`/`chaperones` describe a linked cluster, see the header. */
+ *  `patienceSeconds` is how long this archetype waits in a queue before giving up (GDD "guests give up
+ *  when their patience runs out"). `groupSize`/`chaperones` describe a linked cluster, see the header. */
 export const PROFILES = Object.freeze([
   { id: "kid", category: "blue", weight: 2, heightScale: [0.76, 0.90], courage: 0.55, strength: 0.30, patienceSeconds: 55, groupSize: 1, chaperones: 0 },
   {
@@ -52,7 +52,7 @@ export function pickRouteForProfile(profile, routes, rng) {
   return rng.pick(matching.length ? matching : routes);
 }
 
-/** Courage bands → the category a guest at that courage level is drawn to (GDD "Farben stimmen"):
+/** Courage bands → the category a guest at that courage level is drawn to (GDD "colours match"):
  *  timid guests gravitate to blue even if their archetype's *default* category is nominally something
  *  else (an anxious adult still eyes the blue routes), confident ones drift towards black. */
 const COURAGE_CATEGORY_BANDS = Object.freeze([
@@ -67,7 +67,7 @@ function categoryByCourage(courage) {
 }
 
 /**
- * Runtime route choice (GDD §4 "wählen nach Freigabe/Farbe/Wartezeit"): a weighted pick across every
+ * Runtime route choice (GDD §4 "choose by unlock/colour/waiting time"): a weighted pick across every
  * route in the park, favouring the category this guest's courage draws them to (and, less strongly,
  * their archetype's own default category so a "red" adult does not instantly forget red exists), and
  * discouraged by how long the queue at that route's entry currently is. Pure given `queueLengthOf`.
@@ -94,8 +94,8 @@ export function chooseRouteConsideringQueues(profile, routes, rng, queueLengthOf
 }
 
 /**
- * Deterministic fear roll for one guest crossing one element (GDD §4 "Angst-Ereignisse aus den
- * psychologischen Achsen"). Pure: `courage`/`psychMetric` are plain numbers (0..1 and 0..5), `rng`
+ * Deterministic fear roll for one guest crossing one element (GDD §4 "fear events from the
+ * psychological axes"). Pure: `courage`/`psychMetric` are plain numbers (0..1 and 0..5), `rng`
  * exposes `.next()` (an `import("../core/rng.js").Rng`, or any duck-typed stand-in for tests).
  * Elements at or under `FEAR.psychThreshold` never trigger anything, however low the courage – there
  * has to be something genuinely demanding about the element first. Past that threshold, low courage

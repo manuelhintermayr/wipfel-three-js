@@ -106,7 +106,7 @@ export function createZipline(spec, ctx) {
   element.brake = brake;
   /** Hand the interaction over to the zipline state instead of the walk-a-rail one. */
   element.playerState = "zipline";
-  /** Downhill only (GDD §3.4 "Einbahn") – you cannot clip in at the landing and ride back up. */
+  /** Downhill only (GDD §3.4 "one-way") – you cannot clip in at the landing and ride back up. */
   element.oneWay = true;
   /** Both cable ends are dead-ends on a post: reachable from anywhere on their deck. */
   element.anchorRange = 2.6;

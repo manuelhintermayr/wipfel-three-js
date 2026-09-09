@@ -57,7 +57,7 @@ export const PROMPTS = Object.freeze({
   stepOn: (element) => t("prompt.stepOn", { label: t(ELEMENT_LABEL_KEYS[element.kind] || "element.burma") }),
   /** Category gate (GDD §3.12): shown instead of the clip prompt at a locked route's entry anchor. */
   locked: (category) => t(category === "legendary" ? "notice.lockedLegendary" : category === "black" ? "notice.lockedBlack" : "notice.lockedRed"),
-  /** Einschulung gate (M1.3): shown instead of the clip prompt until the practice gate is done. */
+  /** Briefing gate (M1.3): shown instead of the clip prompt until the practice gate is done. */
   get briefingRequired() { return t("notice.briefingRequired"); },
   /** Ticket gate (M1.5): no ticket, or the day's ticket has run out (js/game/ticket.js). */
   get noTicket() { return t("notice.noActiveTicket"); },
@@ -76,7 +76,7 @@ const PLAYER_HOLDER_ID = "player";
 
 /**
  * @param {{ player, input, belay, course, hud?, events?, vitals?, save?, ticket?, occupancy?, rescue?, operations?, holderId?: string }} options
- *   `save` gates category entry anchors (GDD §3.12) and the Einschulung practice gate (M1.3) – omit it
+ *   `save` gates category entry anchors (GDD §3.12) and the briefing practice gate (M1.3) – omit it
  *   (dev harnesses, older tests) and nothing is ever locked. `ticket` gates every anchor once a day is
  *   over (M1.5, js/game/ticket.js) – omit it and clipping is never refused for lack of a ticket.
  *   `occupancy` (M1.6, js/game/occupancy.js) makes the player take a slot on an element like every
@@ -109,7 +109,7 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
     return route && !save.isUnlocked(route.category) ? route.category : null;
   };
 
-  /** Einschulung (M1.3): a route's entry cable refuses the ritual until the practice gate is done. */
+  /** Briefing (M1.3): a route's entry cable refuses the ritual until the practice gate is done. */
   const briefingRequiredAt = (anchorId) => {
     if (!save || save.data.briefingDone) return false;
     return course.routes.some((r) => r.ladderAnchorId === anchorId);
@@ -118,7 +118,7 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
   /** Ticket gate (M1.5): no new clip-in once the day has no active, unexpired ticket. */
   const ticketBlocks = () => !!ticket && !ticket.clippable;
 
-  /** Weather evacuation (M3b, GDD §4 "Gewitter = Räumung"): no new clip-in while the park is cleared. */
+  /** Weather evacuation (M3b, GDD §4 "storm = evacuation"): no new clip-in while the park is cleared. */
   const evacuating = () => !!operations && operations.isEvacuating();
 
   /** Occupancy gate (M1.6): someone else (a guest) is already on this element – RULES.maxPerElement
@@ -215,7 +215,7 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
   }
 
   /**
-   * Continuous mode (M2b, GDD §3.3 "Durchlaufend … kein Umhängen"): once the belay is established
+   * Continuous mode (M2b, GDD §3.3 "continuous … no re-clipping"): once the belay is established
    * anywhere on the route, every later platform/element transition happens on its own – there is no
    * ritual left to click, and js/game/clip-meter.js is told separately to ignore it entirely (there is
    * nothing to be fast or slow at). The very first clip-in at the route's entry deck stays a real
@@ -235,7 +235,7 @@ export function createInteraction({ player, input, belay, course, hud = null, ev
     const classic = belay.mode === "classic";
     if (anchor && (input.pressed("clip") || (classic && input.pressed("clip2")))) {
       if (lockedCategoryOf(anchor.id)) return;         // refused: the route's category is not unlocked yet
-      if (briefingRequiredAt(anchor.id)) return;       // refused: the Einschulung practice gate is not done
+      if (briefingRequiredAt(anchor.id)) return;       // refused: the briefing practice gate is not done
       if (!established(anchor.id) && evacuating()) return;     // refused: storm evacuation in progress
       if (!established(anchor.id) && ticketBlocks()) return;   // refused: no active, unexpired ticket
       const firstClipOfRoute = belay.mode === "continuous" && belay.currentAnchor() == null;

@@ -5,7 +5,7 @@
 // (tests/unit/builder-state.test.mjs) exactly like the generator it mirrors.
 //
 // Shape kept deliberately close to parkDef: `draft.heroTrees[i]` gains one extra field (`health`,
-// 0..1 – GDD "Baumliste … Gesundheit", gates whether a tree may carry a platform at all) and every
+// 0..1 – GDD "tree list … health", gates whether a tree may carry a platform at all) and every
 // route gains a builder-only `_status` bag (`{ walked, issues }`, stripped again by `toParkDef()`).
 // Everything else round-trips byte-for-byte through js/park/loader.js#loadPark unchanged.
 import { CATEGORY_RULES, LAYOUT_LIMITS, metricSum, zipLandingOk } from "../park/layout-validate.js";
@@ -59,7 +59,7 @@ function availableEdgeKinds(category) {
  *   walkedStatus?: Record<string, boolean> }} options
  *   `walkedStatus` (optional) restores each route's "already walked" flag from a previously saved
  *   customPark (js/core/save.js#data.customPark) – omit it and a fresh draft starts every route
- *   `needsWalkthrough` (GDD §4 "kein Parcours öffnet, bevor der Betreiber ihn selbst gegangen ist"),
+ *   `needsWalkthrough` (GDD §4 "no route opens before the operator has walked it themselves"),
  *   including ones the generator itself produced: the walkthrough obligation applies to the whole park
  *   the moment an operator starts inspecting it, not only to hand-edited routes.
  */
@@ -71,7 +71,7 @@ export function createBuilderDraft({ parkDef, terrain, rng, walkedStatus = {} })
     cloned._status.walked = walkedStatus[r.id] === true;
     return cloned;
   });
-  // M3b rescuer posts (GDD §4 "Retter", RESEARCH-DATA §7 "jede Station in ≤ 10 min erreichbar"): up to
+  // M3b rescuer posts (GDD §4 "rescuer", RESEARCH-DATA §7 "each station reachable within ≤ 10 min"): up to
   // RESCUE.maxPosts world points, each placed near an existing hub or route entry rather than an
   // arbitrary 3-D click (this builder's own established convention – see the module header on M3a's
   // "no 3-D click targets" choice, restated in the design docs). `{ id, x, z }`, plain data, round-trips through
@@ -399,7 +399,7 @@ export function createBuilderDraft({ parkDef, terrain, rng, walkedStatus = {} })
     get rescuePosts() { return rescuePosts.map((p) => ({ ...p })); },
     rescuePostCandidates,
     addRescuePost, removeRescuePost,
-    /** GDD §4 "Retter-Abdeckung" – delegated to js/builder/builder-metrics.js like every other derived
+    /** GDD §4 "rescuer coverage" – delegated to js/builder/builder-metrics.js like every other derived
      *  read-out here (aggregateAxes, dramaturgyCurve, …). */
     rescueCoverage() { return metrics.rescueCoverage({ routes, heroTrees, rescuePosts }); },
 

@@ -1,5 +1,5 @@
 // Where a Flying Fox may go. This is the first piece of the layout **validation** M1.1 will own for
-// the whole park (ROADMAP: "Seilwinkel, Lichtraum, keine Baumdurchdringung, Landezonen, Zip-Gefälle
+// the whole park (ROADMAP: "cable angle, clearance, no tree penetration, landing zones, zip gradient
 // 3–6 %"); for now it answers one question, for one cable, against the real terrain and the real
 // forest, and it answers it the same way for the same seed.
 //

@@ -1,4 +1,4 @@
-// Einschulung (GDD §3.7/§5, ROADMAP M1.3): after the kassa, a short diegetic trainer sequence before
+// Onboarding (GDD §3.7/§5, ROADMAP M1.3): after the ticket desk, a short diegetic trainer sequence before
 // free climbing – four HUD dialogue steps (RESEARCH-DATA §1's mandatory safety theory) advanced with
 // E, then a practice gate at a ground-level practice anchor (js/park/practice-stand.js) the player
 // must clip into with the real ritual (js/player/belay.js) before any route's entry cable accepts a
@@ -66,7 +66,7 @@ export function createBriefing({ root, scene, physics, terrain, parkDef, texture
     get active() { return phase === "dialogue" || phase === "practiceGate"; },
     get phase() { return phase; },
 
-    /** Called right after the kassa confirms, unless `save.data.briefingDone` already. */
+    /** Called right after the ticket desk confirms, unless `save.data.briefingDone` already. */
     start() {
       if (save.data.briefingDone || phase !== "idle") return;
       ensureStand();

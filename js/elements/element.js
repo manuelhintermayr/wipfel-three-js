@@ -1,4 +1,4 @@
-// The base every rail element is built on (GDD §3.4: "Übungen sind Schienen"). An element is a
+// The base every rail element is built on (GDD §3.4: "obstacles are rails"). An element is a
 // spline the feet travel along, a spring-damper that makes it move, an offer of something to hold,
 // and a steel lifeline above it that the carabiners ride on. Everything else – wire bridge, hanging
 // planks, cargo net – is geometry and numbers on top of that.
@@ -30,7 +30,7 @@ export function registerElementKind(kind, factory) { KINDS.set(kind, factory); }
 export function elementKinds() { return Array.from(KINDS.keys()); }
 
 /**
- * Parameter variant (ROADMAP M2b, GDD "Übungskatalog auf 20–25 Familien/Varianten"): registers
+ * Parameter variant (ROADMAP M2b, GDD "obstacle catalogue to 20–25 families/variants"): registers
  * `variantKind` as `baseKind` built with `configOverride` merged over the base kind's own config
  * (`createElementBase` below folds `spec.configOverride` into its per-instance copy) – a harder/easier
  * flavour of an existing element needs no new mechanic, only different numbers. `spec.kind` is left

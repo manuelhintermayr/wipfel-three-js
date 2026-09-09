@@ -1,4 +1,4 @@
-// Builder mode orchestration (M3a, GDD §4 "Betreiber-Gameplay"): the one module js/main.js talks to.
+// Builder mode orchestration (M3a, GDD §4 "operator gameplay"): the one module js/main.js talks to.
 // Three modes: "closed" (normal game), "editing" (top-down camera, builder UI, player/guests hidden,
 // world simulation frozen – js/main.js gates its own gameplay/render phases on this), "walking" (the
 // walkthrough obligation – normal player control and HUD, builder UI hidden, a small persistent banner
@@ -265,7 +265,7 @@ export function createBuilder({ scene, terrain, rng, player, camera, renderer, i
 
   function finishWalkthrough(routeId) {
     if (!walkthrough || walkthrough.routeId !== routeId) return;
-    // M3b economy (GDD §4 "Fixkosten … je Parcours"): charged exactly once, the moment a route first
+    // M3b economy (GDD §4 "fixed costs … per route"): charged exactly once, the moment a route first
     // becomes open – re-walking an already-open route (allowed; the Walk button only checks validation
     // issues, not `walked`) must never charge it twice. `draft.getRoute` still reports the *previous*
     // state here, before `markWalked` below flips it.

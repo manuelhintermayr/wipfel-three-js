@@ -1,5 +1,5 @@
 // Horizontal cargo net – 1.2 m wide, 15 cm mesh, six metres of knotted rope slung between two side
-// cables, with hand ropes overhead. It is the exercise nobody falls off (GDD §3.4, "Netze, Röhren ·
+// cables, with hand ropes overhead. It is the exercise nobody falls off (GDD §3.4, "nets, tubes ·
 // 4·1·1·1"): no balance problem at all, but every step sinks into the mesh and has to be pulled out
 // again, so it costs strength and time. Its job in a course is to let the nerves come back down.
 //

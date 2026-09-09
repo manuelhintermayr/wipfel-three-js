@@ -1,5 +1,5 @@
-// Seilschlaufen – a row of plain rope loops, the simpler cousin of the stirrups (RESEARCH-DATA §3:
-// "Seilschlaufen, Steigbügel" are two separate catalogue entries under Seilbrücken). Where a stirrup
+// Rope loops – a row of plain rope loops, the simpler cousin of the stirrups (RESEARCH-DATA §3:
+// "rope loops, stirrups" are two separate catalogue entries under rope bridges). Where a stirrup
 // gives the boot a rigid wooden tread to stand on, a wire loop is just a soft eye of rope: the foot
 // goes *through* it and can twist inside it, so it is a step less stable for the same rhythm –
 // coordination is a notch higher than the stirrups, everything else about the crossing is identical.

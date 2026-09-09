@@ -5,17 +5,17 @@ import { GAME, GRAPHICS, OPERATIONS, ECONOMY } from "../config.js";
 const DEFAULTS = Object.freeze({
   schema: GAME.saveSchema,
   routes: {},               // routeId → { bestSeconds, completions, cleanRuns }
-  // Category gates (GDD §3.12: "Farben sind Tore" – Blue → Red → Black). Blue is always open; a
+  // Category gates (GDD §3.12: "colours are gates" – Blue → Red → Black). Blue is always open; a
   // category unlocks once any route of the *previous* colour has been completed (js/game/session.js).
   // `legendary` (M2a) is the one exception – it needs *every* black route completed, not just one, so
   // js/game/session.js checks that directly instead of going through `nextGateCategory`.
   unlocks: Object.freeze({ blue: true, red: false, black: false, legendary: false }),
   locale: null,             // null = use DEFAULTS.locale / ?locale=
-  // Einschulung (M1.3, GDD §3.7): once true the practice-anchor gate never shows again
+  // Onboarding (M1.3, GDD §3.7): once true the practice-anchor gate never shows again
   // (js/game/briefing.js, js/player/interaction.js).
   briefingDone: false,
   // Active ticket (M1.5) – null when no day is in progress (fresh boot, or after "Continue browsing").
-  // Reopening the page with a ticket here resumes the day instead of showing the kassa (js/main.js).
+  // Reopening the page with a ticket here resumes the day instead of showing the ticket desk (js/main.js).
   ticket: null,
   // Options screen (M1.7, js/ui/options.js) – applied live on every change and again once at boot.
   // `lookSensitivity: null` means "use core/input.js's own default", not "silent at 0".
@@ -26,14 +26,14 @@ const DEFAULTS = Object.freeze({
     reducedCameraMotion: false,   // js/player/camera.js#setReducedMotion – fall shake + nerve breathing
     reducedMotion: false,         // HUD pulse animations (body class, css/base.css)
     assist: false,                // js/player/assist.js – gentler balance disturbance, wider slip window
-    // M2b (ROADMAP "Grafikoptionen"): one of js/config.js#GRAPHICS.order ("high"|"medium"|"low").
+    // M2b (ROADMAP "graphics options"): one of js/config.js#GRAPHICS.order ("high"|"medium"|"low").
     graphics: "high",
-    // M4 (ROADMAP "geteilte Physik", GDD §3.11/§4 "im Spiel erlaubt, wenn die Gruppe es einschaltet"):
+    // M4 (ROADMAP "shared physics", GDD §3.11/§4 "allowed in the game when the group switches it on"):
     // read live by js/game/coop.js every frame – true only ever matters while co-op is active, but the
     // choice itself persists like every other options toggle. Default ON, per the milestone brief.
     sharedPhysics: true,
   }),
-  // M2b (ROADMAP "drei Sicherungsmodi"/GDD §3.3): classic-mode accidents (both carabiners open on an
+  // M2b (ROADMAP "three belay modes"/GDD §3.3): classic-mode accidents (both carabiners open on an
   // element/ladder/zip) – js/player/accident.js records one every time it happens, never reset.
   stats: Object.freeze({ accidents: 0 }),
   // M2a (ROADMAP): time trials, per-route best time only ever set by a trial run (js/game/route.js#isTrial).
@@ -41,10 +41,10 @@ const DEFAULTS = Object.freeze({
   // M2a (ROADMAP, GDD §3.12): four booleans per route, `MASTERY.tierOrder` order – a tier once earned
   // is never taken away (js/game/mastery.js#mergeTiers), even if a later run misses it.
   mastery: {},               // routeId → { tiers: [completed, noFalls, underPar, inFlow] }
-  // M2a (ROADMAP, GDD §3.12 "Ausrüstung als Sidegrade") – null until unlocked *and* chosen at the kassa;
+  // M2a (ROADMAP, GDD §3.12 "equipment as sidegrade") – null until unlocked *and* chosen at the ticket desk;
   // js/player/sidegrade.js reads this only through js/main.js's own setSidegrade() call, never directly.
   equipmentId: null,
-  // M3a builder (ROADMAP "Der Betreiber", GDD §4): null until the builder is opened and something is
+  // M3a builder (ROADMAP "the operator", GDD §4): null until the builder is opened and something is
   // saved. `{ schema, parkDef, routeStatus }` – `parkDef` is a js/park/layout.js#generateParkLayout-
   // shaped object js/park/loader.js can load unchanged; `routeStatus[routeId] = { walked: boolean }` is
   // the walkthrough obligation's own bookkeeping (js/builder/builder-state.js), kept separate from
@@ -52,7 +52,7 @@ const DEFAULTS = Object.freeze({
   // a freshly generated park at boot when present and structurally valid.
   customPark: null,
   // M3b operator simulation (GDD §4): a season is OPERATIONS.seasonDays in-game days, one "New day" at
-  // the kassa each (js/game/operations.js owns the derived season/day-in-season maths). `ppeWear` 0..1,
+  // the ticket desk each (js/game/operations.js owns the derived season/day-in-season maths). `ppeWear` 0..1,
   // an inspection becomes due at OPERATIONS.ppeInspectionThreshold; `ppeResets` is a lifetime counter.
   operations: Object.freeze({ day: 1, ppeWear: 0, ppeResets: 0 }),
   // M3b economy + rating (GDD §4): `routesCharged` is which route ids have already had their one-time
@@ -60,7 +60,7 @@ const DEFAULTS = Object.freeze({
   // so re-walking an already-open route, or reloading mid-session, never charges it twice.
   economy: Object.freeze({ cash: ECONOMY.startingCash, rating: ECONOMY.ratingStart, routesCharged: {} }),
 });
-// Exported (M3b, ADR-029 "Teilen ist dateibasiert"): js/ui/options.js's export/import builds/checks
+// Exported (M3b, ADR-029 "sharing is file-based"): js/ui/options.js's export/import builds/checks
 // share files against this exact same schema marker and shape check, instead of a second copy of it.
 export const CUSTOM_PARK_SCHEMA = 1;
 
@@ -149,7 +149,7 @@ export function createSave(storage = defaultStorage()) {
       return true;
     },
 
-    /** Kassa confirm: start a fresh ticket for today (js/game/ticket.js owns the running clock). */
+    /** Ticket desk confirm: start a fresh ticket for today (js/game/ticket.js owns the running clock). */
     startTicket({ type, sizeClassId, belayMode = null }) {
       data.ticket = { type, sizeClassId, belayMode, elapsedReal: 0, extensionsUsed: 0 };
       flush();

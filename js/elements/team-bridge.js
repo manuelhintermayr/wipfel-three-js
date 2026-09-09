@@ -1,10 +1,10 @@
-// Team bridge (ROADMAP M4, GDD §3.11 "Koop-Übungen"): a loose chain of plank segments, each hung on
+// Team bridge (ROADMAP M4, GDD §3.11 "co-op obstacles"): a loose chain of plank segments, each hung on
 // its own two ropes from a pair of overhead carrier cables – structurally the same idea as
 // js/elements/beam-swing.js (independent pendulums, walked continuously, not stepped one at a time),
 // but flat boards instead of round logs, wobblier by default, and with one thing beam-swing does not
 // have: a partner who can hold a tension rope at either end and calm it down.
 //
-// Movement problem (GDD §3.4 family "Balken, Planken" + §3.11): crossed solo it reads as the wobbliest
+// Movement problem (GDD §3.4 family "beams, planks" + §3.11): crossed solo it reads as the wobbliest
 // blue-tier bridge in the park – still passable (RESEARCH-DATA §8 "real parks forbid two people on one
 // obstacle, the game allows it if the group enables it" is about *sharing* an obstacle, not about
 // making the solo case impossible). Crossed with a partner holding the rope, every footstep's kick is

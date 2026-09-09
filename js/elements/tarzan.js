@@ -1,6 +1,6 @@
-// Tarzansprung – a short gap (2.5–3.5 m) with a rope hanging from an overhead pivot at mid-span,
-// swinging on its own for good, and a catch net on the far side. GDD §3.4 "Tarzansprung: Anlauf,
-// Absprung, Griff ins Netz; Nervenspitze · 3·3·5·2" – the movement problem is entirely a nerve spike
+// Tarzan jump – a short gap (2.5–3.5 m) with a rope hanging from an overhead pivot at mid-span,
+// swinging on its own for good, and a catch net on the far side. GDD §3.4 "Tarzan jump: run-up,
+// take-off, grab the net; nerve spike · 3·3·5·2" – the movement problem is entirely a nerve spike
 // dressed up as timing, not balance: the rope keeps swinging whether anyone is there or not, and
 // jumping when it is nearest catches it.
 //

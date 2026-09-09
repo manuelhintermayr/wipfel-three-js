@@ -19,7 +19,7 @@ const DEFAULT_BINDINGS = {
   mouse: { 0: "handR", 2: "handR" },
   gamepad: {
     axes: { moveX: 0, moveY: 1, lookX: 2, lookY: 3 },
-    // M4 (ROADMAP "Koop 2 lokal", ADR-030): index 10 (left-stick click, "L3" on a standard Gamepad API
+    // M4 (ROADMAP "local 2-player co-op", ADR-030): index 10 (left-stick click, "L3" on a standard Gamepad API
     // mapping) is otherwise unused by this project – GDD's own control table lists "interact" as "–" on
     // gamepad (never mapped), which is fine for a keyboard-primary solo game but leaves a gamepad-only
     // player 2 unable to clip in, climb a ladder or step onto anything at all. Added here rather than in

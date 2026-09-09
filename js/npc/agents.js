@@ -295,7 +295,7 @@ function buildSequence(route) {
     if (element.kind === "zipline") {
       // The element's own exit anchor (not the route-level `zipLanding.stand`, which only ever names
       // the *last* arrival deck) is correct for every leg of a route, including a black route's
-      // Umsetzstation (M2b) where an earlier zip element's landing is the transfer platform, not the
+      // transfer station (M2b) where an earlier zip element's landing is the transfer platform, not the
       // route's final one – a few centimetres off the hand-tuned dismount spot, invisible on a guest.
       const exit = element.getExitAnchor();
       steps.push({
@@ -343,7 +343,7 @@ function tryClaim(agent, ctx) {
   return true;
 }
 
-/** Patience ran out (GDD §4 "Gäste brechen ab, wenn Geduld ausgeht"): leave the line, give up whatever
+/** Patience ran out (GDD §4 "guests give up when their patience runs out"): leave the line, give up whatever
  *  platform slot was still held while waiting, and walk back towards the hub for a fresh route pick. */
 function abandonQueue(agent, ctx) {
   const step = agent.pendingIndex >= 0 ? agent.sequence[agent.pendingIndex] : null;
@@ -356,7 +356,7 @@ function abandonQueue(agent, ctx) {
 }
 
 /** The clip-in beat just finished: settle onto the rail, and – on an element only – roll for a fear
- *  event (GDD §4 "Angst-Ereignisse aus den psychologischen Achsen"). Ladders and the Flying Fox never
+ *  event (GDD §4 "fear events from the psychological axes"). Ladders and the Flying Fox never
  *  roll: neither carries a "psychological" catalogue metric, and a guest cannot sensibly freeze mid-air
  *  on a cable the way they can on a wobbling bridge. */
 function beginOnRail(agent, ctx) {
@@ -462,7 +462,7 @@ function advanceZip(agent, step, dt) {
 
 /** Arrival: release the rail, take a platform slot if there is one, then a short "unclip" beat before
  *  the next dwell (or, past the last step, before wandering off to pick a new route). Watching a
- *  neighbour finish an element is the GDD §3.4 trust hook ("Zusehen gibt Vertrauen") – js/main.js
+ *  neighbour finish an element is the GDD §3.4 trust hook ("watching builds trust") – js/main.js
  *  turns the event into a tiny nerve tick. */
 function onArrive(agent, step, ctx) {
   if (step.kind === "element") step.element.occupancy.active = false;
@@ -517,7 +517,7 @@ function queueLengthOf(ctx) {
 }
 
 /** Back near the hub: same profile (an identity, not a die roll every lap), a fresh route pick within
- *  it – courage- and queue-length-aware (GDD §4 "wählen nach Freigabe/Farbe/Wartezeit"). */
+ *  it – courage- and queue-length-aware (GDD §4 "choose by unlock/colour/waiting time"). */
 function stepReturn(agent, dt, ctx) {
   if (!moveToward(agent, dt, ctx.terrain)) return;
   const profile = PROFILES.find((p) => p.id === agent.profileId) || PROFILES[0];

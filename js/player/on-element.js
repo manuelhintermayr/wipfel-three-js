@@ -1,5 +1,5 @@
 // State "element": the climber is on an exercise. This is the heart of the game (GDD §3.4 –
-// "Übungen sind Schienen"): the body is locked to the element's rail, forward/back is `move.y`,
+// "obstacles are rails"): the body is locked to the element's rail, forward/back is `move.y`,
 // sideways is not a step but a *lean* against the balance pendulum, and Q / right mouse put a hand
 // on the hand cable, which steadies everything and burns strength.
 //
@@ -181,7 +181,7 @@ export function createElementState({ input, events = null, balance, stamina, ner
       element.occupancy.t = t;
 
       // --- what the element does about it -------------------------------------------------------
-      const gear = sidegradeEffects();   // M2a equipment (kassa "Equipment" row) – neutral (all 1) when none equipped
+      const gear = sidegradeEffects();   // M2a equipment (ticket desk "Equipment" row) – neutral (all 1) when none equipped
       const lean = frozen ? 0 : clampSigned(input.move.x);
       element.wobble.excite((lean * ELEMENT_MOVE.leanExcite * dt
         + (railSpeed - previous) * ELEMENT_MOVE.hurryExcite * Math.sign(lean || 1) * 0.5) * assist.disturbance * gear.balanceDisturbanceScale);

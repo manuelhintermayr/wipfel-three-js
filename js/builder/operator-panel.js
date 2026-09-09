@@ -1,5 +1,5 @@
-// Operator dashboard top bar (ROADMAP M3b, GDD §5 "Builder: Kopfzeile (Saison/Datum/Uhr, Wetter+Böen,
-// Gäste/Warten Ø, Kasse, Bewertung)"). Pure DOM, stateless like js/builder/builder-ui.js – every
+// Operator dashboard top bar (ROADMAP M3b, GDD §5 "Builder: top bar (season/date/clock, weather+gusts,
+// guests/waiting Ø, ticket desk, rating)"). Pure DOM, stateless like js/builder/builder-ui.js – every
 // render() call redraws from whatever js/builder/builder.js hands it (js/game/operations.js +
 // js/game/economy.js + js/npc/agents.js's own running averages); this module never reads those directly.
 import { t } from "../core/i18n.js";

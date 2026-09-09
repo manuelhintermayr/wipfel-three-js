@@ -1,5 +1,5 @@
-// Wichtel courses (ROADMAP M2a, RESEARCH-DATA §1: "2 Wichtelparcours (35 cm hoch, ohne Sicherung, für
-// Kleinkinder)"): tiny ground-level log-and-plank parcours near the spawn hub, pure flavour – no
+// Toddler courses (ROADMAP M2a, RESEARCH-DATA §1: "2 toddler courses (35 cm high, without belay, for
+// small children)"): tiny ground-level log-and-plank courses near the spawn hub, pure flavour – no
 // belay, no lifeline, no anchors, walkable by anyone (the character controller's own autostep already
 // clears 35 cm, so no ramp is needed either). Built directly with js/park/timber.js, entirely outside
 // the routes/generator/loader pipeline: these never appear in `parkDef.routes`, are not "platforms" for

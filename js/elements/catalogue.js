@@ -17,12 +17,12 @@ import "./barrels.js";
 import "./rings.js";
 import "./tarzan.js";
 import "./skate.js";
-// M4 co-op kinds (ROADMAP "Koop-Übungen", GDD §3.11) – each registers itself the same way every kind
+// M4 co-op kinds (ROADMAP "co-op obstacles", GDD §3.11) – each registers itself the same way every kind
 // above does; js/park/layout-route.js#buildEdges places them deliberately (never the random pool).
 import "./team-bridge.js";
 import "./counterweight-lift.js";
 
-// M2b parameter variants (ROADMAP "Übungskatalog auf 20–25 Familien/Varianten"): every base kind above
+// M2b parameter variants (ROADMAP "obstacle catalogue to 20–25 families/variants"): every base kind above
 // has registered itself by now (ES modules run top to bottom, and every import above is a concrete
 // module's own `registerElementKind` side effect) – registering the variants down here, once, keeps
 // this the single place that turns catalogue-data.js's plain data into buildable kinds.

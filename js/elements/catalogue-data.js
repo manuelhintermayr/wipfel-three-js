@@ -23,7 +23,7 @@ export const CATALOGUE = Object.freeze([
 ]);
 
 /**
- * Parameter variants (ROADMAP M2b, GDD "Übungskatalog auf 20–25 Familien/Varianten"): each entry is an
+ * Parameter variants (ROADMAP M2b, GDD "obstacle catalogue to 20–25 families/variants"): each entry is an
  * existing base kind with a numeric `configOverride` – js/elements/element.js#registerElementVariant
  * (called once from js/elements/catalogue.js, after every base kind above has registered itself) merges
  * it over the base kind's own config, so no new mechanic exists anywhere for these eight. `metrics` is
@@ -75,7 +75,7 @@ export const CATALOGUE_VARIANTS = Object.freeze([
 ]);
 
 /**
- * The two co-op catalogue kinds (ROADMAP M4, GDD §3.11 "Koop-Übungen"): js/elements/{team-bridge,
+ * The two co-op catalogue kinds (ROADMAP M4, GDD §3.11 "co-op obstacles"): js/elements/{team-bridge,
  * counterweight-lift}.js. Kept as their own array rather than appended to `CATALOGUE` above –
  * `tests/unit/catalogue.test.mjs` pins `CATALOGUE.length === 12` (the M1.8 twelve) on purpose, and
  * these two are never offered to the generator's own random pool (js/park/layout-route.js#buildEdges

@@ -1,5 +1,5 @@
-// The right-hand inspector panel (M3a, GDD §4 "Parcours-Inspektor: Dramaturgiekurve, Achsen,
-// Variation, Staurisiko, Retter-Abdeckung"): a read-only analysis of whichever route is selected, built
+// The right-hand inspector panel (M3a, GDD §4 "Route inspector: dramaturgy curve, axes,
+// variation, congestion risk, rescuer coverage"): a read-only analysis of whichever route is selected, built
 // from js/builder/builder-state.js's derived numbers (aggregateAxes/dramaturgyCurve/variationScore/
 // jamRisk/estimate) plus its validation issues. Pure DOM – no draft mutation happens here, matching the
 // GDD's own split between the inspector (read-out) and the toolbar (the editing actions).
@@ -106,7 +106,7 @@ function factsSection(derived, view) {
   return section;
 }
 
-/** GDD §4 "Retter-Abdeckung" – js/builder/builder-metrics.js#rescueCoverage's park-wide verdict,
+/** GDD §4 "rescuer coverage" – js/builder/builder-metrics.js#rescueCoverage's park-wide verdict,
  *  filtered down to this one route's own platforms. */
 function rescueNote(derived, view) {
   if (!derived.rescuePostCount) return t("builder.inspector.rescueNoPosts");

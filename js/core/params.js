@@ -18,8 +18,8 @@ export function readParams(search = location.search) {
     seed,
     locale: q.get("locale") || DEFAULTS.locale,
     belayMode: BELAY_MODES.includes(belay) ? belay : DEFAULTS.belayMode,
-    kassa: flag("kassa"),       // force the kassa even with an active ticket in the save (M1.3)
-    briefing: flagOff("briefing"),   // ?briefing=0 skips the Einschulung gate entirely (debug)
+    kassa: flag("kassa"),       // force the ticket desk even with an active ticket in the save (M1.3)
+    briefing: flagOff("briefing"),   // ?briefing=0 skips the onboarding gate entirely (debug)
     npc: flagOff("npc"),        // ?npc=0 disables guest agents entirely (M1.6)
     map: flag("map"),           // ?map=1 opens the Course Map overlay at boot (screenshots, M1.4)
     options: flag("options"),   // ?options=1 opens the pause/options screen at boot (screenshots, M1.7)
@@ -30,7 +30,7 @@ export function readParams(search = location.search) {
     // M2b: force the touch overlay on for desktop testing (js/ui/touch-controls.js) – normally it only
     // appears on a `pointer: coarse` device (matchMedia).
     touch: flag("touch"),
-    // M3a builder (js/builder/builder.js): boot straight into builder mode instead of the kassa –
+    // M3a builder (js/builder/builder.js): boot straight into builder mode instead of the ticket desk –
     // `?autowalk=<routeId>` additionally starts that route's walkthrough with the `?autoplay=1` bot
     // immediately (verification/testing, GDD §4's walkthrough obligation with no human at the keyboard).
     builder: flag("builder"),

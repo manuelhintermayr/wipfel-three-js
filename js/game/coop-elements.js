@@ -13,8 +13,8 @@ export function currentElementOf(player) {
 }
 
 /**
- * "The same element, or two elements that share a support tree" (GDD §3.11 "auf die Brücke springen,
- * auf der ein Freund steht"): identical, or one's exit platform is the other's entry (consecutive edges
+ * "The same element, or two elements that share a support tree" (GDD §3.11 "jump onto the bridge
+ * a friend is standing on"): identical, or one's exit platform is the other's entry (consecutive edges
  * of the same route), or both start from the same platform (a junction). Every one of those is "the
  * same tree feels both of you".
  */
@@ -27,8 +27,8 @@ export function elementsShareSupport(a, b) {
 }
 
 /**
- * Shared physics opt-in (GDD §3.11/§4 "auf die Brücke springen … im Spiel erlaubt, wenn die Gruppe es
- * einschaltet"): each frame, a fraction of one linked element's current wobble *velocity* becomes an
+ * Shared physics opt-in (GDD §3.11/§4 "jump onto the bridge … allowed in the game when the group
+ * switches it on"): each frame, a fraction of one linked element's current wobble *velocity* becomes an
  * excitation on the other's – the same shape js/elements/element.js#update already uses for its own
  * wind-gust coupling (`excite(gust * gain * dt)`), so this stays bounded and dt-scaled rather than an
  * unbounded per-frame snap. Symmetric: each nudges the other by `scale` (default 0.6, i.e. "60%").

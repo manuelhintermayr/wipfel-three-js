@@ -22,7 +22,7 @@ import { makeNoise2D, fbm2D } from "../core/rng.js";
 const PATH_COLOUR = [214, 208, 190];
 // M2b polish: a path is blended into its ground colour instead of overwriting it outright (both
 // styles), so the coloured route lines drawn on top of it every frame read as the dominant thing on
-// the map, not the pale road underneath them (the design docs "Offen": "Weg-Linie dominiert").
+// the map, not the pale road underneath them (the design docs "Open": "path line dominates").
 const PATH_BLEND = 0.62;
 const RELIEF_LOW_LONG_EDGE = 150;   // samples along the longer edge of the *destination* canvas
 // CATEGORY_BY_ID.black's true colour (near-black, 0x1c1c1e) reads fine on the white signage it was
@@ -135,7 +135,7 @@ function paintReliefPixels(data, w, h, projector, terrain) {
       const shade = clamp01(0.62 + 0.55 * (normal.x * lx + normal.z * lz) + 0.15 * (normal.y - 1));
       const heightNorm = clamp01((heights[py * w + px] - hMin) / span);
       const base = mix3(RELIEF_DARK, RELIEF_LIGHT, heightNorm);
-      // M2b polish (the design docs "Offen": "Weg-Linie dominiert"): a path used to overwrite the pixel
+      // M2b polish (the design docs "Open": "path line dominates"): a path used to overwrite the pixel
       // outright; blending it into the already-shaded ground instead keeps it readable without letting
       // it out-compete the route lines drawn on top every frame.
       const colour = terrain.isPath(wx, wz) ? mix3([base[0] * shade, base[1] * shade, base[2] * shade], PATH_COLOUR, PATH_BLEND) : [base[0] * shade, base[1] * shade, base[2] * shade];
@@ -181,8 +181,8 @@ export function paintRoutes(ctx, { parkDef, projector, filterCategory = null, ho
     ctx.fillStyle = cssHex(colour);
     ctx.lineWidth = hovered ? lineWidth * 2 : lineWidth;
     ctx.lineJoin = "round"; ctx.lineCap = "round";
-    // M2b polish (the design docs "Offen": "Kategorie-Farben kaum erkennbar … sättigen/glühen lassen wie im
-    // Mockup"): a soft glow on the dark relief overlay, matching CATEGORIES' colours at full strength –
+    // M2b polish (the design docs "Open": "category colours barely discernible … saturate/make glow like in the
+    // mockup"): a soft glow on the dark relief overlay, matching CATEGORIES' colours at full strength –
     // the light print board already reads fine without it, so this is relief-only (also cheaper: the
     // board bakes once, the overlay repaints every frame).
     if (style !== "print" && !dimmed) { ctx.shadowColor = cssHex(colour); ctx.shadowBlur = hovered ? 14 : 8; }

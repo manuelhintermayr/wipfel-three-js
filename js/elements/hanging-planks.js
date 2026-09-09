@@ -1,7 +1,7 @@
 // Hanging planks – nine weathered boards, each on two ropes from a pair of overhead carrier cables,
 // with a 40 cm gap between them. Step on one and it swings away; step on the next one too early and
-// it is not where your foot expects it. That is the whole exercise (GDD §3.4, "Balken, Planken,
-// Trittholz · 1·4·4·1": timing and patience, not strength).
+// it is not where your foot expects it. That is the whole exercise (GDD §3.4, "beams, planks,
+// step logs · 1·4·4·1": timing and patience, not strength).
 //
 // Every plank is its own pendulum, so the deformer runs with one group per plank: the plank body
 // follows the swing completely, its hanger ropes follow it in proportion to how far down they are.

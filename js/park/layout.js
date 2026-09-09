@@ -1,4 +1,4 @@
-// M2a park layout generator (ROADMAP "Ein Park"): a seeded, validated arrangement of hero trees,
+// M2a park layout generator (ROADMAP "One Park"): a seeded, validated arrangement of hero trees,
 // platforms, catalogue elements, junctions and Flying Foxes for 15 secured routes (blue I-V, red I-VI,
 // black I-IV) plus one hidden legendary finale, fanned out from four terrain hubs instead of the one
 // M1.1 used (spawn only) – packing 16 routes' entry bearings around a single hub cannot clear the
@@ -13,7 +13,7 @@
 // same trade-off M1.1's own PARK_CONFIG comment already made for six routes against a ≤ 26 cap. Category
 // difficulty keeps escalating the way it always has here: deck-height window and excluded/heavier
 // catalogue kinds (layout-validate.js#CATEGORY_RULES), not raw platform count (ROADMAP M1's own
-// acceptance line: "Rot fühlt sich anders an als Blau … nicht nur schwerer").
+// acceptance line: "Red feels different than Blue … not just harder").
 //
 // Pure and THREE-free – js/park/loader.js turns the result into a scene, tools/bake-park.mjs snapshots
 // it to assets/parks/sonnwendberg.json, tests/unit/layout.test.mjs asserts every constraint in
@@ -25,7 +25,7 @@ import { LAYOUT_LIMITS, bearingsClear } from "./layout-validate.js";
 /**
  * Default park: 15 secured routes across four hubs + the hidden legendary finale at the hut hub.
  * `hub` indexes `terrain.hubs` (0 spawn / 1 hut / 2 deck-east / 3 deck-top). `join` (GDD §3.9
- * "Kreuzungspodeste", M2a) makes this route's *first* platform an existing platform of the named
+ * "junction platforms", M2a) makes this route's *first* platform an existing platform of the named
  * host route of the same category – see js/park/layout-route.js#buildRouteCandidate's `join` option
  * and this module's `resolveJoin`. Route "blue-1" keeps chainLength 4 for `LEGACY_BLUE_1`
  * (js/park/layout-route.js) – every other chain length is chosen to fit the platform budget.
@@ -35,7 +35,7 @@ export const PARK_CONFIG = Object.freeze({
   routes: Object.freeze([
     // --- hub 0 · spawn (6 routes: blue I-III, red I-III; red III is a junction off red II) ----------
     Object.freeze({ category: "blue", numeral: "I", chainLength: 4, hub: 0 }),
-    // M4 (ROADMAP "Koop-Übungen", GDD §3.11): `coopEdge` forces this route's edge #0 to a specific
+    // M4 (ROADMAP "Co-op obstacles", GDD §3.11): `coopEdge` forces this route's edge #0 to a specific
     // catalogue kind instead of the generator's usual random pool pick – js/park/layout-route.js#buildEdges
     // honours it. One blue + one red route, deterministic across every seed (see js/park/layout-route.js's
     // own header on why this is safe for the "same seed, same JSON" determinism test).
@@ -197,7 +197,7 @@ function findRoute({ routeId, plan, slot, spread, baseBearing, terrain, routeRng
     const candidate = buildRouteCandidate({
       routeId, category: plan.category, chainLength: plan.chainLength, bearing,
       terrain, rng: routeRng, otherTrees, spawnHub, homePoint, join,
-      // M4 (ROADMAP "Koop-Übungen"): a fixed, seed-independent edge-kind override – see PARK_CONFIG above.
+      // M4 (ROADMAP "Co-op obstacles"): a fixed, seed-independent edge-kind override – see PARK_CONFIG above.
       coopEdge: plan.coopEdge || null,
     });
     if (candidate) { if (!join) usedBearings.push(bearing); return candidate; }

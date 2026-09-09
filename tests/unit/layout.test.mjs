@@ -207,7 +207,7 @@ test("routesFromPark: one pure run-def per route, obstacles = ladder + edges (+ 
       assert.equal(def.category, route.category);
       assert.equal(def.numeral, route.numeral);
       assert.equal(def.nameKey, route.nameKey);
-      // M2b Umsetzstation (long black-route zips split into two chained legs, js/park/layout-route.js):
+      // M2b transfer station (long black-route zips split into two chained legs, js/park/layout-route.js):
       // a second, independently-planned zip leg adds its own obstacle id after the first.
       const expected = ["ladder", ...route.edges.map((e) => e.id), `${route.id}-zip`];
       if (route.zip.transfer) expected.push(`${route.id}-zip2`);

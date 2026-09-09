@@ -14,7 +14,7 @@ export const CATEGORY_RULES = Object.freeze({
   red: Object.freeze({ minDeck: 3.5, maxDeck: 10, riseLimit: 1.2, maxMetricSum: 15, exclude: Object.freeze(["tarzan"]) }),
   black: Object.freeze({ minDeck: 10, maxDeck: 20, riseLimit: 2.5, maxMetricSum: Infinity, exclude: Object.freeze([]) }),
   // M2a (ROADMAP): the hidden finale, unlocked only once every black route is done (js/core/save.js).
-  // Kept inside the same 10-20 m ceiling black already uses (CLAUDE.md: "keine Höhen über 20 m vor M2",
+  // Kept inside the same 10-20 m ceiling black already uses (CLAUDE.md: "no heights above 20 m before M2",
   // and M2 itself does not ask to raise it) – "high metrics kinds" is delivered by allowing every
   // catalogue kind (nothing excluded) rather than by exceeding black's own height window.
   legendary: Object.freeze({ minDeck: 14, maxDeck: 20, riseLimit: 2.5, maxMetricSum: Infinity, exclude: Object.freeze([]) }),

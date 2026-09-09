@@ -162,7 +162,7 @@ export function loadPark(parkDef, { scene, physics, terrain, forest, rng, textur
         route.ladder.dispose();
         route.entryDeck.dispose();
         // Only this route's *own* platforms (never a junction's shared, reused one – js/park/layout.js
-        // §"Kreuzungspodeste" – which belongs to whichever route built it first and is disposed there).
+        // §"junction platforms" – which belongs to whichever route built it first and is disposed there).
         for (const platform of route.ownPlatforms) platform.dispose();
       }
       timber.dispose();
@@ -216,7 +216,7 @@ function buildRoute(routeDef, { scene, physics, terrain, forest, wind, timber, w
   const elements = routeDef.edges.map((edge) => buildRouteElement(edge, routeDef.id, platforms, trees, terrain, elementCtx));
 
   const zip = buildRouteZip({ routeId, zipDef: routeDef.zip, terrain, platforms, trees, elementCtx, textures: wood, rng: rng.fork("zipline") });
-  // `zip.extra` (M2b Umsetzstation): the earlier leg(s) of a split black route – built and returned
+  // `zip.extra` (M2b transfer station): the earlier leg(s) of a split black route – built and returned
   // before the final leg, so they read as "crossed first" everywhere `elements` order matters.
   const zipLegs = zip ? [...(zip.extra || []), { element: zip.element, landing: zip.landing }] : [];
   for (const leg of zipLegs) elements.push(leg.element);
@@ -242,7 +242,7 @@ function buildRoute(routeDef, { scene, physics, terrain, forest, wind, timber, w
     tree: trees[0], trees, facing: routeDef.entry.facing,
     platform: platforms[0], platforms, ownPlatforms, ladder, entryDeck, elements,
     zipline: zip ? zip.element : null, zipLanding: zip ? zip.landing : null,
-    // Every zip landing this route built (1, or 2 for an Umsetzstation) – course.dispose() below needs
+    // Every zip landing this route built (1, or 2 for an transfer station) – course.dispose() below needs
     // all of them; `zipLanding` above stays the *last* one for every existing single-zip consumer.
     zipLandings: zipLegs.map((leg) => leg.landing),
     ladderAnchorId, topAnchorId: `${platforms[0].id}-ring`,
@@ -273,7 +273,7 @@ function buildRouteElement(edge, routeId, platforms, trees, terrain, ctx) {
 /**
  * One Flying Fox ride: the arrival deck (js/park/zip-landing.js) plus the zipline element from
  * `startPos`/`startTop` to it. Shared by the ordinary single-ride case and both legs of a black route's
- * Umsetzstation (M2b, `buildRouteZip` below) – only the departure point, its platform id and the anchor
+ * transfer station (M2b, `buildRouteZip` below) – only the departure point, its platform id and the anchor
  * id suffix differ between a route's one ride and either half of a split one.
  */
 function buildOneZipLeg({ routeId, idSuffix, startPos, startTop, startPlatformId, zipLeg, terrain, elementCtx, textures, rng }) {
@@ -308,7 +308,7 @@ function buildOneZipLeg({ routeId, idSuffix, startPos, startTop, startPlatformId
  * every route either gets a full chain or the seed throws – but the loader stays honest about it
  * exactly like first-course.js did, in case a future generator relaxes that guarantee).
  *
- * M2b Umsetzstation (GDD §3.6): `zipDef.transfer` (a black route whose generator chained a second,
+ * M2b transfer station (GDD §3.6): `zipDef.transfer` (a black route whose generator chained a second,
  * independently validated leg – js/park/layout-route.js#buildZip) turns this into two rides – the first
  * leg's own arrival deck *is* the transfer platform, no separate structure to build for it – returned as
  * `{ element, landing, extra: [firstLeg] }` so the caller still finds the route's *final* ride at the
