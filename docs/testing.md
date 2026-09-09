@@ -58,7 +58,7 @@ and a Chromium; if it is missing, the test ends with SKIP (exit 0).
 
 ### 3.3 Browser Pane / Playwright MCP in Claude Code
 `.claude/launch.json` → configuration “wipfel” starts `serve.py`; screenshots as evidence to
-`docs/screenshots/<milestone>-<nr>-<topic>.png` (< 300 KB), link in the milestone notes.
+`docs/screenshots/<milestone>-<nr>-<topic>.png` (< 300 KB).
 
 ## 4 · Review Loops (before milestone days)
 **Visual:** scale · silhouette · material quality · light · composition · forest density · depth ·
@@ -70,4 +70,4 @@ from the neighboring obstacle? Does it create a story? Rebuild or cut weak obsta
 
 ## 5 · Honesty
 Do not call anything “finished”, “60 fps”, “production-ready” or “animated” that has not been measured or
-seen. Anything provisional is noted in the milestone notes under “open/provisional”.
+seen. Anything provisional is flagged as “open/provisional”.

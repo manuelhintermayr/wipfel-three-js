@@ -1,7 +1,6 @@
 # ROADMAP – Wipfel
 
-Binding milestone and task list (checkboxes are ticked off here; the milestone notes shows
-only the current milestone and the next tasks). Each task is scoped so that it is finished and
+Binding milestone and task list (checkboxes are ticked off here). Each task is scoped so that it is finished and
 committed in ≤ 45 minutes. Acceptance criteria are binding.
 
 **Priority order when goals conflict:** 1 functional correctness · 2 game feel · 3 stable

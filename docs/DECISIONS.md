@@ -68,7 +68,7 @@ hut, 5/6/4 routes, 20 m, 150 m Flying Fox), but uses no real brands/names.
 The nerves model only works if height is rare.
 
 ## ADR-012 · Handover protocol · 2026-08-16 · accepted
-**Decision:** One task = one commit (≤ 45 min); `the milestone notes` after every
+**Decision:** One task = one commit (≤ 45 min); progress recorded after every
 commit; `wip:` commits when at risk of interruption; milestone tags; no co-author / "Generated with" lines.
 
 ## ADR-020 · Offline-baked own outputs under `assets/generated/` allowed · 2026-08-16 · accepted
@@ -80,8 +80,7 @@ runtime (startup time), third-party asset packs (rejected). **Consequences:** `a
 tracks provenance.
 
 ## ADR-021 · Session logs per file · 2026-08-16 · accepted
-**Decision:** one a session log per session (template
-the session-log template), the milestone notes as the index. Old logs are never overwritten.
+**Decision:** one session log per session (from a shared template), with an index file. Old logs are never overwritten.
 **Alternatives:** one growing file (merge/size problems). **Consequences:** richer logs
 (files changed, tests, performance, screenshots) without conflicts.
 
